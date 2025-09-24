@@ -1,0 +1,19 @@
+diff --git a/docs/casper_worker_bug_fix_fix-readme-typo.md b/docs/casper_worker_bug_fix_fix-readme-typo.md
+new file mode 100644
+--- /dev/null
++++ b/docs/casper_worker_bug_fix_fix-readme-typo.md
+@@ -0,0 +1,14 @@
++# Worker Plan for `bug_fix`
++
++**Task:** Fix README typo
++
++**Approach:** Locate failing logic, patch, and describe validation
++
++## Execution Notes
++
++Checklist:
++- Review current implementation
++- Apply targeted update
++- Verify behaviour
++
++Document the manual changes here once applied.

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASPER Prime Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .status {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .status-item {
+            text-align: center;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #00ff00;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .task-input {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        #taskInput {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 5px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        #taskInput::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+        
+        #submitBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        #submitBtn:hover {
+            transform: scale(1.05);
+        }
+        
+        .pipeline {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+        }
+        
+        .column {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            min-height: 200px;
+        }
+        
+        .column h3 {
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .agent-card {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            animation: slideIn 0.5s;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        #wsStatus {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="wsStatus">
+        <span class="status-dot"></span> <span id="statusText">Connecting...</span>
+    </div>
+    
+    <div class="container">
+        <h1>🚀 CASPER Prime Dashboard</h1>
+        
+        <div class="status">
+            <div class="status-item">
+                <strong>Backend:</strong> <span id="backendStatus">Checking...</span>
+            </div>
+            <div class="status-item">
+                <strong>Agents:</strong> <span id="agentCount">0</span>
+            </div>
+            <div class="status-item">
+                <strong>Tasks:</strong> <span id="taskCount">0</span>
+            </div>
+        </div>
+        
+        <div class="task-input">
+            <input type="text" id="taskInput" placeholder="Describe what you want to build... (e.g., 'Build a user authentication system')">
+            <button id="submitBtn">Submit Task</button>
+        </div>
+        
+        <div class="pipeline">
+            <div class="column">
+                <h3>📋 Queued</h3>
+                <div id="queued"></div>
+            </div>
+            <div class="column">
+                <h3>🔍 Planning</h3>
+                <div id="planning"></div>
+            </div>
+            <div class="column">
+                <h3>🔨 Building</h3>
+                <div id="building"></div>
+            </div>
+            <div class="column">
+                <h3>✅ Reviewing</h3>
+                <div id="reviewing"></div>
+            </div>
+            <div class="column">
+                <h3>🚢 Shipped</h3>
+                <div id="shipped"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let ws = null;
+        let agents = new Map();
+        
+        // Check backend health
+        async function checkBackend() {
+            try {
+                const response = await fetch('http://localhost:8742/health');
+                const data = await response.json();
+                if (data.status === 'healthy') {
+                    document.getElementById('backendStatus').textContent = '✅ Online';
+                }
+            } catch (e) {
+                document.getElementById('backendStatus').textContent = '❌ Offline';
+            }
+        }
+        
+        // Connect WebSocket
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:8742/ws');
+            
+            ws.onopen = () => {
+                document.getElementById('statusText').textContent = 'Connected';
+                document.querySelector('.status-dot').style.background = '#00ff00';
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('WebSocket message:', data);
+                
+                if (data.type === 'agent_spawned') {
+                    addAgent(data.data);
+                }
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('statusText').textContent = 'Disconnected';
+                document.querySelector('.status-dot').style.background = '#ff0000';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+        
+        // Add agent to pipeline
+        function addAgent(agent) {
+            agents.set(agent.id, agent);
+            updateAgentCount();
+            
+            const card = document.createElement('div');
+            card.className = 'agent-card';
+            card.innerHTML = \`
+                <div style="font-weight: bold;">\${agent.type}</div>
+                <div style="font-size: 12px; opacity: 0.8;">\${agent.currentTask || 'Idle'}</div>
+                <div style="margin-top: 5px;">
+                    <div style="background: rgba(255,255,255,0.2); height: 4px; border-radius: 2px;">
+                        <div style="background: #00ff00; height: 100%; width: \${agent.progress || 0}%; border-radius: 2px;"></div>
+                    </div>
+                </div>
+            \`;
+            
+            const column = document.getElementById(agent.status) || document.getElementById('planning');
+            column.appendChild(card);
+        }
+        
+        function updateAgentCount() {
+            document.getElementById('agentCount').textContent = agents.size;
+        }
+        
+        // Submit task
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            const input = document.getElementById('taskInput');
+            const task = input.value.trim();
+            
+            if (!task) return;
+            
+            try {
+                const response = await fetch('http://localhost:8742/api/tasks', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({description: task})
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    document.getElementById('taskCount').textContent = 
+                        parseInt(document.getElementById('taskCount').textContent) + 1;
+                }
+            } catch (e) {
+                console.error('Failed to submit task:', e);
+            }
+        });
+        
+        // Enter key to submit
+        document.getElementById('taskInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('submitBtn').click();
+            }
+        });
+        
+        // Initialize
+        checkBackend();
+        connectWebSocket();
+        setInterval(checkBackend, 5000);
+    </script>
+</body>
+</html>

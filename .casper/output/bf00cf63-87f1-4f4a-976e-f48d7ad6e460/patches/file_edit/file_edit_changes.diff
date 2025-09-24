@@ -1,0 +1,19 @@
+diff --git a/docs/casper_worker_file_edit_create-a-simple-hello-function.md b/docs/casper_worker_file_edit_create-a-simple-hello-function.md
+new file mode 100644
+--- /dev/null
++++ b/docs/casper_worker_file_edit_create-a-simple-hello-function.md
+@@ -0,0 +1,14 @@
++# Worker Plan for `file_edit`
++
++**Task:** Create a simple hello function
++
++**Approach:** Apply direct file edits
++
++## Execution Notes
++
++Checklist:
++- Review current implementation
++- Apply targeted update
++- Verify behaviour
++
++Document the manual changes here once applied.

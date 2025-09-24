@@ -1,0 +1,21 @@
+{
+  "general": {
+    "auto_launch_dashboard": false,
+    "confirm_destructive_actions": true,
+    "telemetry_opt_in": false
+  },
+  "agents": {
+    "max_parallel_agents": 4,
+    "default_priority": "medium",
+    "allow_devops_operations": true
+  },
+  "repository": {
+    "ignored_patterns": [
+      "node_modules",
+      ".git",
+      "__pycache__"
+    ],
+    "auto_format_on_apply": true,
+    "require_human_approval": true
+  }
+}

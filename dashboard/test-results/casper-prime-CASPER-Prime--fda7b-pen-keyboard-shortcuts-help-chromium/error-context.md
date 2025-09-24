@@ -1,0 +1,126 @@
+# Page snapshot
+
+```yaml
+- main [ref=e3]:
+  - region "Notifications (F8)":
+    - list
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e7]
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: Workspace
+        - paragraph [ref=e11]: Select a workspace
+      - generic [ref=e12]: Not Found
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - img [ref=e15]
+        - text: connected
+      - button "Command palette" [ref=e19] [cursor=pointer]:
+        - img [ref=e20] [cursor=pointer]
+        - text: Palette
+      - button "Keyboard shortcuts" [ref=e22] [cursor=pointer]:
+        - img [ref=e23] [cursor=pointer]
+      - button "Open Workspace" [ref=e25] [cursor=pointer]:
+        - img [ref=e26] [cursor=pointer]
+        - text: Open Workspace
+      - generic [ref=e28]:
+        - img [ref=e29]
+        - switch "Toggle theme" [checked] [ref=e35] [cursor=pointer]
+        - img [ref=e36]
+  - main [ref=e38]:
+    - complementary [ref=e39]:
+      - generic [ref=e40]:
+        - paragraph [ref=e41]: Files
+        - button "Refresh file tree" [ref=e42] [cursor=pointer]:
+          - img [ref=e43] [cursor=pointer]
+      - generic [ref=e46]:
+        - generic [ref=e47]: Not Found
+        - button "Retry" [ref=e48] [cursor=pointer]
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - img [ref=e53]
+            - text: Master Prime
+          - generic [ref=e55]: "Total tokens: 0"
+          - generic [ref=e56]: "Context sessions: 0"
+        - generic [ref=e57]:
+          - button "Settings" [ref=e58] [cursor=pointer]:
+            - img [ref=e59] [cursor=pointer]
+            - text: Settings
+          - button "Run Agents" [disabled]:
+            - img
+            - text: Run Agents
+      - generic [ref=e62]:
+        - generic [ref=e63]:
+          - heading "Task Submission" [level=3] [ref=e65]
+          - generic [ref=e66]:
+            - generic [ref=e67]:
+              - generic [ref=e68]: Describe the feature or fix
+              - textbox "Describe the feature or fix" [ref=e69]
+            - generic [ref=e70]:
+              - generic [ref=e71]:
+                - paragraph [ref=e72]: Priority
+                - combobox [ref=e73] [cursor=pointer]:
+                  - generic: Medium
+                  - img [ref=e74] [cursor=pointer]
+              - generic [ref=e76]:
+                - button "Analyze Task" [ref=e77] [cursor=pointer]
+                - button "Execute Task" [ref=e78] [cursor=pointer]
+          - generic [ref=e79]: "Tip: Run “Analyze Task” before executing to preview agent allocation and token impact."
+        - generic [ref=e80]:
+          - heading "Project insights" [level=3] [ref=e82]
+          - generic [ref=e83]: No analysis available yet. Open a workspace to view structure insights.
+      - generic [ref=e86]:
+        - img [ref=e87]
+        - paragraph [ref=e90]: No files open
+        - paragraph [ref=e91]: Select a file from the tree to view its contents
+    - complementary [ref=e92]:
+      - generic [ref=e93]:
+        - paragraph [ref=e94]: Agent Activity
+        - generic [ref=e95]:
+          - img [ref=e96]
+          - text: Live
+      - generic [ref=e105]:
+        - generic [ref=e106]:
+          - generic [ref=e108]:
+            - heading "Active Agents" [level=3] [ref=e109]
+            - generic [ref=e110]:
+              - img [ref=e111]
+              - text: 0 active
+          - paragraph [ref=e117]: No active agents
+        - generic [ref=e118]:
+          - generic [ref=e120]:
+            - heading "Metrics Overview" [level=3] [ref=e121]
+            - generic [ref=e122]:
+              - img [ref=e123]
+              - text: Live
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - paragraph [ref=e129]: Total Tokens
+              - paragraph [ref=e130]: "0"
+            - generic [ref=e131]:
+              - paragraph [ref=e132]: Est. Cost
+              - paragraph [ref=e133]: —
+            - generic [ref=e134]:
+              - paragraph [ref=e135]: Active Agents
+              - paragraph [ref=e136]: "0"
+            - generic [ref=e137]:
+              - paragraph [ref=e138]: Completed
+              - paragraph [ref=e139]: "0"
+        - generic [ref=e140]:
+          - generic [ref=e142]:
+            - heading "Task History" [level=3] [ref=e143]
+            - generic [ref=e144]:
+              - img [ref=e145]
+              - text: "0"
+          - paragraph [ref=e153]: No task history available
+  - generic [ref=e154]:
+    - generic [ref=e155]:
+      - generic [ref=e156]:
+        - text: "Status:"
+        - strong [ref=e157]: Ready
+      - generic [ref=e158]: "Tokens: 0"
+      - generic [ref=e159]: "Cost: —"
+    - button "Switch Workspace" [ref=e161] [cursor=pointer]
+```

@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "casper-prime"
+version = "0.1.0"
+description = "Autonomous AI Development Platform for Indie Developers"
+authors = ["Douglas Talley <douglas@legacyai.info>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "core"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+anthropic = "^0.68.0"
+openai = "^1.55.3"
+fastapi = "^0.115.5"
+uvicorn = {extras = ["standard"], version = "^0.32.1"}
+websockets = "^13.1"
+python-dotenv = "^1.0.1"
+pydantic = "^2.10.2"
+redis = "^5.2.0"
+aiofiles = "^24.1.0"
+pyyaml = "^6.0.2"
+click = "^8.1.7"
+rich = "^13.9.4"
+httpx = "^0.28.0"
+sqlalchemy = "^2.0.36"
+alembic = "^1.14.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+pytest-asyncio = "^0.24.0"
+pytest-cov = "^6.0.0"
+black = "^24.10.0"
+flake8 = "^7.1.1"
+mypy = "^1.13.0"
+ipython = "^8.29.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+casper = "core.cli:main"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.mypy]
+python_version = "3.11"
+strict = true

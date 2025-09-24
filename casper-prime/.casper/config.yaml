@@ -1,0 +1,38 @@
+project:
+  name: "CASPER Prime"
+  type: "platform"
+  version: "0.1.0"
+
+agents:
+  max_per_role: 5
+  token_limit_per_task: 10000
+  models:
+    prime: "claude-3-sonnet-20240229"
+    worker: "claude-3-haiku-20240307"
+
+context:
+  max_bundle_size: 2000
+  compression_enabled: true
+  archive_after_days: 7
+
+execution:
+  parallel_tasks: 10
+  task_timeout: 300  # seconds
+  retry_attempts: 3
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "http://localhost:3000"
+
+dashboard:
+  enabled: true
+  port: 3000
+  websocket_enabled: true
+
+logging:
+  level: "INFO"
+  file: ".casper/casper.log"
+  max_size: "10MB"
+  backup_count: 5
