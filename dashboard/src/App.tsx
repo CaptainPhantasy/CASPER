@@ -35,12 +35,17 @@ import { ConnectionStatus } from '@/services/websocket';
 import { ProjectAnalysisPanel } from '@/components/ProjectAnalysisPanel';
 import { CommandPalette } from '@/components/CommandPalette';
 import { SettingsDialog } from '@/components/SettingsDialog';
+import { PanelLayout, LayoutPanel, LayoutPresetSelector, PanelControls } from '@/components/Layout';
+import { TerminalPanel } from '@/components/Terminal';
+import { useLayoutStore } from '@/stores/layoutStore';
 import { WorkspaceInfo } from '@/types';
 
 export default function App() {
   const { toast } = useToast();
   const { openFile, clearAllFiles } = useFileStore();
   const metrics = useAgentStore((state) => state.metrics);
+  const { fetchPendingApprovals } = useAgentStore();
+  const { panels } = useLayoutStore();
 
   const [selectedFilePath, setSelectedFilePath] = React.useState<string | null>(null);
   const [workspaceInfo, setWorkspaceInfo] = React.useState<WorkspaceInfo | null>(null);
@@ -155,6 +160,18 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // Periodically fetch pending approvals
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPendingApprovals();
+    }, 5000); // Check every 5 seconds
+
+    // Fetch immediately on mount
+    fetchPendingApprovals();
+
+    return () => clearInterval(interval);
+  }, [fetchPendingApprovals]);
+
   const handleWorkspaceSelect = React.useCallback((result: OpenWorkspaceResult) => {
     setWorkspaceInfo(result.info);
     setWorkspaceVersion((token) => token + 1);
@@ -183,7 +200,6 @@ export default function App() {
   const workspaceLabel = workspaceInfo?.workspace?.path || 'Select a workspace';
   const languageLabel = workspaceInfo?.workspace?.language || 'Unknown stack';
   const frameworkLabel = workspaceInfo?.workspace?.framework || 'Unknown framework';
-  const gridTemplate = `${280}px minmax(0, 1fr) 320px`;
 
   return (
     <div className="min-h-screen bg-background text-foreground" role="main">
@@ -226,6 +242,8 @@ export default function App() {
               <Button variant="outline" size="sm" onClick={() => setShortcutsOpen(true)} aria-label="Keyboard shortcuts">
                 <Keyboard className="h-4 w-4" />
               </Button>
+              <LayoutPresetSelector />
+              <PanelControls />
               <OpenWorkspaceDialog
                 onWorkspaceSelect={handleWorkspaceSelect}
                 currentWorkspace={workspaceInfo?.current_path}
@@ -237,66 +255,74 @@ export default function App() {
           </div>
         </header>
 
-        <main className="grid flex-1 overflow-hidden" style={{ gridTemplateColumns: gridTemplate }}>
-          <aside className="border-r border-border bg-card/40">
-            <div className="flex items-center justify-between border-b border-border px-4 py-2">
-              <p className="text-sm font-medium">Files</p>
-              <Button variant="ghost" size="icon" onClick={() => setWorkspaceVersion((token) => token + 1)} aria-label="Refresh file tree">
-                <HardDrive className="h-4 w-4" />
-              </Button>
-            </div>
-            <FileTree
-              onFileSelect={handleFileSelect}
-              selectedFile={selectedFilePath ?? undefined}
-              className="h-[calc(100vh-140px)]"
-              refreshToken={workspaceVersion}
-            />
-          </aside>
+        <main className="flex-1 overflow-hidden">
+          <PanelLayout className="h-full">
+            <LayoutPanel panelId="sidebar" className="border-r border-border bg-card/40">
+              <div className="flex items-center justify-between border-b border-border px-4 py-2">
+                <p className="text-sm font-medium">Files</p>
+                <Button variant="ghost" size="icon" onClick={() => setWorkspaceVersion((token) => token + 1)} aria-label="Refresh file tree">
+                  <HardDrive className="h-4 w-4" />
+                </Button>
+              </div>
+              <FileTree
+                onFileSelect={handleFileSelect}
+                selectedFile={selectedFilePath ?? undefined}
+                className="h-[calc(100%-3rem)]"
+                refreshToken={workspaceVersion}
+              />
+            </LayoutPanel>
 
-          <section className="flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border px-4 py-2">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="gap-1">
-                  <Sigma className="h-3 w-3" /> Master Prime
+            <LayoutPanel panelId="main" className="flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between border-b border-border px-4 py-2">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline" className="gap-1">
+                    <Sigma className="h-3 w-3" /> Master Prime
+                  </Badge>
+                  <Separator orientation="vertical" className="hidden h-4 sm:inline-flex" />
+                  <span>Total tokens: {metrics.totalTokens.toLocaleString()}</span>
+                  <Separator orientation="vertical" className="hidden h-4 sm:inline-flex" />
+                  <span>Context sessions: {metrics.contextHandoffs}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" className="gap-2" onClick={() => setSettingsOpen(true)}>
+                    <UploadCloud className="h-4 w-4" />
+                    Settings
+                  </Button>
+                  <Button size="sm" className="gap-2" disabled={!workspaceInfo}>
+                    <Play className="h-4 w-4" />
+                    Run Agents
+                  </Button>
+                </div>
+              </div>
+              <div className="border-b border-border bg-card/20 px-4 py-4 space-y-4">
+                <ApprovalQueue />
+                <TaskPanel />
+                <ProjectAnalysisPanel analysis={workspaceInfo?.analysis} loading={workspaceLoading} />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <FileViewer />
+              </div>
+            </LayoutPanel>
+
+            <LayoutPanel panelId="activity" className="border-l border-border bg-card/40">
+              <div className="flex items-center justify-between border-b border-border px-4 py-2">
+                <p className="text-sm font-medium">Agent Activity</p>
+                <Badge variant="outline" className="gap-1 text-xs">
+                  <PlugZap className="h-3 w-3" />
+                  Live
                 </Badge>
-                <Separator orientation="vertical" className="hidden h-4 sm:inline-flex" />
-                <span>Total tokens: {metrics.totalTokens.toLocaleString()}</span>
-                <Separator orientation="vertical" className="hidden h-4 sm:inline-flex" />
-                <span>Context sessions: {metrics.contextHandoffs}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" className="gap-2" onClick={() => setSettingsOpen(true)}>
-                  <UploadCloud className="h-4 w-4" />
-                  Settings
-                </Button>
-                <Button size="sm" className="gap-2" disabled={!workspaceInfo}>
-                  <Play className="h-4 w-4" />
-                  Run Agents
-                </Button>
-              </div>
-            </div>
-            <div className="border-b border-border bg-card/20 px-4 py-4 space-y-4">
-              <ApprovalQueue />
-              <TaskPanel />
-              <ProjectAnalysisPanel analysis={workspaceInfo?.analysis} loading={workspaceLoading} />
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <FileViewer />
-            </div>
-          </section>
+              <ScrollArea className="h-[calc(100%-3rem)] p-4">
+                <AgentActivityDashboard />
+              </ScrollArea>
+            </LayoutPanel>
 
-          <aside className="border-l border-border bg-card/40">
-            <div className="flex items-center justify-between border-b border-border px-4 py-2">
-              <p className="text-sm font-medium">Agent Activity</p>
-              <Badge variant="outline" className="gap-1 text-xs">
-                <PlugZap className="h-3 w-3" />
-                Live
-              </Badge>
-            </div>
-            <ScrollArea className="h-[calc(100vh-140px)] p-4">
-              <AgentActivityDashboard />
-            </ScrollArea>
-          </aside>
+            {panels.terminal.visible && (
+              <LayoutPanel panelId="terminal" className="border-t border-border bg-card/40">
+                <TerminalPanel className="h-full" />
+              </LayoutPanel>
+            )}
+          </PanelLayout>
         </main>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card/60 px-6 py-2 text-xs text-muted-foreground">

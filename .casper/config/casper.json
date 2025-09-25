@@ -1,0 +1,10 @@
+{
+  "version": "0.1.0",
+  "project_root": "/Volumes/Storage/Development/CASPER DEV",
+  "output_dir": "/Volumes/Storage/Development/CASPER DEV/.casper/output",
+  "max_tokens_per_task": 100000,
+  "agent_settings": {
+    "primary_model": "claude-3-5-sonnet",
+    "worker_model": "claude-3-5-haiku"
+  }
+}

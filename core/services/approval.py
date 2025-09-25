@@ -3,9 +3,12 @@ Human-in-the-Loop Approval System for CASPER Prime
 Ensures all file operations require explicit user consent.
 """
 
+import asyncio
 import json
+import uuid
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 from enum import Enum
 
 
@@ -17,11 +20,27 @@ class ApprovalStatus(Enum):
 
 class FileOperation:
     def __init__(self, operation_type: str, path: str, content: str, agent_id: str):
+        self.id = str(uuid.uuid4())
         self.operation_type = operation_type  # "create", "modify", "delete"
         self.path = path
         self.content = content
         self.agent_id = agent_id
         self.status = ApprovalStatus.PENDING
+        self.created_at = datetime.now()
+        self.approved_at: Optional[datetime] = None
+        self.future: Optional[asyncio.Future] = None
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "operation_type": self.operation_type,
+            "path": self.path,
+            "content": self.content[:200] + "..." if len(self.content) > 200 else self.content,
+            "agent_id": self.agent_id,
+            "status": self.status.value,
+            "created_at": self.created_at.isoformat(),
+            "approved_at": self.approved_at.isoformat() if self.approved_at else None
+        }
 
 
 class HILApprovalService:
@@ -29,50 +48,102 @@ class HILApprovalService:
     Human-in-the-Loop approval service for file operations.
     All file writes must be approved by the user before execution.
     """
-    
+
     def __init__(self):
-        self.pending_operations: List[FileOperation] = []
+        self.pending_operations: Dict[str, FileOperation] = {}
         self.approved_operations: List[FileOperation] = []
         self.rejected_operations: List[FileOperation] = []
-    
-    def request_file_write_approval(self, path: str, content: str, agent_id: str) -> str:
+        self.notification_callbacks: List[Callable] = []
+
+    def add_notification_callback(self, callback: Callable):
+        """Add a callback to be notified when new approvals are needed."""
+        self.notification_callbacks.append(callback)
+
+    async def _notify_callbacks(self, operation: FileOperation):
+        """Notify all registered callbacks about a new approval request."""
+        for callback in self.notification_callbacks:
+            try:
+                if asyncio.iscoroutinefunction(callback):
+                    await callback(operation)
+                else:
+                    callback(operation)
+            except Exception as e:
+                print(f"Error in approval callback: {e}")
+
+    async def request_file_write_approval(self, path: str, content: str, agent_id: str) -> str:
         """
         Request approval for a file write operation.
-        Returns operation ID for tracking.
+        Returns the approval result after user response.
         """
         operation = FileOperation("create", path, content, agent_id)
-        self.pending_operations.append(operation)
-        
-        # In a real implementation, this would:
-        # 1. Show the user a preview of the file
-        # 2. Ask for explicit approval
-        # 3. Wait for user response
-        
+        operation.future = asyncio.Future()
+
+        self.pending_operations[operation.id] = operation
+
+        # Notify callbacks (like WebSocket broadcast) about new approval request
+        await self._notify_callbacks(operation)
+
         print(f"\n🚨 APPROVAL REQUIRED 🚨")
         print(f"Agent {agent_id} wants to create file: {path}")
-        print(f"Content preview (first 200 chars):")
-        print(f"{content[:200]}...")
-        print(f"\nApprove this file creation? (y/n): ", end="")
-        
-        # This is a blocking call - in production this should be async
-        response = input().strip().lower()
-        
-        if response in ['y', 'yes']:
-            operation.status = ApprovalStatus.APPROVED
-            self.approved_operations.append(operation)
-            self.pending_operations.remove(operation)
-            return "approved"
-        else:
+        print(f"Approval ID: {operation.id}")
+
+        # Wait for approval response via API
+        try:
+            result = await asyncio.wait_for(operation.future, timeout=300)  # 5 minute timeout
+            return result
+        except asyncio.TimeoutError:
+            # Auto-reject after timeout
             operation.status = ApprovalStatus.REJECTED
             self.rejected_operations.append(operation)
-            self.pending_operations.remove(operation)
+            del self.pending_operations[operation.id]
             return "rejected"
     
     def get_pending_approvals(self) -> List[FileOperation]:
         """Get all pending approval requests."""
-        return self.pending_operations
-    
-    def approve_operation(self, operation_id: int) -> bool:
+        return list(self.pending_operations.values())
+
+    def get_pending_approvals_dict(self) -> List[Dict]:
+        """Get all pending approval requests as dictionaries for API responses."""
+        return [op.to_dict() for op in self.pending_operations.values()]
+
+    def approve_operation(self, operation_id: str) -> bool:
         """Approve a specific operation by ID."""
-        if operation_id < len(self.pending_operations):
-            operation = self.pending_opera
+        if operation_id in self.pending_operations:
+            operation = self.pending_operations[operation_id]
+            operation.status = ApprovalStatus.APPROVED
+            operation.approved_at = datetime.now()
+
+            # Resolve the future to unblock the waiting agent
+            if operation.future and not operation.future.done():
+                operation.future.set_result("approved")
+
+            # Move to approved list
+            self.approved_operations.append(operation)
+            del self.pending_operations[operation_id]
+            return True
+        return False
+
+    def reject_operation(self, operation_id: str) -> bool:
+        """Reject a specific operation by ID."""
+        if operation_id in self.pending_operations:
+            operation = self.pending_operations[operation_id]
+            operation.status = ApprovalStatus.REJECTED
+            operation.approved_at = datetime.now()
+
+            # Resolve the future to unblock the waiting agent
+            if operation.future and not operation.future.done():
+                operation.future.set_result("rejected")
+
+            # Move to rejected list
+            self.rejected_operations.append(operation)
+            del self.pending_operations[operation_id]
+            return True
+        return False
+
+    def get_operation_by_id(self, operation_id: str) -> Optional[FileOperation]:
+        """Get an operation by its ID."""
+        return self.pending_operations.get(operation_id)
+
+
+# Global approval service instance
+approval_service = HILApprovalService()

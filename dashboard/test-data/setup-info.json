@@ -1,0 +1,7 @@
+{
+  "timestamp": "2025-09-25T03:15:42.375Z",
+  "dashboardUrl": "http://localhost:4173",
+  "backendUrl": "http://localhost:8742",
+  "terminalSupported": true,
+  "setupComplete": true
+}

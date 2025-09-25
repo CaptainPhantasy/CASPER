@@ -5,6 +5,7 @@ Handles single-file edits, small fixes, and straightforward implementations.
 
 import os
 import re
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .base import (
@@ -26,6 +27,7 @@ class WorkerAgent(BaseAgent):
         super().__init__(role=AgentRole.WORKER)
         self.max_file_operations = 3
         self.supported_operations = [
+            "file_creation",
             "file_edit",
             "bug_fix",
             "refactor",
@@ -37,6 +39,7 @@ class WorkerAgent(BaseAgent):
     async def analyze_task(self, task: str, context: ContextBundle) -> Tuple[bool, str]:
         task_lower = task.lower()
         simple_keywords = [
+            "create",
             "fix",
             "update",
             "change",
@@ -73,23 +76,43 @@ class WorkerAgent(BaseAgent):
             operation = self._identify_operation(task)
             plan = self._create_simple_plan(task, operation)
 
-            await self._update_progress(AgentStatus.BUILDING, 45, f"Drafting {operation} patch...")
-            patch_path, summary = await self._generate_patch(task, operation, plan)
+            # Check if this is a simple file creation task
+            if operation == "file_creation":
+                await self._update_progress(AgentStatus.BUILDING, 45, "Creating file...")
+                created_files = await self._create_files_directly(task, operation, plan)
 
-            await self._update_progress(AgentStatus.REVIEWING, 90, "Reviewing patch output...")
-            verification = self._verify_work(operation, plan)
+                await self._update_progress(AgentStatus.REVIEWING, 90, "Verifying created files...")
+                verification = self._verify_work(operation, plan)
 
-            await self._update_progress(AgentStatus.COMPLETED, 100, "Worker task complete")
+                await self._update_progress(AgentStatus.COMPLETED, 100, "File creation complete")
 
-            return AgentResult(
-                agent_id=self.agent_id,
-                agent_role=self.role,
-                task_id=context.session_id,
-                status=AgentStatus.COMPLETED,
-                context_bundle=self.current_context,
-                output=f"Patch file: {patch_path}\n{summary}\n{verification}",
-                token_usage=self.token_usage,
-            )
+                return AgentResult(
+                    agent_id=self.agent_id,
+                    agent_role=self.role,
+                    task_id=context.session_id,
+                    status=AgentStatus.COMPLETED,
+                    context_bundle=self.current_context,
+                    output=f"Created files: {', '.join(created_files)}\n{verification}",
+                    token_usage=self.token_usage,
+                )
+            else:
+                await self._update_progress(AgentStatus.BUILDING, 45, f"Drafting {operation} patch...")
+                patch_path, summary = await self._generate_patch(task, operation, plan)
+
+                await self._update_progress(AgentStatus.REVIEWING, 90, "Reviewing patch output...")
+                verification = self._verify_work(operation, plan)
+
+                await self._update_progress(AgentStatus.COMPLETED, 100, "Worker task complete")
+
+                return AgentResult(
+                    agent_id=self.agent_id,
+                    agent_role=self.role,
+                    task_id=context.session_id,
+                    status=AgentStatus.COMPLETED,
+                    context_bundle=self.current_context,
+                    output=f"Patch file: {patch_path}\n{summary}\n{verification}",
+                    token_usage=self.token_usage,
+                )
         except Exception as exc:  # pragma: no cover - defensive
             return AgentResult(
                 agent_id=self.agent_id,
@@ -103,6 +126,8 @@ class WorkerAgent(BaseAgent):
 
     def _identify_operation(self, task: str) -> str:
         task_lower = task.lower()
+        if "create" in task_lower and ("file" in task_lower or "." in task):
+            return "file_creation"
         if "bug" in task_lower or "fix" in task_lower:
             return "bug_fix"
         if "refactor" in task_lower:
@@ -123,7 +148,10 @@ class WorkerAgent(BaseAgent):
             "approach": "",
         }
 
-        if operation == "bug_fix":
+        if operation == "file_creation":
+            plan["approach"] = "Create new file with specified content"
+            plan["files_to_create"] = self._extract_file_info(task)
+        elif operation == "bug_fix":
             plan["approach"] = "Locate failing logic, patch, and describe validation"
         elif operation == "refactor":
             plan["approach"] = "Improve readability while preserving behaviour"
@@ -159,6 +187,101 @@ class WorkerAgent(BaseAgent):
         self._add_pointer(f"patch_{operation}", path)
         self._track_tokens(40, max(len(diff) // 4, 60))
         return path, "Review and apply with `git apply`"
+
+    async def _create_files_directly(self, task: str, operation: str, plan: Dict) -> List[str]:
+        """Create files directly in the project workspace for simple file creation tasks."""
+        created_files = []
+        files_to_create = plan.get("files_to_create", [])
+
+        project_root = Path(os.environ.get("CASPER_PROJECT_ROOT", Path.cwd()))
+
+        for file_info in files_to_create:
+            filename = file_info.get("filename", "")
+            content = file_info.get("content", "")
+
+            if not filename:
+                continue
+
+            # Create the file in project root
+            file_path = project_root / filename
+
+            # Ensure we don't overwrite existing files without explicit intent
+            if file_path.exists():
+                self._log_decision(f"File {filename} already exists", "Skipping creation", ["overwrite", "rename"])
+                continue
+
+            try:
+                # Request approval for file creation
+                from core.services.approval import approval_service
+                approval_result = await approval_service.request_file_write_approval(
+                    path=filename,
+                    content=content,
+                    agent_id=self.agent_id
+                )
+
+                if approval_result != "approved":
+                    self._log_decision(f"File creation rejected for {filename}", f"Approval status: {approval_result}", ["retry_later", "modify_approach"])
+                    continue
+
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text(content)
+                created_files.append(str(file_path))
+
+                # Record in context
+                self._add_artifact(str(file_path))
+                self._log_decision(f"Created file {filename}", f"Written {len(content)} characters after approval", [])
+
+            except Exception as e:
+                self._log_decision(f"Failed to create {filename}", str(e), ["retry", "patch_instead"])
+
+        self._track_tokens(20, 30)  # Track tokens for file creation work
+        return created_files
+
+    def _extract_file_info(self, task: str) -> List[Dict[str, str]]:
+        """Extract filename and content from task description."""
+        files_info = []
+        task_lower = task.lower()
+
+        # Look for filename patterns
+        import re
+        file_patterns = [
+            r"(?:create|make|new)\s+(?:a\s+)?(?:file\s+)?(?:called\s+)?([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)",
+            r"([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)"
+        ]
+
+        filename = None
+        for pattern in file_patterns:
+            match = re.search(pattern, task, re.IGNORECASE)
+            if match:
+                filename = match.group(1)
+                break
+
+        # Look for content patterns
+        content_patterns = [
+            r"(?:write|add|put|content|contains?)(?:\s+the\s+text)?[:\s]+[\"']?([^\"']+)[\"']?",
+            r"(?:in\s+it\s+write|with\s+content)[:\s]+[\"']?([^\"']+)[\"']?",
+        ]
+
+        content = ""
+        for pattern in content_patterns:
+            match = re.search(pattern, task, re.IGNORECASE)
+            if match:
+                content = match.group(1).strip()
+                break
+
+        # If no specific content found but creation is mentioned, look for quoted content
+        if not content and filename:
+            quoted_content = re.search(r'["\']([^"\']+)["\']', task)
+            if quoted_content:
+                content = quoted_content.group(1)
+
+        if filename:
+            files_info.append({
+                "filename": filename,
+                "content": content or "# TODO: Add content here"
+            })
+
+        return files_info
 
     def _build_prompt(self, task: str, operation: str, plan: Dict) -> str:
         return (
@@ -253,6 +376,7 @@ class WorkerAgent(BaseAgent):
 
     def _verify_work(self, operation: str, plan: Dict) -> str:
         verifications = {
+            "file_creation": "Files created successfully in project workspace",
             "bug_fix": "Bug fix generated with rationale attached",
             "refactor": "Refactor patch ready for review",
             "documentation": "Documentation additions prepared",
@@ -265,6 +389,7 @@ class WorkerAgent(BaseAgent):
     def estimate_completion_time(self, task: str) -> int:
         operation = self._identify_operation(task)
         times = {
+            "file_creation": 15,
             "bug_fix": 30,
             "refactor": 45,
             "documentation": 20,

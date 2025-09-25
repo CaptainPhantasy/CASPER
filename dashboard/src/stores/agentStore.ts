@@ -20,6 +20,7 @@ interface AgentStoreState {
   addApproval: (item: ApprovalItem) => void;
   updateApproval: (id: string, status: 'approved' | 'rejected') => Promise<void>;
   removeApproval: (id: string) => void;
+  fetchPendingApprovals: () => Promise<void>;
   reset: () => void;
 }
 
@@ -42,7 +43,7 @@ const roleToType = (role: AgentRole): Agent['type'] => {
 
 const defaultTokenUsage: TokenUsage = { current: 0, limit: 1000000, efficiency: 0 };
 
-const initialState: Omit<AgentStoreState, 'spawnAgent' | 'updateAgent' | 'upsertTask' | 'submitTask' | 'applyWS' | 'setMetrics' | 'addApproval' | 'updateApproval' | 'removeApproval' | 'reset'> = {
+const initialState: Omit<AgentStoreState, 'spawnAgent' | 'updateAgent' | 'upsertTask' | 'submitTask' | 'applyWS' | 'setMetrics' | 'addApproval' | 'updateApproval' | 'removeApproval' | 'fetchPendingApprovals' | 'reset'> = {
   agents: new Map(),
   tasks: new Map(),
   handoffs: 0,
@@ -131,6 +132,44 @@ export const useAgentStore = create<AgentStoreState>((set, _get) => ({
   removeApproval: (id) => set((state) => ({
     approvalQueue: state.approvalQueue.filter(item => item.id !== id)
   })),
+
+  fetchPendingApprovals: async () => {
+    try {
+      const response = await fetch('/api/approvals');
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const pending = data.pending || [];
+
+      const approvals: ApprovalItem[] = pending.map((item: any) => ({
+        id: item.id,
+        type: item.operation_type === 'create' ? 'file_create' : 'file_edit',
+        agentId: item.agent_id,
+        description: `${item.operation_type} ${item.path}`,
+        details: {
+          path: item.path,
+          diff: item.content ? {
+            before: '',
+            after: item.content.substring(0, 500) + (item.content.length > 500 ? '...' : '')
+          } : undefined
+        },
+        timestamp: item.created_at,
+        status: item.status as 'pending' | 'approved' | 'rejected',
+        riskLevel: 'medium' as const
+      }));
+
+      set((state) => ({
+        approvalQueue: [
+          ...state.approvalQueue.filter(existing =>
+            !approvals.find(newItem => newItem.id === existing.id)
+          ),
+          ...approvals
+        ]
+      }));
+    } catch (error) {
+      console.error('Failed to fetch pending approvals:', error);
+    }
+  },
 
   applyWS: (msg) => set((state) => {
     const agents = new Map(state.agents);
@@ -246,9 +285,29 @@ export const useAgentStore = create<AgentStoreState>((set, _get) => ({
         break;
       }
       case 'approval_request': {
-        if (msg.data?.approval) {
-          approvalQueue = [...approvalQueue, msg.data.approval];
+        // Handle approval request from WebSocket message
+        const approval: ApprovalItem = {
+          id: (msg as any).id,
+          type: 'file_create', // Map operation_type to our types
+          agentId: (msg as any).agent_id,
+          description: `${(msg as any).operation_type} ${(msg as any).path}`,
+          details: {
+            path: (msg as any).path,
+          },
+          timestamp: (msg as any).created_at,
+          status: (msg as any).status === 'pending' ? 'pending' : 'approved',
+          riskLevel: 'medium', // Default risk level
+        };
+
+        // Add content preview if available
+        if ((msg as any).content) {
+          approval.details.diff = {
+            before: '',
+            after: (msg as any).content.substring(0, 500) + '...'
+          };
         }
+
+        approvalQueue = [...approvalQueue, approval];
         break;
       }
       default:

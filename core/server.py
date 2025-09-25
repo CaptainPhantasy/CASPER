@@ -5,35 +5,54 @@ Provides real-time updates and API endpoints.
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 import os
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from core.orchestrator.coordinator import AgentCoordinator
 from core.orchestrator.task_analyzer import TaskAnalyzer
 from core.context.manager import ContextManager
 from core.agents.base import ProgressUpdate, TaskPriority, AgentStatus
 from core.services.codebase import codebase_service
+from core.services.approval import approval_service
+from core.services.business import business_service
+from core.services.development import development_service
+from core.terminal import TerminalWebSocketHandler
 
 
 load_dotenv()
-app = FastAPI(title="CASPER Prime API", version="0.1.0")
 
-# CORS configuration
-allowed_origins = [
+# Rate limiter configuration - externalized via environment
+limiter = Limiter(key_func=get_remote_address)
+# Configurable rate limits via environment variables
+TASK_RATE_LIMIT = os.environ.get("TASK_RATE_LIMIT", "10/minute")
+ANALYSIS_RATE_LIMIT = os.environ.get("ANALYSIS_RATE_LIMIT", "20/minute")
+FILE_RATE_LIMIT = os.environ.get("FILE_RATE_LIMIT", "120/minute")
+FILETREE_RATE_LIMIT = os.environ.get("FILETREE_RATE_LIMIT", "60/minute")
+app = FastAPI(title="CASPER Prime API", version="0.1.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS configuration - externalized via environment
+default_origins = [
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:9318",
     "http://127.0.0.1:9318",
 ]
+cors_origins_env = os.environ.get("CORS_ALLOWED_ORIGINS", "")
+allowed_origins = cors_origins_env.split(",") if cors_origins_env else default_origins
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"],)
 
 
@@ -74,28 +93,96 @@ class SettingsPayload(BaseModel):
     repository: Dict[str, Any] = Field(default_factory=dict)
 
 
+# Business API Request Models
+class ProposalRequest(BaseModel):
+    client_name: str
+    project_description: str
+    template_type: str = "standard"
+    include_hours: bool = True
+
+
+class EstimateRequest(BaseModel):
+    project_description: str
+    detailed: bool = True
+    include_risks: bool = True
+
+
+class InvoiceRequest(BaseModel):
+    client_name: str
+    project_name: str = ""
+    hours: Optional[float] = None
+    template: str = "standard"
+
+
+class BusinessHistoryResponse(BaseModel):
+    proposals: List[Dict[str, Any]]
+    estimates: List[Dict[str, Any]]
+    invoices: List[Dict[str, Any]]
+
+
+# Development API Request Models
+class MigrationRequest(BaseModel):
+    action: str  # create, up, down, status, rollback
+    name: Optional[str] = None
+
+
+class SeedRequest(BaseModel):
+    action: str  # run, create, rollback
+    seeder_name: Optional[str] = None
+
+
+class SecurityScanRequest(BaseModel):
+    target: str = "all"  # all, deps, code
+    auto_fix: bool = False
+
+
+class LintRequest(BaseModel):
+    file_pattern: Optional[str] = None
+    auto_fix: bool = False
+    scan_all: bool = False
+
+
+class APIGenerationRequest(BaseModel):
+    api_type: str  # rest, graphql
+    resource_name: str
+    include_crud: bool = False
+    include_auth: bool = False
+
+
+class LogAnalysisRequest(BaseModel):
+    action: str = "tail"  # tail, search, errors
+    pattern: Optional[str] = None
+    follow: bool = False
+
+
 # Global instances
 coordinator: Optional[AgentCoordinator] = None
 context_manager: Optional[ContextManager] = None
 task_analyzer: Optional[TaskAnalyzer] = None
 websocket_connections: List[WebSocket] = []
+terminal_handler: Optional[TerminalWebSocketHandler] = None
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize CASPER Prime components."""
-    global coordinator, context_manager, task_analyzer
+    global coordinator, context_manager, task_analyzer, terminal_handler
 
     os.environ.setdefault("CASPER_PROJECT_ROOT", str(Path.cwd()))
 
     context_manager = ContextManager()
     coordinator = AgentCoordinator(context_manager)
     task_analyzer = TaskAnalyzer()
+    terminal_handler = TerminalWebSocketHandler()
 
     await coordinator.start()
+    await terminal_handler.start()
 
     # Register progress callback for WebSocket updates
     coordinator.register_progress_callback(broadcast_progress_update)
+
+    # Register approval callback for WebSocket updates
+    approval_service.add_notification_callback(broadcast_approval_request)
 
     print("CASPER Prime server started")
 
@@ -105,6 +192,8 @@ async def shutdown_event():
     """Cleanup on shutdown."""
     if coordinator:
         await coordinator.stop()
+    if terminal_handler:
+        await terminal_handler.stop()
     print("CASPER Prime server stopped")
 
 
@@ -148,6 +237,16 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket error: {e}")
         if websocket in websocket_connections:
             websocket_connections.remove(websocket)
+
+
+# Terminal WebSocket endpoint
+@app.websocket("/ws/terminal")
+async def terminal_websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for terminal sessions."""
+    if terminal_handler:
+        await terminal_handler.handle_connection(websocket)
+    else:
+        await websocket.close(code=1011, reason="Terminal handler not initialized")
 
 
 async def broadcast_progress_update(update: ProgressUpdate):
@@ -235,16 +334,37 @@ async def broadcast_context_update():
             websocket_connections.remove(websocket)
 
 
+async def broadcast_approval_request(operation):
+    """Broadcast approval requests to all connected WebSocket clients."""
+    approval_data = {
+        "type": "approval_request",
+        **operation.to_dict()
+    }
+
+    disconnected = []
+    for websocket in websocket_connections:
+        try:
+            await websocket.send_json(approval_data)
+        except:
+            disconnected.append(websocket)
+
+    for websocket in disconnected:
+        if websocket in websocket_connections:
+            websocket_connections.remove(websocket)
+
+
 # REST API endpoints
 @app.post("/api/task", response_model=TaskResponse)
-async def submit_task(submission: TaskSubmission):
+@limiter.limit(TASK_RATE_LIMIT)
+async def submit_task(request: Request, submission: TaskSubmission):
     """Submit a new task to CASPER Prime."""
     return await submit_task_internal(submission.task, submission.priority)
 
 
 # Alias to plural endpoint for compatibility
 @app.post("/api/tasks", response_model=TaskResponse)
-async def submit_task_plural(submission: Dict[str, str]):
+@limiter.limit(TASK_RATE_LIMIT)
+async def submit_task_plural(request: Request, submission: Dict[str, str]):
     description = submission.get("description") or submission.get("task") or ""
     priority = submission.get("priority", "medium")
     return await submit_task_internal(description, priority)
@@ -377,10 +497,6 @@ async def start_background_tasks():
     asyncio.create_task(periodic_context_update())
 
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", "8742"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "time": datetime.now().isoformat()}
@@ -398,7 +514,8 @@ async def open_workspace(request: WorkspaceRequest):
 
 
 @app.post("/api/task/analyze")
-async def analyze_task_endpoint(task_data: Dict[str, str]):
+@limiter.limit(ANALYSIS_RATE_LIMIT)
+async def analyze_task_endpoint(request: Request, task_data: Dict[str, str]):
     """Analyze a task to determine complexity and requirements."""
     if not task_analyzer:
         raise HTTPException(status_code=503, detail="Task analyzer not initialized")
@@ -444,7 +561,8 @@ async def analyze_task_endpoint(task_data: Dict[str, str]):
 
 
 @app.get("/api/workspace/filetree")
-async def get_file_tree():
+@limiter.limit(FILETREE_RATE_LIMIT)
+async def get_file_tree(request: Request):
     """Get the current workspace file tree."""
     try:
         file_tree = codebase_service.get_file_tree()
@@ -454,7 +572,8 @@ async def get_file_tree():
 
 
 @app.post("/api/workspace/file")
-async def read_file(request: FileRequest):
+@limiter.limit(FILE_RATE_LIMIT)
+async def read_file(request_obj: Request, request: FileRequest):
     """Read a file from the current workspace."""
     try:
         file_data = codebase_service.read_file(request.path)
@@ -514,3 +633,531 @@ async def update_settings(payload: SettingsPayload):
     if not codebase_service.current_workspace:
         raise HTTPException(status_code=400, detail="No workspace opened")
     return codebase_service.update_settings(payload.dict())
+
+
+# Approval System API Endpoints
+@app.get("/api/approvals")
+async def get_pending_approvals():
+    """Get all pending approval requests."""
+    return {
+        "pending": approval_service.get_pending_approvals_dict(),
+        "count": len(approval_service.pending_operations)
+    }
+
+
+@app.post("/api/approvals/{approval_id}/approve")
+async def approve_operation(approval_id: str):
+    """Approve a specific operation by ID."""
+    success = approval_service.approve_operation(approval_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Approval request not found")
+
+    # Broadcast approval update to WebSocket clients
+    approval_update = {
+        "type": "approval_response",
+        "id": approval_id,
+        "status": "approved",
+        "timestamp": datetime.now().isoformat()
+    }
+
+    disconnected = []
+    for websocket in websocket_connections:
+        try:
+            await websocket.send_json(approval_update)
+        except:
+            disconnected.append(websocket)
+
+    for websocket in disconnected:
+        if websocket in websocket_connections:
+            websocket_connections.remove(websocket)
+
+    return {"status": "approved", "id": approval_id}
+
+
+@app.post("/api/approvals/{approval_id}/reject")
+async def reject_operation(approval_id: str):
+    """Reject a specific operation by ID."""
+    success = approval_service.reject_operation(approval_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Approval request not found")
+
+    # Broadcast rejection update to WebSocket clients
+    approval_update = {
+        "type": "approval_response",
+        "id": approval_id,
+        "status": "rejected",
+        "timestamp": datetime.now().isoformat()
+    }
+
+    disconnected = []
+    for websocket in websocket_connections:
+        try:
+            await websocket.send_json(approval_update)
+        except:
+            disconnected.append(websocket)
+
+    for websocket in disconnected:
+        if websocket in websocket_connections:
+            websocket_connections.remove(websocket)
+
+    return {"status": "rejected", "id": approval_id}
+
+
+# Terminal Management API Endpoints
+@app.get("/api/terminal/status")
+async def get_terminal_status():
+    """Get terminal handler status and statistics."""
+    if not terminal_handler:
+        raise HTTPException(status_code=503, detail="Terminal handler not initialized")
+
+    stats = terminal_handler.get_connection_stats()
+    return {
+        "status": "running",
+        "stats": stats,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.get("/api/terminal/sessions")
+async def list_terminal_sessions():
+    """List all active terminal sessions."""
+    if not terminal_handler:
+        raise HTTPException(status_code=503, detail="Terminal handler not initialized")
+
+    sessions = terminal_handler.pty_manager.list_sessions()
+    return {
+        "sessions": sessions,
+        "count": len(sessions)
+    }
+
+
+@app.post("/api/terminal/sessions/{session_id}/command")
+async def execute_terminal_command(session_id: str, command_data: Dict[str, str]):
+    """Execute a command in a specific terminal session."""
+    if not terminal_handler:
+        raise HTTPException(status_code=503, detail="Terminal handler not initialized")
+
+    command = command_data.get("command", "")
+    if not command:
+        raise HTTPException(status_code=400, detail="Command is required")
+
+    # Validate command through security middleware
+    try:
+        await terminal_handler.security.validate_input(command, session_id)
+    except Exception as e:
+        raise HTTPException(status_code=403, detail=f"Command blocked: {str(e)}")
+
+    # Send command to session
+    success = await terminal_handler.pty_manager.write_to_session(session_id, command + "\n")
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found or inactive")
+
+    return {"status": "executed", "command": command, "session_id": session_id}
+
+
+@app.get("/api/terminal/security/stats")
+async def get_terminal_security_stats():
+    """Get terminal security statistics and audit log."""
+    if not terminal_handler:
+        raise HTTPException(status_code=503, detail="Terminal handler not initialized")
+
+    summary = terminal_handler.security.get_audit_summary(hours=24)
+    return {
+        "status": "active",
+        "security_enabled": True,
+        "audit_summary": summary,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.get("/api/terminal/security/audit")
+async def get_security_audit_log(hours: int = 24, risk_level: str = None):
+    """Get detailed security audit log."""
+    if not terminal_handler:
+        raise HTTPException(status_code=503, detail="Terminal handler not initialized")
+
+    cutoff_time = datetime.now() - timedelta(hours=hours)
+
+    # Filter audit events
+    filtered_events = []
+    for event in terminal_handler.security.audit_log:
+        if event.timestamp >= cutoff_time:
+            if not risk_level or event.risk_level.value == risk_level:
+                filtered_events.append(event.to_dict())
+
+    return {
+        "events": filtered_events,
+        "total_events": len(filtered_events),
+        "hours": hours,
+        "risk_level_filter": risk_level
+    }
+
+
+@app.post("/api/terminal/security/validate")
+async def validate_command_security(command_data: Dict[str, str]):
+    """Validate a command against security policies without executing."""
+    if not terminal_handler:
+        raise HTTPException(status_code=503, detail="Terminal handler not initialized")
+
+    command = command_data.get("command", "")
+    if not command:
+        raise HTTPException(status_code=400, detail="Command is required")
+
+    session_id = command_data.get("session_id", "validation_test")
+    user_id = command_data.get("user_id")
+
+    try:
+        await terminal_handler.security.validate_command(command, session_id, user_id)
+        return {
+            "valid": True,
+            "command": command,
+            "message": "Command passed security validation"
+        }
+    except Exception as e:
+        return {
+            "valid": False,
+            "command": command,
+            "reason": str(e),
+            "message": "Command blocked by security policy"
+        }
+
+
+@app.get("/api/terminal/sessions/active")
+async def get_active_terminal_sessions():
+    """Get detailed information about active terminal sessions."""
+    if not terminal_handler:
+        raise HTTPException(status_code=503, detail="Terminal handler not initialized")
+
+    sessions = terminal_handler.get_active_sessions()
+    return {
+        "sessions": sessions,
+        "count": len(sessions),
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.get("/api/approvals/{approval_id}")
+async def get_approval_details(approval_id: str):
+    """Get details of a specific approval request."""
+    operation = approval_service.get_operation_by_id(approval_id)
+    if not operation:
+        raise HTTPException(status_code=404, detail="Approval request not found")
+    return operation.to_dict()
+
+
+# Development API Endpoints
+@app.post("/api/dev/migrate")
+async def database_migration(request: MigrationRequest):
+    """Database migration management."""
+    try:
+        result = await development_service.manage_migration(request.action, request.name)
+        return {
+            "success": result,
+            "action": request.action,
+            "name": request.name,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
+
+
+@app.post("/api/dev/seed")
+async def database_seeding(request: SeedRequest):
+    """Database seeding management."""
+    try:
+        result = await development_service.manage_seeding(request.action, request.seeder_name)
+        return {
+            "success": result,
+            "action": request.action,
+            "seeder_name": request.seeder_name,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seeding failed: {str(e)}")
+
+
+@app.post("/api/dev/scan")
+async def security_scan(request: SecurityScanRequest):
+    """Security vulnerability scanning."""
+    try:
+        issues = await development_service.security_scan(request.target, request.auto_fix)
+
+        # Group issues by severity
+        summary = {
+            "critical": len([i for i in issues if i.severity == "critical"]),
+            "high": len([i for i in issues if i.severity == "high"]),
+            "medium": len([i for i in issues if i.severity == "medium"]),
+            "low": len([i for i in issues if i.severity == "low"])
+        }
+
+        return {
+            "success": True,
+            "target": request.target,
+            "auto_fix": request.auto_fix,
+            "summary": summary,
+            "total_issues": len(issues),
+            "issues": [{
+                "severity": issue.severity,
+                "type": issue.type,
+                "package": issue.package,
+                "version": issue.version,
+                "description": issue.description,
+                "recommendation": issue.recommendation
+            } for issue in issues],
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Security scan failed: {str(e)}")
+
+
+@app.post("/api/dev/lint")
+async def code_linting(request: LintRequest):
+    """Code linting with auto-fix capabilities."""
+    try:
+        results = await development_service.run_linting(
+            request.file_pattern,
+            request.auto_fix,
+            request.scan_all
+        )
+
+        total_issues = sum(r.total for r in results)
+        fixable_issues = sum(r.fixable for r in results)
+
+        return {
+            "success": True,
+            "file_pattern": request.file_pattern,
+            "auto_fix": request.auto_fix,
+            "scan_all": request.scan_all,
+            "summary": {
+                "files_checked": len(results),
+                "total_issues": total_issues,
+                "fixable_issues": fixable_issues
+            },
+            "results": [{
+                "file": result.file,
+                "total": result.total,
+                "fixable": result.fixable,
+                "issues": result.issues
+            } for result in results],
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Linting failed: {str(e)}")
+
+
+@app.post("/api/dev/api-gen")
+async def api_generation(request: APIGenerationRequest):
+    """Generate REST/GraphQL API scaffolding."""
+    try:
+        result = await development_service.generate_api(
+            request.api_type,
+            request.resource_name,
+            request.include_crud,
+            request.include_auth
+        )
+
+        return {
+            "success": result,
+            "api_type": request.api_type,
+            "resource_name": request.resource_name,
+            "include_crud": request.include_crud,
+            "include_auth": request.include_auth,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"API generation failed: {str(e)}")
+
+
+@app.get("/api/dev/logs")
+async def log_analysis(
+    action: str = "tail",
+    pattern: Optional[str] = None,
+    follow: bool = False
+):
+    """Intelligent log analysis and error detection."""
+    try:
+        result = await development_service.analyze_logs(action, pattern, follow)
+
+        return {
+            "success": result,
+            "action": action,
+            "pattern": pattern,
+            "follow": follow,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Log analysis failed: {str(e)}")
+
+
+# Business Operations API Endpoints
+@app.post("/api/business/proposal")
+async def create_proposal(request: ProposalRequest):
+    """Generate AI-powered business proposal."""
+    try:
+        success = await business_service.generate_proposal(
+            client_name=request.client_name,
+            project_description=request.project_description,
+            template_type=request.template_type,
+            include_hours=request.include_hours
+        )
+
+        if success:
+            return {
+                "success": True,
+                "message": f"Proposal generated for {request.client_name}",
+                "client": request.client_name,
+                "template": request.template_type,
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to generate proposal")
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/business/estimate")
+async def create_estimate(request: EstimateRequest):
+    """Generate AI-powered project estimation."""
+    try:
+        estimate = await business_service.estimate_project(
+            project_description=request.project_description,
+            detailed=request.detailed,
+            include_risks=request.include_risks
+        )
+
+        return {
+            "success": True,
+            "project_name": estimate.project_name,
+            "total_hours": estimate.total_hours,
+            "total_cost": estimate.total_cost,
+            "breakdown": estimate.breakdown,
+            "risks": estimate.risks,
+            "confidence_level": estimate.confidence_level,
+            "rate_per_hour": estimate.rate_per_hour,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/business/invoice")
+async def create_invoice(request: InvoiceRequest):
+    """Generate professional invoice."""
+    try:
+        success = await business_service.generate_invoice(
+            client_name=request.client_name,
+            project_name=request.project_name or None,
+            hours=request.hours,
+            template=request.template
+        )
+
+        if success:
+            return {
+                "success": True,
+                "message": f"Invoice generated for {request.client_name}",
+                "client": request.client_name,
+                "project": request.project_name,
+                "hours": request.hours,
+                "template": request.template,
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to generate invoice")
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/business/history")
+async def get_business_history():
+    """Get history of business operations (proposals, estimates, invoices)."""
+    try:
+        # Read business directories
+        proposals = []
+        estimates = []
+        invoices = []
+
+        # Get proposals
+        proposals_dir = business_service.proposals_dir
+        if proposals_dir.exists():
+            for proposal_file in proposals_dir.glob("*.md"):
+                try:
+                    stat = proposal_file.stat()
+                    proposals.append({
+                        "filename": proposal_file.name,
+                        "path": str(proposal_file),
+                        "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                        "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "size": stat.st_size
+                    })
+                except Exception:
+                    continue
+
+        # Get estimates
+        estimates_dir = business_service.estimates_dir
+        if estimates_dir.exists():
+            for estimate_file in estimates_dir.glob("*.json"):
+                try:
+                    with open(estimate_file, 'r') as f:
+                        estimate_data = json.load(f)
+                    estimates.append({
+                        "filename": estimate_file.name,
+                        "path": str(estimate_file),
+                        "project": estimate_data.get("project", "Unknown"),
+                        "total_hours": estimate_data.get("total_hours", 0),
+                        "total_cost": estimate_data.get("total_cost", 0),
+                        "confidence": estimate_data.get("confidence", "Medium"),
+                        "created_at": estimate_data.get("created_at", ""),
+                        "risks_count": len(estimate_data.get("risks", []))
+                    })
+                except Exception:
+                    continue
+
+        # Get invoices
+        invoices_dir = business_service.invoices_dir
+        if invoices_dir.exists():
+            for invoice_file in invoices_dir.glob("*.json"):
+                try:
+                    with open(invoice_file, 'r') as f:
+                        invoice_data = json.load(f)
+                    invoices.append({
+                        "filename": invoice_file.name,
+                        "invoice_number": invoice_data.get("invoice_number", ""),
+                        "client": invoice_data.get("client", ""),
+                        "project": invoice_data.get("project", ""),
+                        "hours": invoice_data.get("hours", 0),
+                        "total": invoice_data.get("total", 0),
+                        "created_at": invoice_data.get("created_at", ""),
+                        "due_date": invoice_data.get("due_date", "")
+                    })
+                except Exception:
+                    continue
+
+        # Sort by created_at (most recent first)
+        proposals.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        estimates.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        invoices.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
+        return {
+            "proposals": proposals,
+            "estimates": estimates,
+            "invoices": invoices,
+            "summary": {
+                "total_proposals": len(proposals),
+                "total_estimates": len(estimates),
+                "total_invoices": len(invoices),
+                "total_invoice_amount": sum(inv.get("total", 0) for inv in invoices)
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve business history: {str(e)}")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", "8742"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

@@ -30,8 +30,8 @@ class TaskAnalyzer:
 
     # Keywords indicating different aspects of complexity
     COMPLEXITY_KEYWORDS = {
-        "simple": ["fix", "update", "change", "modify", "adjust", "tweak"],
-        "moderate": ["add", "implement", "create", "build", "develop"],
+        "simple": ["fix", "update", "change", "modify", "adjust", "tweak", "create"],
+        "moderate": ["add", "implement", "build", "develop"],
         "complex": ["refactor", "redesign", "architect", "migrate", "integrate", "orchestrate"],
         "system": ["system", "platform", "application", "service", "infrastructure"]
     }
@@ -244,11 +244,53 @@ class TaskAnalyzer:
             # Add common agents for complex tasks
             required.update([AgentRole.FRONTEND_PRIME, AgentRole.BACKEND_PRIME])
 
+        # Detect simple file creation tasks and route directly to worker
+        if cls._is_simple_file_creation(task):
+            return {AgentRole.WORKER}
+
         # For simple tasks with no specific requirements
         if metrics.lines_of_code_estimate < 100 and len(required) == 1:
             required.add(AgentRole.WORKER)
 
         return required
+
+    @classmethod
+    def _is_simple_file_creation(cls, task: str) -> bool:
+        """
+        Detect simple file creation tasks that should go directly to worker.
+        """
+        task_lower = task.lower()
+
+        # Look for file creation patterns
+        file_creation_patterns = [
+            r"create\s+(?:a\s+)?(?:new\s+)?(?:file|document)\s+(?:called\s+)?[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+",
+            r"create\s+(?:a\s+)?(?:new\s+)?(?:file\s+)?(?:called\s+)?[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+",
+            r"(?:make|new)\s+[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+",
+        ]
+
+        has_file_creation = any(re.search(pattern, task_lower) for pattern in file_creation_patterns)
+
+        # Simple content indicators
+        simple_content_indicators = [
+            "hello world",
+            "write",
+            "put",
+            "add content",
+            "in it write",
+            "with content"
+        ]
+
+        has_simple_content = any(indicator in task_lower for indicator in simple_content_indicators)
+
+        # Complex indicators that would require master coordination
+        complex_indicators = [
+            "system", "api", "database", "authentication", "integration",
+            "multiple files", "architecture", "complex", "advanced"
+        ]
+
+        has_complex_features = any(indicator in task_lower for indicator in complex_indicators)
+
+        return has_file_creation and (has_simple_content or len(task.split()) <= 15) and not has_complex_features
 
     @classmethod
     def _determine_priority(cls, task: str, complexity: int, metrics: TaskMetrics) -> TaskPriority:

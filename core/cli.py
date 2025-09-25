@@ -30,11 +30,12 @@ from core.orchestrator.coordinator import AgentCoordinator
 from core.orchestrator.task_analyzer import TaskAnalyzer
 from core.context.manager import ContextManager
 from core.agents.base import AgentStatus, TaskPriority, ProgressUpdate
+from core.reasoning.react_engine import get_react_engine
 
 
 load_dotenv()
 
-console = Console()
+console = Console(force_terminal=True)
 
 
 class CasperCLI:
@@ -332,6 +333,87 @@ class CasperCLI:
         strategy = TaskAnalyzer.suggest_execution_strategy(task, metrics)
         console.print(f"\n[cyan]Suggested Strategy:[/cyan] {strategy}")
 
+    async def execute_react_task(self, task: str):
+        """
+        Execute a task using the ReAct reasoning engine with streaming output.
+        """
+        console.print()
+        console.print(Panel(
+            f"[bright_white]{task}[/bright_white]",
+            title="[bold bright_magenta]◆ ReAct Reasoning Task[/bold bright_magenta]",
+            border_style="bright_magenta",
+            padding=(0, 1)
+        ))
+
+        # Initialize ReAct engine
+        with Status("[bold bright_magenta]Initializing ReAct engine...", spinner="dots12", console=console):
+            project_root = os.environ.get("CASPER_PROJECT_ROOT", str(Path.cwd()))
+            react_engine = get_react_engine(project_root)
+            await asyncio.sleep(0.5)  # Visual pause
+
+        console.print(f"[bold green]✓[/bold green] [bright_white]ReAct engine ready[/bright_white]")
+        console.print(f"[dim]Model: {react_engine.get_capabilities()['model']}[/dim]")
+        console.print(f"[dim]Tools: {len(react_engine.get_capabilities()['tools'])} available[/dim]\n")
+
+        # Stream reasoning process
+        console.print("[bold bright_magenta]◆ Reasoning Chain[/bold bright_magenta]\n")
+
+        try:
+            step_count = 0
+            async for step_data in react_engine.stream_reasoning(task):
+                if step_data["type"] == "thought":
+                    step_count = step_data["step"]
+                    console.print(f"[bold bright_blue]💭 Step {step_count} - Thought:[/bold bright_blue]")
+                    console.print(f"[dim]{step_data['content']}[/dim]\n")
+
+                elif step_data["type"] == "action":
+                    console.print(f"[bold bright_green]🔧 Action:[/bold bright_green] {step_data['action']}")
+                    console.print(f"[bright_white]Input:[/bright_white] {step_data['input']}")
+
+                elif step_data["type"] == "observation":
+                    console.print(f"[bold bright_yellow]👁  Observation:[/bold bright_yellow]")
+                    # Format observation nicely
+                    obs = step_data['content']
+                    if len(obs) > 500:
+                        obs = obs[:500] + "\n... (truncated)"
+                    console.print(f"[dim]{obs}[/dim]")
+                    console.print("-" * 60 + "\n")
+
+                elif step_data["type"] == "final_answer":
+                    console.print(f"[bold bright_green]🎯 Final Answer:[/bold bright_green]")
+                    console.print(Panel(
+                        step_data["content"],
+                        border_style="bright_green",
+                        padding=(1, 2)
+                    ))
+
+                elif step_data["type"] == "completion":
+                    result = step_data["result"]
+                    console.print(f"\n[bold bright_green]✅ Task completed successfully![/bold bright_green]")
+                    console.print(f"[dim]Reasoning steps: {result['reasoning_steps']}[/dim]")
+                    console.print(f"[dim]Reasoning log: {result['reasoning_log_path']}[/dim]")
+                    return
+
+                elif step_data["type"] == "error":
+                    console.print(f"\n[bold red]❌ Error during execution:[/bold red]")
+                    console.print(f"[red]{step_data['error']}[/red]")
+                    return
+
+        except KeyboardInterrupt:
+            console.print("\n[yellow]❌ ReAct execution interrupted by user[/yellow]")
+        except Exception as e:
+            console.print(f"\n[bold red]❌ ReAct execution failed:[/bold red]")
+            console.print(f"[red]{e}[/red]")
+
+    async def run_setup(self):
+        """
+        Run the AI provider setup configuration.
+        """
+        from core.services.setup import SetupService
+
+        setup_service = SetupService()
+        setup_service.interactive_setup()
+
 
 async def main():
     """Main entry point for CLI."""
@@ -355,6 +437,10 @@ async def main():
     analyze_parser = subparsers.add_parser("analyze", help="Analyze a task without executing")
     analyze_parser.add_argument("description", help="Task description")
 
+    # ReAct command
+    react_parser = subparsers.add_parser("react", help="Execute task using ReAct reasoning engine")
+    react_parser.add_argument("description", help="Task description")
+
     # Status command
     subparsers.add_parser("status", help="Show system status")
 
@@ -369,6 +455,9 @@ async def main():
         help="Project directory (default: current directory)"
     )
 
+    # Setup command
+    subparsers.add_parser("setup", help="Configure AI provider API keys")
+
     args = parser.parse_args()
 
     # Create CLI instance
@@ -381,6 +470,9 @@ async def main():
             target = Path(args.project).resolve() if getattr(args, 'project', None) else Path.cwd()
             cli.init_project(target)
             return
+        elif args.command == "setup":
+            await cli.run_setup()
+            return
 
         console.print("[bold green]Initializing CASPER...[/bold green]")
         await cli.initialize()
@@ -390,6 +482,8 @@ async def main():
             await cli.execute_task(args.description, args.priority)
         elif args.command == "analyze":
             await cli.analyze_only(args.description)
+        elif args.command == "react":
+            await cli.execute_react_task(args.description)
         elif args.command == "status":
             await cli.show_status()
         elif args.command == "list":
@@ -407,55 +501,23 @@ async def main():
 
 
 def print_modern_banner():
-    """Print a professional banner with proper layout."""
-    # Get terminal width for dynamic sizing
-    terminal_width = console.size.width
-    
-    # ASCII art with GHOST replacing the "A" in CASPER
+    """Print the clean CASPER logo as specified."""
+    # Clean CASPER logo - no framing, no additional text
     ascii_art = [
-        "/\\\\\\\\\\\\\\\\\\____    ░▄▄▄░    ___/\\\\\\\\\\\\\\\\\\____/\\\\\\\\\\\\\\\\\\\\\\____/\\\\\\\\\\\\\\\\\\\\\\\\\\____/\\\\\\\\\\\\\\\\\\____",
-        "/\\\\\\////////___   ░█▀▀▀█░   __/\\\\\\/////////\\\\\\_\\/\\\\\\/////////\\\\\\_\\/\\\\\\///////////___/\\\\\\///////\\\\\\__",
-        "/\\\\\\/__________  ░█ ● ● █░  __\\//\\\\\\______\\///__\\/\\\\\\_______\\/\\\\\\_\\/\\\\\\_____________\\/\\\\\\____\\/\\\\\\__",
-        "/\\\\\\____________  ░█  ○  █░  __\\////\\\\\\_________\\/\\\\\\\\\\\\\\\\\\\\\\\\\\/___\\/\\\\\\\\\\\\\\\\\\\\\\\\_____\\/\\\\\\\\\\\\\\\\\\\\\\/___",
-        "\\/\\\\\\____________  ░█▄▄▄▄▄█░  __\\////\\\\\\______\\/\\\\\\/////////____\\/\\\\\\///////______\\/\\\\\\//////\\\\\\___",
-        "\\//\\\\\\___________  ░▀▀▀▀▀░   ___\\////\\\\\\___\\/\\\\\\_____________\\/\\\\\\_____________\\/\\\\\\____\\//\\\\\\__",
-        "\\///\\\\\\__________   ░░░░░░░   __/\\\\\\______\\//\\\\\\__\\/\\\\\\_____________\\/\\\\\\_____________\\/\\\\\\_____\\//\\\\\\_",
-        "\\////\\\\\\\\\\\\\\\\_   ░░░░░░░   _\\///\\\\\\\\\\\\\\\\\\/___\\/\\\\\\_____________\\/\\\\\\\\\\\\\\\\\\\\\\\\\\\\_\\/\\\\\\______\\//\\\\\\_",
-        "\\/////////__      ░░░░░░░     \\///////////_____\\///______________\\///////////////__\\///________\\///__"
+        r"________/\\\\\\\\_____/\\\\\\\\\________/\\\\\\\\\\\____/\\\\\\\\\\\\\____/\\\\\\\\\\\\\\\____/\\\\\\\\\_____",
+        r" _____/\\\////////____/\\\\\\\\\\\\\____/\\\/////////\\\_\/\\\/////////\\\_\/\\\///////////___/\\\///////\\\___",
+        r"  ___/\\\/____________/\\\/////////\\\__\//\\\______\///__\/\\\\_______\/\\\_\/\\\_____________\/\\\_____\/\\\___",
+        r"   __/\\\_____________\/\\\___\\\___\\\___\////\\\_________\/\\\\\\\\\\\\\/__\/\\\\\\\\\\\_____\/\\\\\\\\\\\/____",
+        r"    _\/\\\_____________\/\\\\\\\\\\\\\\\______\////\\\______\/\\\/////////____\/\\\///////______\/\\\//////\\\____",
+        r"     _\//\\\____________\/\\\\\\\\\\\\\\\_________\////\\\___\/\\\_____________\/\\\_____________\/\\\____\//\\\___",
+        r"      __\///\\\__________\/\\\\\\\\\\\\\\\__/\\\______\//\\\__\/\\\_____________\/\\\_____________\/\\\_____\//\\\__",
+        r"       ____\////\\\\\\\\\_\/\\\\\\\\\\\\\\\_\///\\\\\\\\\\\/___\/\\\_____________\/\\\\\\\\\\\\\\\_\/\\\______\//\\\_",
+        r"        _______\/////////__\//__//___//__//____\///////////_____\///______________\///////////////__\///________\///__"
     ]
-    
-    # Calculate the actual width needed
-    art_width = len(ascii_art[0])  # Width of the ASCII art
-    tagline = "Cognitive Agent System for Planning, Execution & Refinement"
-    version = "v1.0.0 • CLI Interface"
-    
-    # Use the wider of art or tagline, plus padding
-    content_width = max(art_width, len(tagline), len(version))
-    banner_width = min(content_width + 4, terminal_width - 2)  # Add padding, respect terminal
-    
-    # Create border
-    top_border = "╭" + "─" * (banner_width - 2) + "╮"
-    bottom_border = "╰" + "─" * (banner_width - 2) + "╯"
-    
-    # Helper function to center content in the banner
-    def center_line(content):
-        padding = (banner_width - 2 - len(content)) // 2
-        remaining = (banner_width - 2 - len(content)) - padding
-        return "│" + " " * padding + content + " " * remaining + "│"
-    
-    # Build the banner
+
     console.print()
-    console.print(f"[bright_cyan]{top_border}[/bright_cyan]")
-    console.print(f"[bright_cyan]│{' ' * (banner_width - 2)}│[/bright_cyan]")
-    
-    # Print ASCII art
     for line in ascii_art:
-        console.print(f"[bold bright_cyan]{center_line(line)}[/bold bright_cyan]")
-    
-    console.print(f"[bright_cyan]│{' ' * (banner_width - 2)}│[/bright_cyan]")
-    console.print(f"[bright_white]{center_line(tagline)}[/bright_white]")
-    console.print(f"[dim bright_white]{center_line(version)}[/dim bright_white]")
-    console.print(f"[bright_cyan]{bottom_border}[/bright_cyan]")
+        console.print(line)
     console.print()
 
 

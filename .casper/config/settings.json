@@ -1,6 +1,6 @@
 {
   "general": {
-    "auto_launch_dashboard": false,
+    "auto_launch_dashboard": true,
     "confirm_destructive_actions": true,
     "telemetry_opt_in": false
   },

@@ -1,0 +1,14 @@
+I'll help create a new markdown document called CASPERRDOC.MD with "HELLO WORLD" content.
+
+```diff
+--- /dev/null
++++ CASPERRDOC.MD
+@@ -0,0 +1 @@
++HELLO WORLD
+```
+
+This minimal diff:
+1. Creates a new file CASPERRDOC.MD (indicated by /dev/null in the source path)
+2. Adds a single line containing "HELLO WORLD"
+
+The diff is formatted in unified diff format and represents the simplest possible implementation of the requested change.

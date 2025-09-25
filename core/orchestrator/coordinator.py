@@ -18,6 +18,7 @@ from core.agents.base import (
 )
 from core.context.manager import ContextManager
 from core.context.reducer import ContextReducer
+from core.orchestrator.task_analyzer import TaskAnalyzer
 
 
 @dataclass
@@ -214,8 +215,15 @@ class AgentCoordinator:
         Submit a new task to the coordinator.
         Returns task ID for tracking.
         """
-        # Create master delegation
         task_id = uuid4()
+
+        # Analyze task to determine optimal agent routing
+        metrics, required_agents, suggested_priority = TaskAnalyzer.analyze_task(task)
+
+        # Use suggested priority if no explicit priority provided
+        if priority == TaskPriority.MEDIUM and suggested_priority != TaskPriority.MEDIUM:
+            priority = suggested_priority
+
         # Always initialize a typed ContextBundle for agent compatibility
         context_bundle = self.context_manager.load_context(task_id)
         if isinstance(context_bundle, dict):
@@ -242,9 +250,16 @@ class AgentCoordinator:
             context_bundle.root_task_id = task_id
             context_bundle.parent_task = task
 
+        # Determine target agent based on analysis
+        # If only worker is needed, route directly to worker instead of master
+        if required_agents == {AgentRole.WORKER}:
+            target_agent = AgentRole.WORKER
+        else:
+            target_agent = AgentRole.MASTER
+
         delegation = TaskDelegation(
             source_agent_id=UUID('00000000-0000-0000-0000-000000000000'),  # System
-            target_specialization=AgentRole.MASTER,
+            target_specialization=target_agent,
             task_description=task,
             context_bundle=context_bundle,
             priority=priority,
