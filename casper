@@ -8,12 +8,18 @@ import os
 import asyncio
 from pathlib import Path
 
-# Add the CASPER DEV directory to Python path
-casper_dir = Path(__file__).parent
-sys.path.insert(0, str(casper_dir))
+# Determine the CASPER installation directory
+# The CASPER modules are installed in /Volumes/Storage/Development/CASPER DEV
+casper_install_dir = Path("/Volumes/Storage/Development/CASPER DEV")
 
-# Change to CASPER directory
-os.chdir(casper_dir)
+# Add CASPER to Python path so we can import its modules
+sys.path.insert(0, str(casper_install_dir))
+
+# Get the current working directory (where user is running casper from)
+working_dir = Path.cwd()
+
+# Change to working directory (stay where the user is)
+os.chdir(working_dir)
 
 async def interactive_shell():
     """Run CASPER as an interactive development shell"""
@@ -170,12 +176,14 @@ try:
         if sys.argv[1] == '--complete':
             # Explicitly use the complete terminal
             import subprocess
-            result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir)
+            terminal_path = casper_install_dir / 'casper_terminal_complete.py'
+            result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir)
             sys.exit(result.returncode)
         elif sys.argv[1] == '--simple':
             # Use the simple terminal (Tier 1 & 2 only)
             import subprocess
-            result = subprocess.run([sys.executable, 'casper_terminal_simple.py'], cwd=casper_dir)
+            terminal_path = casper_install_dir / 'casper_terminal_simple.py'
+            result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir)
             sys.exit(result.returncode)
         elif sys.argv[1] == '--original':
             # Use the original interactive shell
@@ -224,7 +232,6 @@ Total: 50+ commands
         elif sys.argv[1] in ['--yolo', '--auto', '--strict']:
             # Approval mode modifiers - pass to complete terminal
             import subprocess
-            import os
 
             # Set environment variable for approval mode
             env = os.environ.copy()
@@ -235,7 +242,8 @@ Total: 50+ commands
             else:  # --strict
                 env['CASPER_APPROVAL_MODE'] = 'STRICT'
 
-            result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir, env=env)
+            terminal_path = casper_install_dir / 'casper_terminal_complete.py'
+            result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir, env=env)
             sys.exit(result.returncode)
         elif sys.argv[1] in ['-i', '--interactive']:
             # Legacy interactive mode - use original
@@ -248,10 +256,10 @@ Total: 50+ commands
     else:
         # No arguments - DEFAULT: Use the complete terminal in STRICT mode
         import subprocess
-        import os
         env = os.environ.copy()
         env['CASPER_APPROVAL_MODE'] = 'STRICT'  # Default to strict mode
-        result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir, env=env)
+        terminal_path = casper_install_dir / 'casper_terminal_complete.py'
+        result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir, env=env)
         sys.exit(result.returncode)
 
 except ImportError as e:
@@ -264,7 +272,8 @@ except ImportError as e:
         # Last resort - try to run the complete terminal directly
         import subprocess
         print("Attempting direct execution of complete terminal...")
-        result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir)
+        terminal_path = casper_install_dir / 'casper_terminal_complete.py'
+        result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir)
         sys.exit(result.returncode)
 except KeyboardInterrupt:
     print("\n👋 CASPER interrupted by user")
