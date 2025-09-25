@@ -30,13 +30,15 @@ from core.cli import CasperCLI, print_modern_banner
 from core.services.approval import HILApprovalService as ApprovalService
 
 
-# Command categories for organized help - ALL 49 COMMANDS
+# Command categories for organized help - ALL 49+ COMMANDS
 COMMAND_CATEGORIES = {
     "core": {
         "help": "Display available commands and usage",
         "task": "Execute development tasks",
         "analyze": "Analyze task complexity",
         "status": "Show system and agent status",
+        "approve": "Review and approve pending operations",
+        "clear": "Clear the terminal screen",
         "exit": "Exit CASPER2 terminal",
         "quit": "Exit CASPER2 terminal (alias for exit)"
     },
@@ -115,15 +117,35 @@ class CasperTerminalComplete:
         self.export_dir.mkdir(parents=True, exist_ok=True)
 
     async def initialize(self):
-        """Initialize CASPER CLI"""
+        """Initialize CASPER CLI with approval mode from environment"""
         self.casper_cli = CasperCLI()
 
-        # Set auto-approval for smooth operation
+        # Get approval mode from environment
+        approval_mode = os.environ.get('CASPER_APPROVAL_MODE', 'STRICT')
+        self.approval_mode = approval_mode
+
+        # Configure approval based on mode
         try:
-            if hasattr(self.casper_cli, 'config'):
-                self.casper_cli.config['require_human_approval'] = False
-            approval_service = ApprovalService()
-            approval_service.auto_approve = True
+            if approval_mode == 'YOLO':
+                # YOLO mode - approve everything automatically
+                if hasattr(self.casper_cli, 'config'):
+                    self.casper_cli.config['require_human_approval'] = False
+                approval_service = ApprovalService()
+                approval_service.auto_approve = True
+                self.console.print("[bold yellow]⚡ YOLO MODE ACTIVATED[/bold yellow] - All operations will be auto-approved!")
+            elif approval_mode == 'AUTO':
+                # Auto mode - smart auto-approval for safe operations
+                if hasattr(self.casper_cli, 'config'):
+                    self.casper_cli.config['require_human_approval'] = True
+                    self.casper_cli.config['auto_approve_safe'] = True
+                self.console.print("[bold green]🤖 AUTO-APPROVAL MODE[/bold green] - Safe operations will be auto-approved")
+            else:  # STRICT mode (default)
+                # Strict mode - require approval for all operations
+                if hasattr(self.casper_cli, 'config'):
+                    self.casper_cli.config['require_human_approval'] = True
+                approval_service = ApprovalService()
+                approval_service.auto_approve = False
+                self.console.print("[bold red]🔒 STRICT MODE[/bold red] - All operations require approval")
         except:
             pass
 
@@ -228,6 +250,46 @@ class CasperTerminalComplete:
             table.add_row(agent, role, caps)
 
         self.console.print(table)
+
+    async def handle_approve(self) -> None:
+        """Handle approve command - review pending operations"""
+        if self.approval_mode == 'YOLO':
+            self.console.print("[yellow]⚡ YOLO mode active - operations are auto-approved![/yellow]")
+            return
+
+        try:
+            approval_service = ApprovalService()
+            pending = await approval_service.get_pending_operations()
+
+            if pending:
+                self.console.print(f"[yellow]Found {len(pending)} pending operations:[/yellow]\n")
+
+                for op in pending:
+                    # Display operation details
+                    table = Table(show_header=False, box=None)
+                    table.add_column("Field", style="cyan")
+                    table.add_column("Value", style="white")
+
+                    table.add_row("Operation ID", op.id)
+                    table.add_row("Type", op.operation_type)
+                    table.add_row("Path", op.details.get('path', 'N/A'))
+                    table.add_row("Description", op.details.get('description', 'N/A'))
+
+                    self.console.print(Panel(table, title=f"[bold yellow]Pending Operation[/bold yellow]"))
+
+                    # Ask for approval
+                    from rich.prompt import Confirm
+                    if Confirm.ask("Approve this operation?", default=True):
+                        await approval_service.approve(op.id)
+                        self.console.print("[green]✓ Approved[/green]\n")
+                    else:
+                        await approval_service.reject(op.id)
+                        self.console.print("[red]✗ Rejected[/red]\n")
+            else:
+                self.console.print("[dim]No pending operations to approve[/dim]")
+
+        except Exception as e:
+            self.console.print(f"[red]❌ Error accessing approval service: {e}[/red]")
 
     # ============= TIER 3: DEVELOPMENT COMMANDS =============
 
@@ -796,6 +858,13 @@ class CasperTerminalComplete:
 
     # ============= MAIN COMMAND ROUTER =============
 
+    async def handle_clear(self) -> None:
+        """Handle clear command - clears the screen"""
+        self.console.clear()
+        # Reprint banner after clear
+        print_casper2_banner()
+        self.console.print()
+
     async def handle_command(self, command: str, args: str) -> bool:
         """Route command to appropriate handler"""
 
@@ -807,7 +876,10 @@ class CasperTerminalComplete:
             "task": lambda: self.handle_task(args),
             "analyze": lambda: self.handle_analyze(args),
             "status": lambda: self.handle_status(),
+            "approve": lambda: self.handle_approve(),
             "list": lambda: self.handle_list(),
+            "clear": lambda: self.handle_clear(),
+            "cls": lambda: self.handle_clear(),  # Windows-style alias
             "exit": lambda: self.handle_exit(),
             "quit": lambda: self.handle_exit(),
             "q": lambda: self.handle_exit(),
@@ -878,25 +950,39 @@ class CasperTerminalComplete:
 
     async def run(self):
         """Main terminal loop"""
+        import time
+
+        # Track consecutive CTRL-C presses
+        last_interrupt_time = 0
+        interrupt_threshold = 2.0  # seconds
+
         # Print banner
         print_casper2_banner()
 
         # Initialize
         await self.initialize()
 
-        # Welcome message
+        # Welcome message with approval mode status
+        approval_status = {
+            'YOLO': "[bold yellow]⚡ YOLO MODE[/bold yellow] - Auto-approving everything",
+            'AUTO': "[bold green]🤖 AUTO MODE[/bold green] - Smart auto-approval",
+            'STRICT': "[bold red]🔒 STRICT MODE[/bold red] - Manual approval required"
+        }.get(self.approval_mode, "[dim]Unknown approval mode[/dim]")
+
         welcome_panel = Panel.fit(
             "[bold cyan]CASPER2 Complete Terminal[/bold cyan]\n"
-            "[dim]All 49 Commands Implemented with COT Verification[/dim]\n\n"
-            "[green]• Core Commands:[/green] 6 commands\n"
+            "[dim]All 50+ Commands with Full Approval Control[/dim]\n\n"
+            f"Approval: {approval_status}\n\n"
+            "[green]• Core Commands:[/green] 8 commands\n"
             "[green]• Workflow Commands:[/green] 5 commands\n"
             "[green]• Development Commands:[/green] 14 commands\n"
             "[green]• AI Commands:[/green] 5 commands\n"
             "[green]• Business Commands:[/green] 5 commands\n"
             "[green]• Testing Commands:[/green] 5 commands\n"
             "[green]• Utility Commands:[/green] 10 commands\n\n"
-            "[yellow]Total: 49 commands ready[/yellow]\n"
-            "[dim]Type 'help' to see all commands[/dim]",
+            "[yellow]Total: 50+ commands ready[/yellow]\n"
+            "[dim]Type 'help' for commands, 'approve' to review operations[/dim]\n"
+            "[dim]Press Ctrl+C twice quickly to force exit[/dim]",
             title="🚀 CASPER2 Complete",
             border_style="cyan"
         )
@@ -928,9 +1014,24 @@ class CasperTerminalComplete:
                 self.console.print()  # Add spacing
 
             except KeyboardInterrupt:
-                self.console.print("\n[yellow]⚠ Use 'exit' to quit gracefully[/yellow]")
+                current_time = time.time()
+                if current_time - last_interrupt_time < interrupt_threshold:
+                    # Second CTRL-C within threshold - exit
+                    self.console.print("\n[dim]→ Shutting down CASPER2...[/dim]")
+                    try:
+                        await self.casper_cli.shutdown()
+                        self.console.print("[bold green]✓[/bold green] CASPER2 shutdown complete")
+                    except:
+                        pass  # Ignore shutdown errors on force exit
+                    break
+                else:
+                    # First CTRL-C - show message and continue
+                    last_interrupt_time = current_time
+                    self.console.print("\n[dim]→ Press Ctrl+C again to exit, or type 'exit' for graceful shutdown[/dim]")
+
             except Exception as e:
                 self.console.print(f"[red]❌ Error: {e}[/red]")
+                self.console.print("[dim]The session remains active. Type 'help' for commands.[/dim]")
 
 
 def print_casper2_banner():

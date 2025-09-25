@@ -185,16 +185,29 @@ try:
 
 Usage: casper [options]
 
-Options:
-    (default)     Run complete terminal with all 49 commands
+Terminal Modes:
+    (default)     Run complete terminal (STRICT approval mode)
     --complete    Explicitly run complete 49-command terminal
     --simple      Run simple terminal (Tier 1 & 2 commands only)
     --original    Run original CASPER interactive shell
+
+Approval Modes:
+    --yolo        YOLO mode - Auto-approve everything (no confirmations)
+    --auto        Auto-approve mode - Automatic approval for safe operations
+    --strict      Strict mode - Require approval for all operations (default)
+
+Other Options:
     -h, --help    Show this help message
     -v, --version Show version information
 
+Examples:
+    casper              # Run with strict approval (default)
+    casper --yolo       # Run in YOLO mode (auto-approve everything)
+    casper --auto       # Run with smart auto-approval
+    casper --strict     # Explicitly use strict mode
+
 Available Commands (Complete Mode):
-    • 6 Core commands (help, task, analyze, status, exit, quit)
+    • 8 Core commands (help, task, analyze, status, approve, clear, exit, quit)
     • 5 Workflow commands (/task, /analyze, /status, /help, list)
     • 14 Development commands (/create, /test, /debug, /review, etc.)
     • 5 AI commands (/ai-review, /ai-complete, /ai-explain, etc.)
@@ -202,12 +215,28 @@ Available Commands (Complete Mode):
     • 5 Testing commands (/unit-test, /integration-test, etc.)
     • 10 Utility commands (/search, /format, /backup, etc.)
 
-Total: 49 unique commands + quit alias = 50 commands
+Total: 50+ commands
 """)
             sys.exit(0)
         elif sys.argv[1] in ['-v', '--version']:
             print("CASPER v2.0.0 - Complete 49-Command Implementation")
             sys.exit(0)
+        elif sys.argv[1] in ['--yolo', '--auto', '--strict']:
+            # Approval mode modifiers - pass to complete terminal
+            import subprocess
+            import os
+
+            # Set environment variable for approval mode
+            env = os.environ.copy()
+            if sys.argv[1] == '--yolo':
+                env['CASPER_APPROVAL_MODE'] = 'YOLO'
+            elif sys.argv[1] == '--auto':
+                env['CASPER_APPROVAL_MODE'] = 'AUTO'
+            else:  # --strict
+                env['CASPER_APPROVAL_MODE'] = 'STRICT'
+
+            result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir, env=env)
+            sys.exit(result.returncode)
         elif sys.argv[1] in ['-i', '--interactive']:
             # Legacy interactive mode - use original
             asyncio.run(interactive_shell())
@@ -217,10 +246,12 @@ Total: 49 unique commands + quit alias = 50 commands
             print_modern_banner()
             asyncio.run(main())
     else:
-        # No arguments - DEFAULT: Use the complete terminal
-        # Run the complete terminal directly (proven to work)
+        # No arguments - DEFAULT: Use the complete terminal in STRICT mode
         import subprocess
-        result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir)
+        import os
+        env = os.environ.copy()
+        env['CASPER_APPROVAL_MODE'] = 'STRICT'  # Default to strict mode
+        result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir, env=env)
         sys.exit(result.returncode)
 
 except ImportError as e:
