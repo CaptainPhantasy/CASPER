@@ -169,12 +169,14 @@ try:
     if len(sys.argv) > 1:
         if sys.argv[1] == '--complete':
             # Explicitly use the complete terminal
-            from casper_terminal_complete import main as complete_main
-            asyncio.run(complete_main())
+            import subprocess
+            result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir)
+            sys.exit(result.returncode)
         elif sys.argv[1] == '--simple':
             # Use the simple terminal (Tier 1 & 2 only)
-            from casper_terminal_simple import main as simple_main
-            asyncio.run(simple_main())
+            import subprocess
+            result = subprocess.run([sys.executable, 'casper_terminal_simple.py'], cwd=casper_dir)
+            sys.exit(result.returncode)
         elif sys.argv[1] == '--original':
             # Use the original interactive shell
             asyncio.run(interactive_shell())
@@ -216,13 +218,10 @@ Total: 49 unique commands + quit alias = 50 commands
             asyncio.run(main())
     else:
         # No arguments - DEFAULT: Use the complete terminal
-        try:
-            from casper_terminal_complete import main as complete_main
-            asyncio.run(complete_main())
-        except ImportError as e:
-            print(f"Note: Complete terminal not available ({e})")
-            print("Falling back to original interactive shell...")
-            asyncio.run(interactive_shell())
+        # Run the complete terminal directly (proven to work)
+        import subprocess
+        result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir)
+        sys.exit(result.returncode)
 
 except ImportError as e:
     print(f"Error importing CASPER: {e}")
@@ -231,7 +230,11 @@ except ImportError as e:
         asyncio.run(interactive_shell())
     except Exception as fallback_error:
         print(f"Fallback also failed: {fallback_error}")
-        sys.exit(1)
+        # Last resort - try to run the complete terminal directly
+        import subprocess
+        print("Attempting direct execution of complete terminal...")
+        result = subprocess.run([sys.executable, 'casper_terminal_complete.py'], cwd=casper_dir)
+        sys.exit(result.returncode)
 except KeyboardInterrupt:
     print("\n👋 CASPER interrupted by user")
     sys.exit(0)
