@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-CASPER CLI Wrapper Script
-Makes CASPER accessible via 'casper' command
+CASPER CLI - Complete 49-Command Implementation
+Production entry point with full command support
 """
 import sys
 import os
@@ -163,21 +163,78 @@ async def interactive_shell():
             console.print(f"[red]❌ Error:[/red] {str(e)}")
             console.print("[dim]The CASPER session remains active. Type 'status' to check system health.[/dim]")
 
-# Import and run the CLI
+# Import and run the appropriate terminal
 try:
-    # Check if interactive mode is requested
-    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] in ['-i', '--interactive']):
-        # No arguments or explicit interactive flag - run interactive mode
-        asyncio.run(interactive_shell())
+    # Check for command modifiers
+    if len(sys.argv) > 1:
+        if sys.argv[1] == '--complete':
+            # Explicitly use the complete terminal
+            from casper_terminal_complete import main as complete_main
+            asyncio.run(complete_main())
+        elif sys.argv[1] == '--simple':
+            # Use the simple terminal (Tier 1 & 2 only)
+            from casper_terminal_simple import main as simple_main
+            asyncio.run(simple_main())
+        elif sys.argv[1] == '--original':
+            # Use the original interactive shell
+            asyncio.run(interactive_shell())
+        elif sys.argv[1] in ['-h', '--help']:
+            print("""CASPER - Complete AI Development Terminal
+
+Usage: casper [options]
+
+Options:
+    (default)     Run complete terminal with all 49 commands
+    --complete    Explicitly run complete 49-command terminal
+    --simple      Run simple terminal (Tier 1 & 2 commands only)
+    --original    Run original CASPER interactive shell
+    -h, --help    Show this help message
+    -v, --version Show version information
+
+Available Commands (Complete Mode):
+    • 6 Core commands (help, task, analyze, status, exit, quit)
+    • 5 Workflow commands (/task, /analyze, /status, /help, list)
+    • 14 Development commands (/create, /test, /debug, /review, etc.)
+    • 5 AI commands (/ai-review, /ai-complete, /ai-explain, etc.)
+    • 5 Business commands (/invoice, /proposal, /contract, etc.)
+    • 5 Testing commands (/unit-test, /integration-test, etc.)
+    • 10 Utility commands (/search, /format, /backup, etc.)
+
+Total: 49 unique commands + quit alias = 50 commands
+""")
+            sys.exit(0)
+        elif sys.argv[1] in ['-v', '--version']:
+            print("CASPER v2.0.0 - Complete 49-Command Implementation")
+            sys.exit(0)
+        elif sys.argv[1] in ['-i', '--interactive']:
+            # Legacy interactive mode - use original
+            asyncio.run(interactive_shell())
+        else:
+            # Unknown argument - run standard CLI with args
+            from core.cli import main, print_modern_banner
+            print_modern_banner()
+            asyncio.run(main())
     else:
-        # Arguments provided - run standard CLI
-        from core.cli import main, print_modern_banner
-        print_modern_banner()
-        asyncio.run(main())
+        # No arguments - DEFAULT: Use the complete terminal
+        try:
+            from casper_terminal_complete import main as complete_main
+            asyncio.run(complete_main())
+        except ImportError as e:
+            print(f"Note: Complete terminal not available ({e})")
+            print("Falling back to original interactive shell...")
+            asyncio.run(interactive_shell())
 
 except ImportError as e:
-    print(f"Error importing CASPER CLI: {e}")
-    sys.exit(1)
+    print(f"Error importing CASPER: {e}")
+    print("Trying fallback to original shell...")
+    try:
+        asyncio.run(interactive_shell())
+    except Exception as fallback_error:
+        print(f"Fallback also failed: {fallback_error}")
+        sys.exit(1)
 except KeyboardInterrupt:
-    print("\n→ CASPER interrupted by user")
+    print("\n👋 CASPER interrupted by user")
     sys.exit(0)
+except Exception as e:
+    print(f"❌ Fatal error: {e}")
+    sys.exit(1)
