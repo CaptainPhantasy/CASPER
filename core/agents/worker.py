@@ -28,6 +28,7 @@ class WorkerAgent(BaseAgent):
         self.max_file_operations = 3
         self.supported_operations = [
             "file_creation",
+            "folder_creation",
             "file_edit",
             "bug_fix",
             "refactor",
@@ -73,10 +74,26 @@ class WorkerAgent(BaseAgent):
             self.current_context = context
             await self._update_progress(AgentStatus.PLANNING, 12, "Scoping change...")
 
-            operation = self._identify_operation(task)
-            plan = self._create_simple_plan(task, operation)
+            # Try AI interpretation first
+            interpreted_task = await self._interpret_with_ai(task)
+            if interpreted_task:
+                # Map AI operations to our internal operations
+                op_map = {
+                    "create_file": "file_creation",
+                    "create_folder": "folder_creation",
+                    "modify_file": "file_edit",
+                    "delete_file": "file_edit",
+                    "delete_folder": "file_edit",
+                }
+                ai_operation = interpreted_task.get("operation", "file_edit")
+                operation = op_map.get(ai_operation, ai_operation)
+                plan = self._create_plan_from_interpretation(task, interpreted_task)
+            else:
+                # Fallback to basic pattern matching
+                operation = self._identify_operation(task)
+                plan = self._create_simple_plan(task, operation)
 
-            # Check if this is a simple file creation task
+            # Check if this is a simple file or folder creation task
             if operation == "file_creation":
                 await self._update_progress(AgentStatus.BUILDING, 45, "Creating file...")
                 created_files = await self._create_files_directly(task, operation, plan)
@@ -93,6 +110,24 @@ class WorkerAgent(BaseAgent):
                     status=AgentStatus.COMPLETED,
                     context_bundle=self.current_context,
                     output=f"Created files: {', '.join(created_files)}\n{verification}",
+                    token_usage=self.token_usage,
+                )
+            elif operation == "folder_creation":
+                await self._update_progress(AgentStatus.BUILDING, 45, "Creating folder...")
+                created_folders = await self._create_folders_directly(task, operation, plan)
+
+                await self._update_progress(AgentStatus.REVIEWING, 90, "Verifying created folders...")
+                verification = self._verify_work(operation, plan)
+
+                await self._update_progress(AgentStatus.COMPLETED, 100, "Folder creation complete")
+
+                return AgentResult(
+                    agent_id=self.agent_id,
+                    agent_role=self.role,
+                    task_id=context.session_id,
+                    status=AgentStatus.COMPLETED,
+                    context_bundle=self.current_context,
+                    output=f"Created folders: {', '.join(created_folders)}\n{verification}",
                     token_usage=self.token_usage,
                 )
             else:
@@ -126,8 +161,41 @@ class WorkerAgent(BaseAgent):
 
     def _identify_operation(self, task: str) -> str:
         task_lower = task.lower()
-        if "create" in task_lower and ("file" in task_lower or "." in task):
+
+        # Check for creation operations (files or folders)
+        if any(word in task_lower for word in ["create", "make", "new", "add", "generate"]):
+            # Check if it's explicitly a folder/directory
+            if "folder" in task_lower or "directory" in task_lower or "dir" in task_lower:
+                # But if there's also a file with extension mentioned, it's file creation in a folder
+                import re
+                if re.search(r'\.\w{1,4}\b', task):  # Has file extension
+                    return "file_creation"
+                return "folder_creation"
+
+            # Check if it has a file extension (likely a file)
+            if re.search(r'\.\w{1,4}\b', task):
+                return "file_creation"
+
+            # Check for file keywords
+            if "file" in task_lower:
+                return "file_creation"
+
+            # Default creation without clear indication
+            # If it has "called" followed by a name without extension, likely a folder
+            if "called" in task_lower or "named" in task_lower:
+                # Extract what comes after called/named
+                match = re.search(r'(?:called|named)\s+([a-zA-Z0-9_\-\.]+)', task, re.IGNORECASE)
+                if match:
+                    name = match.group(1)
+                    # If the name has an extension, it's a file
+                    if '.' in name and not name.endswith('.'):
+                        return "file_creation"
+                    # Otherwise assume folder
+                    return "folder_creation"
+
+            # Default to file creation for other creation tasks
             return "file_creation"
+
         if "bug" in task_lower or "fix" in task_lower:
             return "bug_fix"
         if "refactor" in task_lower:
@@ -151,6 +219,9 @@ class WorkerAgent(BaseAgent):
         if operation == "file_creation":
             plan["approach"] = "Create new file with specified content"
             plan["files_to_create"] = self._extract_file_info(task)
+        elif operation == "folder_creation":
+            plan["approach"] = "Create new folder/directory"
+            plan["folders_to_create"] = self._extract_folder_info(task)
         elif operation == "bug_fix":
             plan["approach"] = "Locate failing logic, patch, and describe validation"
         elif operation == "refactor":
@@ -244,9 +315,26 @@ class WorkerAgent(BaseAgent):
 
         # Look for filename patterns
         import re
+
+        # Check for file in folder pattern
+        folder_path = None
+        in_folder_patterns = [
+            r"in\s+(?:the\s+)?([a-zA-Z0-9_\-\.]+)\s+(?:folder|directory)",
+            r"inside\s+(?:the\s+)?([a-zA-Z0-9_\-\.]+)\s+(?:folder|directory)",
+            r"(?:folder|directory)\s+([a-zA-Z0-9_\-\.]+)"
+        ]
+
+        for pattern in in_folder_patterns:
+            match = re.search(pattern, task, re.IGNORECASE)
+            if match:
+                folder_path = match.group(1)
+                break
+
+        # Look for file patterns
         file_patterns = [
+            r"(?:file\s+)?(?:called|named)\s+([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)",
             r"(?:create|make|new)\s+(?:a\s+)?(?:file\s+)?(?:called\s+)?([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)",
-            r"([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)"
+            r"([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)\s+(?:file|in)"
         ]
 
         filename = None
@@ -256,9 +344,14 @@ class WorkerAgent(BaseAgent):
                 filename = match.group(1)
                 break
 
+        # If we have a folder path, prepend it to the filename
+        if filename and folder_path:
+            filename = f"{folder_path}/{filename}"
+
         # Look for content patterns
         content_patterns = [
-            r"(?:write|add|put|content|contains?)(?:\s+the\s+text)?[:\s]+[\"']?([^\"']+)[\"']?",
+            r"(?:with\s+the\s+text|write|add|put|content|contains?)(?:\s+the\s+text)?[:\s]+[\"']?(.+?)(?:[\"']|$)",
+            r"(?:with\s+the\s+text)\s+([^\"']+?)(?:\s*$|[\"'])",
             r"(?:in\s+it\s+write|with\s+content)[:\s]+[\"']?([^\"']+)[\"']?",
         ]
 
@@ -377,6 +470,7 @@ class WorkerAgent(BaseAgent):
     def _verify_work(self, operation: str, plan: Dict) -> str:
         verifications = {
             "file_creation": "Files created successfully in project workspace",
+            "folder_creation": "Folders created successfully in project workspace",
             "bug_fix": "Bug fix generated with rationale attached",
             "refactor": "Refactor patch ready for review",
             "documentation": "Documentation additions prepared",
@@ -386,10 +480,150 @@ class WorkerAgent(BaseAgent):
         }
         return verifications.get(operation, "Changes prepared")
 
+    async def _create_folders_directly(self, task: str, operation: str, plan: Dict) -> List[str]:
+        """Create folders directly in the project workspace."""
+        created_folders = []
+        folders_to_create = plan.get("folders_to_create", [])
+
+        project_root = Path(os.environ.get("CASPER_PROJECT_ROOT", Path.cwd()))
+
+        for folder_name in folders_to_create:
+            if not folder_name:
+                continue
+
+            # Create the folder in project root
+            folder_path = project_root / folder_name
+
+            try:
+                # Request approval for folder creation (treat it like file creation for approval)
+                from core.services.approval import approval_service
+                approval_result = await approval_service.request_file_write_approval(
+                    path=folder_name,
+                    content="[FOLDER CREATION]",
+                    agent_id=self.agent_id
+                )
+
+                if approval_result != "approved":
+                    self._log_decision(f"Folder creation rejected for {folder_name}", f"Approval status: {approval_result}", ["retry_later"])
+                    continue
+
+                # Create the folder
+                folder_path.mkdir(parents=True, exist_ok=True)
+                created_folders.append(str(folder_path))
+
+                # Record in context
+                self._add_artifact(str(folder_path))
+                self._log_decision(f"Created folder {folder_name}", f"Folder created at {folder_path}", [])
+
+            except Exception as e:
+                self._log_decision(f"Failed to create folder {folder_name}", str(e), ["retry"])
+
+        self._track_tokens(10, 20)  # Track tokens for folder creation work
+        return created_folders
+
+    def _extract_folder_info(self, task: str) -> List[str]:
+        """Extract folder names from task description."""
+        folders = []
+        task_lower = task.lower()
+
+        # Look for folder name patterns
+        import re
+
+        # First, check for absolute or relative paths
+        path_patterns = [
+            r"(?:folder|directory)\s+(?:called|named)?\s*([/a-zA-Z0-9_\-\. ]+)",
+            r"(?:called|named)\s+([/a-zA-Z0-9_\-\. ]+?)(?:\s+folder|\s+directory|$)",
+        ]
+
+        for pattern in path_patterns:
+            match = re.search(pattern, task, re.IGNORECASE)
+            if match:
+                path = match.group(1).strip()
+                # If it's an absolute path, take just the last component
+                if '/' in path:
+                    folder_name = path.rstrip('/').split('/')[-1]
+                else:
+                    folder_name = path
+                if folder_name and folder_name not in ['a', 'the', 'new']:
+                    folders.append(folder_name)
+                    break
+
+        # If no match yet, try simpler patterns
+        if not folders:
+            simple_patterns = [
+                r"(?:create|make|new)\s+(?:a\s+)?(?:folder|directory)\s+(?:called\s+)?([a-zA-Z0-9_\-\.]+)",
+                r"([a-zA-Z0-9_\-\.]+)\s+(?:folder|directory)",
+            ]
+
+            for pattern in simple_patterns:
+                matches = re.findall(pattern, task, re.IGNORECASE)
+                if matches:
+                    folders.extend(matches)
+                    break
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_folders = []
+        for folder in folders:
+            if folder not in seen and folder not in ['called', 'named', 'folder', 'directory']:
+                seen.add(folder)
+                unique_folders.append(folder)
+
+        return unique_folders
+
+    async def _interpret_with_ai(self, task: str) -> Optional[Dict]:
+        """Use AI to interpret the task into structured format."""
+        try:
+            from core.agents.task_interpreter import task_interpreter
+            return await task_interpreter.interpret_task(task)
+        except Exception as e:
+            print(f"AI interpretation failed: {e}")
+            return None
+
+    def _create_plan_from_interpretation(self, task: str, interpretation: Dict) -> Dict:
+        """Create execution plan from AI interpretation."""
+        operation = interpretation.get("operation", "file_edit")
+        targets = interpretation.get("targets", [])
+
+        # Map AI operations to our operations
+        op_map = {
+            "create_file": "file_creation",
+            "create_folder": "folder_creation",
+            "modify_file": "file_edit",
+            "delete_file": "file_edit",
+            "delete_folder": "file_edit",
+        }
+
+        operation = op_map.get(operation, "file_edit")
+
+        plan = {
+            "operation": operation,
+            "files_to_modify": [],
+            "estimated_changes": 1,
+            "approach": f"AI-directed {operation}",
+        }
+
+        if operation == "file_creation":
+            plan["files_to_create"] = []
+            for target in targets:
+                if target.get("type") == "file":
+                    plan["files_to_create"].append({
+                        "filename": target.get("path", target.get("name", "")),
+                        "content": target.get("content") or "# TODO: Add content here"
+                    })
+        elif operation == "folder_creation":
+            plan["folders_to_create"] = []
+            for target in targets:
+                if target.get("type") == "folder":
+                    plan["folders_to_create"].append(target.get("path", target.get("name", "")))
+
+        return plan
+
     def estimate_completion_time(self, task: str) -> int:
         operation = self._identify_operation(task)
         times = {
             "file_creation": 15,
+            "folder_creation": 10,
             "bug_fix": 30,
             "refactor": 45,
             "documentation": 20,
