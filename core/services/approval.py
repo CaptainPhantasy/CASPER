@@ -5,6 +5,7 @@ Ensures all file operations require explicit user consent.
 
 import asyncio
 import json
+import os
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -54,6 +55,24 @@ class HILApprovalService:
         self.approved_operations: List[FileOperation] = []
         self.rejected_operations: List[FileOperation] = []
         self.notification_callbacks: List[Callable] = []
+        self.set_approval_mode(os.environ.get('CASPER_APPROVAL_MODE', 'STRICT'))
+
+    def set_approval_mode(self, mode: str):
+        """Set the approval mode (STRICT, AUTO, YOLO)."""
+        self.mode = mode.upper()
+        if self.mode == 'YOLO':
+            print("🚀 HIL Approval Service in YOLO mode - auto-approving all operations")
+        elif self.mode == 'AUTO':
+            # TODO: Implement a more sophisticated auto-approval logic.
+            # For now, AUTO behaves like YOLO.
+            print("🚀 HIL Approval Service in AUTO mode - auto-approving all operations")
+        else:
+            self.mode = 'STRICT'
+            print("🚨 HIL Approval Service in STRICT mode - all operations require manual approval")
+
+    @property
+    def auto_approve(self):
+        return self.mode in ['YOLO', 'AUTO']
 
     def add_notification_callback(self, callback: Callable):
         """Add a callback to be notified when new approvals are needed."""
@@ -76,8 +95,21 @@ class HILApprovalService:
         Returns the approval result after user response.
         """
         operation = FileOperation("create", path, content, agent_id)
-        operation.future = asyncio.Future()
 
+        # In YOLO mode, auto-approve immediately
+        if self.auto_approve:
+            operation.status = ApprovalStatus.APPROVED
+            operation.approved_at = datetime.now()
+            self.approved_operations.append(operation)
+
+            print(f"\n🚀 AUTO-APPROVED (YOLO MODE) 🚀")
+            print(f"Agent {agent_id} creating file: {path}")
+            print(f"Operation ID: {operation.id}")
+
+            return "approved"
+
+        # Normal approval flow
+        operation.future = asyncio.Future()
         self.pending_operations[operation.id] = operation
 
         # Notify callbacks (like WebSocket broadcast) about new approval request
@@ -98,6 +130,88 @@ class HILApprovalService:
             del self.pending_operations[operation.id]
             return "rejected"
     
+    async def request_file_modify_approval(self, path: str, content: str, agent_id: str) -> str:
+        """
+        Request approval for a file modification operation.
+        Returns the approval result after user response.
+        """
+        operation = FileOperation("modify", path, content, agent_id)
+
+        # In YOLO mode, auto-approve immediately
+        if self.auto_approve:
+            operation.status = ApprovalStatus.APPROVED
+            operation.approved_at = datetime.now()
+            self.approved_operations.append(operation)
+
+            print(f"\n🚀 AUTO-APPROVED (YOLO MODE) 🚀")
+            print(f"Agent {agent_id} modifying file: {path}")
+            print(f"Operation ID: {operation.id}")
+
+            return "approved"
+
+        # Normal approval flow
+        operation.future = asyncio.Future()
+        self.pending_operations[operation.id] = operation
+
+        # Notify callbacks (like WebSocket broadcast) about new approval request
+        await self._notify_callbacks(operation)
+
+        print(f"\n🚨 APPROVAL REQUIRED 🚨")
+        print(f"Agent {agent_id} wants to modify file: {path}")
+        print(f"Approval ID: {operation.id}")
+
+        # Wait for approval response via API
+        try:
+            result = await asyncio.wait_for(operation.future, timeout=300)  # 5 minute timeout
+            return result
+        except asyncio.TimeoutError:
+            # Auto-reject after timeout
+            operation.status = ApprovalStatus.REJECTED
+            self.rejected_operations.append(operation)
+            del self.pending_operations[operation.id]
+            return "rejected"
+
+    async def request_file_delete_approval(self, path: str, agent_id: str) -> str:
+        """
+        Request approval for a file deletion operation.
+        Returns the approval result after user response.
+        """
+        operation = FileOperation("delete", path, "", agent_id)
+
+        # In YOLO mode, auto-approve immediately
+        if self.auto_approve:
+            operation.status = ApprovalStatus.APPROVED
+            operation.approved_at = datetime.now()
+            self.approved_operations.append(operation)
+
+            print(f"\n🚀 AUTO-APPROVED (YOLO MODE) 🚀")
+            print(f"Agent {agent_id} deleting file: {path}")
+            print(f"Operation ID: {operation.id}")
+
+            return "approved"
+
+        # Normal approval flow
+        operation.future = asyncio.Future()
+        self.pending_operations[operation.id] = operation
+
+        # Notify callbacks (like WebSocket broadcast) about new approval request
+        await self._notify_callbacks(operation)
+
+        print(f"\n🚨 APPROVAL REQUIRED 🚨")
+        print(f"Agent {agent_id} wants to delete file: {path}")
+        print(f"Approval ID: {operation.id}")
+
+        # Wait for approval response via API
+        try:
+            result = await asyncio.wait_for(operation.future, timeout=300)  # 5 minute timeout
+            return result
+        except asyncio.TimeoutError:
+            # Auto-reject after timeout
+            operation.status = ApprovalStatus.REJECTED
+            self.rejected_operations.append(operation)
+            del self.pending_operations[operation.id]
+            return "rejected"
+
     def get_pending_approvals(self) -> List[FileOperation]:
         """Get all pending approval requests."""
         return list(self.pending_operations.values())

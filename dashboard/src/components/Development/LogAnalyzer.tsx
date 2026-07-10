@@ -11,27 +11,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  FileText,
-  Search,
-  Filter,
-  RefreshCw,
-  CheckCircle,
-  AlertCircle,
-  AlertTriangle,
-  Clock,
-  Loader2,
-  Bug,
-  Info,
-  Zap,
-  TrendingUp,
-  TrendingDown,
-  ChevronDown,
-  ChevronRight,
-  Download,
-  Eye,
-  Calendar,
-  Activity
-} from "lucide-react";
+  IconFileText as FileText,
+  IconSearch as Search,
+  IconFilter as Filter,
+  IconRefresh as RefreshCw,
+  IconCircleCheck as CheckCircle,
+  IconAlertCircle as AlertCircle,
+  IconAlertTriangle as AlertTriangle,
+  IconClock as Clock,
+  IconLoader2 as Loader2,
+  IconBug as Bug,
+  IconInfoCircle as Info,
+  IconBolt as Zap,
+  IconTrendingUp as TrendingUp,
+  IconTrendingDown as TrendingDown,
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconDownload as Download,
+  IconEye as Eye,
+  IconCalendar as Calendar,
+  IconActivity as Activity
+} from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/services/api";
 

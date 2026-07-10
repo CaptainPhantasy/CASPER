@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, X, Terminal as TerminalIcon, Circle } from 'lucide-react';
+import { Icon } from '../icons/IconMapping';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -56,11 +56,11 @@ export const TerminalTabs: React.FC = () => {
     return (
       <div className="flex items-center justify-between p-2 border-b border-border bg-card/40">
         <div className="flex items-center gap-2">
-          <TerminalIcon className="h-4 w-4 text-muted-foreground" />
+          <Icon name="terminal" className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium text-muted-foreground">No Terminal Sessions</span>
         </div>
         <Button size="sm" variant="outline" onClick={handleCreateSession} className="gap-2">
-          <Plus className="h-4 w-4" />
+          <Icon name="plus" className="h-4 w-4" />
           New Terminal
         </Button>
       </div>
@@ -85,7 +85,7 @@ export const TerminalTabs: React.FC = () => {
                 onClick={() => setActiveSession(session.id)}
                 title={session.title}
               >
-                <Circle className={cn('h-2 w-2 flex-shrink-0', getStatusColor(session.status))} />
+                <Icon name="circle" className={cn('h-2 w-2 flex-shrink-0', getStatusColor(session.status))} />
                 <span className="truncate max-w-24">{session.title}</span>
                 {sessionList.length > 1 && (
                   <Button
@@ -95,7 +95,7 @@ export const TerminalTabs: React.FC = () => {
                     onClick={(e) => handleRemoveSession(session.id, e)}
                     title="Close terminal"
                   >
-                    <X className="h-3 w-3" />
+                    <Icon name="x" className="h-3 w-3" />
                   </Button>
                 )}
               </div>
@@ -103,7 +103,7 @@ export const TerminalTabs: React.FC = () => {
           </div>
         </ScrollArea>
         <Button size="sm" variant="outline" onClick={handleCreateSession} className="gap-2 flex-shrink-0">
-          <Plus className="h-4 w-4" />
+          <Icon name="plus" className="h-4 w-4" />
           New
         </Button>
       </div>
@@ -113,7 +113,7 @@ export const TerminalTabs: React.FC = () => {
           <span>Active: {sessionList.length} session{sessionList.length !== 1 ? 's' : ''}</span>
           {activeSessionId && (
             <Badge variant="outline" className="gap-1 text-xs">
-              <Circle className={cn('h-2 w-2', getStatusColor(sessions.get(activeSessionId || '')?.status || 'disconnected'))} />
+              <Icon name="circle" className={cn('h-2 w-2', getStatusColor(sessions.get(activeSessionId || '')?.status || 'disconnected'))} />
               {getStatusText(sessions.get(activeSessionId || '')?.status || 'disconnected')}
             </Badge>
           )}

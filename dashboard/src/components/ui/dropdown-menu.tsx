@@ -1,5 +1,5 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { Check, ChevronRight, Circle } from "lucide-react";
+import { IconCheck as Check, IconChevronRight as ChevronRight, IconCircle as Circle } from "@tabler/icons-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";

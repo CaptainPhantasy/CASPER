@@ -1,16 +1,16 @@
 import './App.css';
 
 import {
-  HardDrive,
-  Keyboard,
-  Loader2,
-  PanelsTopLeft,
-  Play,
-  PlugZap,
-  Sigma,
-  UploadCloud,
-  Wifi,
-} from 'lucide-react';
+  IconDeviceDesktop as HardDrive,
+  IconKeyboard as Keyboard,
+  IconLoader2 as Loader2,
+  IconLayoutAlignTop as PanelsTopLeft,
+  IconPlayerPlay as Play,
+  IconBolt as PlugZap,
+  IconMathSymbols as Sigma,
+  IconCloudUpload as UploadCloud,
+  IconWifi as Wifi
+} from '@tabler/icons-react';
 import * as React from 'react';
 
 import { OpenWorkspaceDialog } from '@/components/OpenWorkspaceDialog';

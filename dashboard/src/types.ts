@@ -71,8 +71,37 @@ export interface ApprovalItem {
   riskLevel: 'low' | 'medium' | 'high';
 }
 
+export type WSMessageType =
+  | 'agent_spawned'
+  | 'agent_progress'
+  | 'agent_completed'
+  | 'context_handoff'
+  | 'error'
+  | 'warning'
+  | 'agent_update'
+  | 'task_update'
+  | 'task_submitted'
+  | 'task_progress'
+  | 'context_update'
+  | 'connection'
+  | 'heartbeat'
+  | 'approval_request'
+  | 'approval_resolved'
+  | 'command_started'
+  | 'command_completed'
+  | 'terminal_output'
+  | 'file_changed'
+  | 'test_result'
+  | 'build_result'
+  | 'deployment_result'
+  | 'ai_suggestion'
+  | 'business_document_ready'
+  | 'system_status';
+
 export interface WSAgentUpdate {
-  type: 'agent_spawned' | 'agent_progress' | 'agent_completed' | 'context_handoff' | 'error' | 'agent_update' | 'task_update' | 'context_update' | 'connection' | 'task_submitted' | 'approval_request';
+  // Allow the known message types while remaining forward-compatible with
+  // any additional backend event names.
+  type: WSMessageType | (string & {});
   agent_id?: string;
   id?: string; // some backends use id
   data?: {
@@ -83,6 +112,22 @@ export interface WSAgentUpdate {
     decisions?: Decision[];
     context_size?: number;
     approval?: ApprovalItem;
+    // Action / approval lifecycle
+    action?: string;
+    approval_id?: string;
+    // Command execution
+    command?: string;
+    success?: boolean;
+    // File / test / build / deploy events
+    file_path?: string;
+    test_type?: string;
+    build_target?: string;
+    environment?: string;
+    // AI / business document events
+    suggestion?: string;
+    document_type?: string;
+    // Forward-compatibility for additional backend payload fields
+    [key: string]: unknown;
   };
   message?: string;
   status?: AgentStatus | string;

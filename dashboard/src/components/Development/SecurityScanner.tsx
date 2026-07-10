@@ -10,26 +10,27 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Shield,
-  ShieldAlert,
-  ShieldCheck,
-  ShieldX,
-  Play,
-  RefreshCw,
-  AlertTriangle,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Loader2,
-  Bug,
-  Lock,
-  Key,
-  FileText,
-  Zap,
-  TrendingUp,
-  Eye,
-  Download
-} from "lucide-react";
+  IconShield as Shield,
+  IconShieldExclamation as ShieldAlert,
+  IconShieldCheck as ShieldCheck,
+  IconShieldX as ShieldX,
+  IconPlayerPlay as Play,
+  IconRefresh as RefreshCw,
+  IconAlertTriangle as AlertTriangle,
+  IconAlertCircle as AlertCircle,
+  IconCircleCheck as CheckCircle,
+  IconClock as Clock,
+  IconLoader2 as Loader2,
+  IconBug as Bug,
+  IconSettings as Settings,
+  IconLock as Lock,
+  IconKey as Key,
+  IconFileText as FileText,
+  IconBolt as Zap,
+  IconTrendingUp as TrendingUp,
+  IconEye as Eye,
+  IconDownload as Download
+} from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/services/api";
 

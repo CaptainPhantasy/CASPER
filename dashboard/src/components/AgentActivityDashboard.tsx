@@ -8,17 +8,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { getAgentStatus, getTaskResults } from "@/services/api";
 import {
-  Activity,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Cpu,
-  Zap,
-  TrendingUp,
-  Users,
-  FileText,
-  Loader2
-} from "lucide-react";
+  IconActivity as Activity,
+  IconAlertCircle as AlertCircle,
+  IconCircleCheck as CheckCircle,
+  IconClock as Clock,
+  IconCpu as Cpu,
+  IconBolt as Zap,
+  IconTrendingUp as TrendingUp,
+  IconUsers as Users,
+  IconFileText as FileText,
+  IconLoader2 as Loader2
+} from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
 interface TaskResult {

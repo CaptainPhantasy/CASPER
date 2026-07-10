@@ -5,7 +5,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Command } from 'lucide-react';
+import { Icon } from './icons/IconMapping';
 
 interface KeyboardShortcutsProps {
   open: boolean;
@@ -27,7 +27,7 @@ export function KeyboardShortcuts({ open, onOpenChange }: KeyboardShortcutsProps
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Command className="h-4 w-4" />
+            <Icon name="command" className="h-4 w-4" />
             Keyboard Shortcuts
           </DialogTitle>
         </DialogHeader>

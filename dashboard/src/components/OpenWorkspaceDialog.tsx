@@ -1,10 +1,4 @@
-import {
-  AlertCircle,
-  Clock,
-  FolderOpen,
-  HardDrive,
-  RefreshCcw,
-} from 'lucide-react';
+import { Icon } from './icons/IconMapping';
 import * as React from 'react';
 
 import { OpenWorkspaceResult, getRecentWorkspaces, openWorkspace } from '@/services/api';
@@ -101,7 +95,7 @@ export function OpenWorkspaceDialog({ onWorkspaceSelect, currentWorkspace, open:
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
-          <FolderOpen className="h-4 w-4" />
+          <Icon name="folder-open" className="h-4 w-4" />
           Open Workspace
         </Button>
       </DialogTrigger>
@@ -116,7 +110,7 @@ export function OpenWorkspaceDialog({ onWorkspaceSelect, currentWorkspace, open:
         <div className="space-y-4">
           {error && (
             <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
+              <Icon name="alert-circle" className="h-4 w-4" />
               <AlertTitle>Workspace error</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -136,7 +130,7 @@ export function OpenWorkspaceDialog({ onWorkspaceSelect, currentWorkspace, open:
                 autoComplete="off"
               />
               <Button onClick={() => void fetchRecents()} variant="ghost" size="icon" disabled={loadingRecents} aria-label="Refresh recent workspaces">
-                <RefreshCcw className={`h-4 w-4 ${loadingRecents ? 'animate-spin' : ''}`} />
+                <Icon name="refresh-cw" className={`h-4 w-4 ${loadingRecents ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           </div>
@@ -151,7 +145,7 @@ export function OpenWorkspaceDialog({ onWorkspaceSelect, currentWorkspace, open:
               className="gap-2"
               onClick={() => setError('Native browse dialogs are not yet supported.')}
             >
-              <HardDrive className="h-4 w-4" />
+              <Icon name="database" className="h-4 w-4" />
               Browse…
             </Button>
           </div>
@@ -191,7 +185,7 @@ export function OpenWorkspaceDialog({ onWorkspaceSelect, currentWorkspace, open:
                           </p>
                           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
+                              <Icon name="clock" className="h-3 w-3" />
                               {new Date(workspace.last_opened).toLocaleString()}
                             </span>
                             <Badge variant="outline" className="text-xs">

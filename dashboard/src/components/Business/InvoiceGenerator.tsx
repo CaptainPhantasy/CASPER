@@ -19,7 +19,7 @@ import {
   UserIcon,
   CalculatorIcon,
   DocumentTextIcon,
-  DownloadIcon
+  ArrowDownTrayIcon
 } from "@heroicons/react/24/outline";
 import { cn } from "@/lib/utils";
 
@@ -409,7 +409,7 @@ export function InvoiceGenerator() {
                   Edit Invoice
                 </Button>
                 <Button onClick={() => exportInvoice('pdf')}>
-                  <DownloadIcon className="mr-2 h-4 w-4" />
+                  <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
                   Export PDF
                 </Button>
                 <Button onClick={sendInvoice} className="bg-emerald-600 hover:bg-emerald-700">

@@ -9,20 +9,20 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Database,
-  Play,
-  RefreshCw,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  ArrowUp,
-  ArrowDown,
-  Loader2,
-  Settings,
-  History,
-  Seed,
-  FileText
-} from "lucide-react";
+  IconDatabase as Database,
+  IconPlayerPlay as Play,
+  IconRefresh as RefreshCw,
+  IconCircleCheck as CheckCircle,
+  IconAlertCircle as AlertCircle,
+  IconClock as Clock,
+  IconArrowUp as ArrowUp,
+  IconArrowDown as ArrowDown,
+  IconLoader2 as Loader2,
+  IconSettings as Settings,
+  IconHistory as History,
+  IconPlant as Sprout,
+  IconFileText as FileText
+} from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/services/api";
 
@@ -391,7 +391,7 @@ export const DatabaseManager: React.FC = () => {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Seed className="h-4 w-4 text-blue-500" />
+              <Sprout className="h-4 w-4 text-blue-500" />
               Seed Data Management
             </CardTitle>
             <Button

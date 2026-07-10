@@ -1,19 +1,5 @@
 import * as React from "react";
-import {
-  ChevronRight,
-  ChevronDown,
-  File,
-  Folder,
-  FolderOpen,
-  Copy,
-  Trash2,
-  Eye,
-  Edit,
-  FileText,
-  FileCode,
-  Image,
-  Archive,
-} from "lucide-react";
+import { Icon } from './icons/IconMapping';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -85,26 +71,26 @@ const getFileIcon = (fileName: string) => {
     case 'c':
     case 'go':
     case 'rs':
-      return <FileCode className="h-4 w-4" />;
+      return <Icon name="file-code" className="h-4 w-4" />;
     case 'md':
     case 'txt':
     case 'doc':
     case 'pdf':
-      return <FileText className="h-4 w-4" />;
+      return <Icon name="file-text" className="h-4 w-4" />;
     case 'png':
     case 'jpg':
     case 'jpeg':
     case 'gif':
     case 'svg':
     case 'ico':
-      return <Image className="h-4 w-4" />;
+      return <Icon name="image" className="h-4 w-4" />;
     case 'zip':
     case 'tar':
     case 'gz':
     case 'rar':
-      return <Archive className="h-4 w-4" />;
+      return <Icon name="archive" className="h-4 w-4" />;
     default:
-      return <File className="h-4 w-4" />;
+      return <Icon name="file" className="h-4 w-4" />;
   }
 };
 
@@ -190,29 +176,24 @@ export function FileTree({ onFileSelect, selectedFile, className, collapsed = fa
                   isSelected && "bg-muted"
                 )}
                 style={{ paddingLeft: `${depth * 12 + 8}px` }}
+                onClick={() => toggleFolder(node.path)}
                 onContextMenu={(e) => e.preventDefault()}
               >
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFolder(node.path);
-                  }}
-                  className="p-0.5 hover:bg-accent rounded"
-                >
+                <div className="p-0.5">
                   {isExpanded ? (
-                    <ChevronDown className="h-3 w-3" />
+                    <Icon name="chevron-down" className="h-3 w-3" />
                   ) : (
-                    <ChevronRight className="h-3 w-3" />
+                    <Icon name="chevron-right" className="h-3 w-3" />
                   )}
-                </button>
+                </div>
                 <TooltipProvider delayDuration={700}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="flex items-center gap-2 flex-1">
                         {isExpanded ? (
-                          <FolderOpen className="h-4 w-4 text-primary" />
+                          <Icon name="folder-open" className="h-4 w-4 text-primary" />
                         ) : (
-                          <Folder className="h-4 w-4 text-primary" />
+                          <Icon name="folder" className="h-4 w-4 text-primary" />
                         )}
                         {!collapsed && <span className="truncate">{node.name}</span>}
                       </div>
@@ -236,23 +217,23 @@ export function FileTree({ onFileSelect, selectedFile, className, collapsed = fa
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuItem onClick={() => toggleFolder(node.path)}>
-                <Eye className="mr-2 h-4 w-4" />
+                <Icon name="eye" className="mr-2 h-4 w-4" />
                 {isExpanded ? 'Collapse' : 'Expand'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleContextMenuAction('copy', node)}>
-                <Copy className="mr-2 h-4 w-4" />
+                <Icon name="copy" className="mr-2 h-4 w-4" />
                 Copy Path
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleContextMenuAction('rename', node)}>
-                <Edit className="mr-2 h-4 w-4" />
+                <Icon name="edit" className="mr-2 h-4 w-4" />
                 Rename
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => handleContextMenuAction('delete', node)}
                 className="text-destructive"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Icon name="trash" className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -266,12 +247,12 @@ export function FileTree({ onFileSelect, selectedFile, className, collapsed = fa
       );
     }
 
-    // File node
+    // File node - Click to open, right-click for menu
     return (
-      <DropdownMenu key={node.path}>
-        <DropdownMenuTrigger asChild>
-          <TooltipProvider delayDuration={700}>
-            <Tooltip>
+      <TooltipProvider key={node.path} delayDuration={700}>
+        <Tooltip>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <TooltipTrigger asChild>
                 <div
                   className={cn(
@@ -279,8 +260,19 @@ export function FileTree({ onFileSelect, selectedFile, className, collapsed = fa
                     isSelected && "bg-muted text-foreground"
                   )}
                   style={{ paddingLeft: `${depth * 12 + 28}px` }}
-                  onClick={() => onFileSelect?.(node)}
-                  onContextMenu={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    // Left click opens file directly
+                    if (e.button === 0) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onFileSelect?.(node);
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    // Right click opens menu
+                    e.preventDefault();
+                    // Trigger dropdown programmatically
+                  }}
                 >
                   {getFileIcon(node.name)}
                   {!collapsed && (
@@ -295,48 +287,48 @@ export function FileTree({ onFileSelect, selectedFile, className, collapsed = fa
                   )}
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                <div className="text-xs space-y-1">
-                  <div className="font-semibold">{node.name}</div>
-                  {node.size && (
-                    <div className="text-muted-foreground">
-                      Size: {formatFileSize(node.size)}
-                    </div>
-                  )}
-                  {node.modified && (
-                    <div className="text-muted-foreground">
-                      Modified: {formatModifiedDate(node.modified)}
-                    </div>
-                  )}
-                  <div className="text-muted-foreground">Path: {node.path}</div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => handleContextMenuAction('open', node)}>
-            <Eye className="mr-2 h-4 w-4" />
-            Open
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleContextMenuAction('copy', node)}>
-            <Copy className="mr-2 h-4 w-4" />
-            Copy Path
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => handleContextMenuAction('rename', node)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Rename
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => handleContextMenuAction('delete', node)}
-            className="text-destructive"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            </DropdownMenuTrigger>
+            <TooltipContent side="right">
+              <div className="text-xs space-y-1">
+                <div className="font-semibold">{node.name}</div>
+                {node.size && (
+                  <div className="text-muted-foreground">
+                    Size: {formatFileSize(node.size)}
+                  </div>
+                )}
+                {node.modified && (
+                  <div className="text-muted-foreground">
+                    Modified: {formatModifiedDate(node.modified)}
+                  </div>
+                )}
+                <div className="text-muted-foreground">Path: {node.path}</div>
+              </div>
+            </TooltipContent>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => handleContextMenuAction('open', node)}>
+                <Icon name="eye" className="mr-2 h-4 w-4" />
+                Open
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleContextMenuAction('copy', node)}>
+                <Icon name="copy" className="mr-2 h-4 w-4" />
+                Copy Path
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleContextMenuAction('rename', node)}>
+                <Icon name="edit" className="mr-2 h-4 w-4" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleContextMenuAction('delete', node)}
+                className="text-destructive"
+              >
+                <Icon name="trash" className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </Tooltip>
+      </TooltipProvider>
     );
   };
 

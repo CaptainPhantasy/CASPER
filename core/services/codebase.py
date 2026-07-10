@@ -304,6 +304,86 @@ class CodebaseService:
                 'size': full_path.stat().st_size,
                 'binary': True
             }
+
+    def write_file(self, file_path: str, content: str) -> Dict[str, Any]:
+        """
+        Write content to a file safely.
+        """
+        if not self.current_workspace:
+            raise ValueError("No workspace opened")
+
+        full_path = (self.current_workspace / file_path).resolve()
+
+        # Security check: Ensure the path is within the current workspace
+        if not str(full_path).startswith(str(self.current_workspace)):
+            raise PermissionError("File path is outside of the workspace")
+
+        # Create parent directories if they don't exist
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+
+        full_path.write_text(content, encoding='utf-8')
+
+        return {
+            "path": file_path,
+            "size": len(content),
+            "modified": datetime.now().isoformat()
+        }
+
+    def rename_file(self, old_path: str, new_path: str) -> Dict[str, Any]:
+        """
+        Rename a file safely.
+        """
+        if not self.current_workspace:
+            raise ValueError("No workspace opened")
+
+        old_full_path = (self.current_workspace / old_path).resolve()
+        new_full_path = (self.current_workspace / new_path).resolve()
+
+        # Security checks
+        if not str(old_full_path).startswith(str(self.current_workspace)):
+            raise PermissionError("Old file path is outside of the workspace")
+        if not str(new_full_path).startswith(str(self.current_workspace)):
+            raise PermissionError("New file path is outside of the workspace")
+
+        if not old_full_path.exists():
+            raise FileNotFoundError(f"File not found: {old_path}")
+
+        # Create parent directory for new path if it doesn't exist
+        new_full_path.parent.mkdir(parents=True, exist_ok=True)
+
+        old_full_path.rename(new_full_path)
+
+        return {
+            "old_path": old_path,
+            "new_path": new_path,
+            "modified": datetime.now().isoformat()
+        }
+
+    def delete_file(self, file_path: str) -> Dict[str, Any]:
+        """
+        Delete a file safely.
+        """
+        if not self.current_workspace:
+            raise ValueError("No workspace opened")
+
+        full_path = (self.current_workspace / file_path).resolve()
+
+        # Security check
+        if not str(full_path).startswith(str(self.current_workspace)):
+            raise PermissionError("File path is outside of the workspace")
+
+        if not full_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        if not full_path.is_file():
+            raise ValueError(f"Path is not a file: {file_path}")
+
+        full_path.unlink()
+
+        return {
+            "path": file_path,
+            "status": "deleted"
+        }
     
     def _save_workspace_config(self):
         """

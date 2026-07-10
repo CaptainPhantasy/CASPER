@@ -495,13 +495,26 @@ class WorkerAgent(BaseAgent):
             folder_path = project_root / folder_name
 
             try:
-                # Request approval for folder creation (treat it like file creation for approval)
-                from core.services.approval import approval_service
-                approval_result = await approval_service.request_file_write_approval(
-                    path=folder_name,
-                    content="[FOLDER CREATION]",
-                    agent_id=self.agent_id
-                )
+                # Request approval for folder creation with enhanced context
+                try:
+                    from core.services.enhanced_approval import enhanced_approval_service
+                    approval_result = await enhanced_approval_service.request_approval(
+                        operation_type="create",
+                        resource_type="folder",
+                        path=folder_name,
+                        content="",
+                        agent_id=self.agent_id,
+                        agent_name="Worker Agent",
+                        task_context=f"Creating folder '{folder_name}' as part of task: {task}"
+                    )
+                except ImportError:
+                    # Fallback to old approval service
+                    from core.services.approval import approval_service
+                    approval_result = await approval_service.request_file_write_approval(
+                        path=folder_name,
+                        content="[FOLDER CREATION]",
+                        agent_id=self.agent_id
+                    )
 
                 if approval_result != "approved":
                     self._log_decision(f"Folder creation rejected for {folder_name}", f"Approval status: {approval_result}", ["retry_later"])

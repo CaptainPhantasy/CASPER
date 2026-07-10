@@ -65,28 +65,43 @@ class WebSocketManager {
       this.reconnectTimeout = null;
     }
 
+    // Close existing connection if it exists
+    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
+      this.ws.close();
+    }
+
     this.emitConnectionStatus('connecting');
 
     try {
+      // Validate URL before attempting connection
+      try {
+        new URL(this.url);
+      } catch (urlError) {
+        console.error('[WebSocket] Invalid WebSocket URL:', this.url);
+        this.emitConnectionStatus('error');
+        return;
+      }
+
       this.ws = new WebSocket(this.url);
-      
+
       // Set a timeout for the initial connection
       const connectionTimeout = setTimeout(() => {
         if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
           console.warn('[WebSocket] Connection timeout, closing connection');
           this.ws.close();
         }
-      }, 5000); // 5 second timeout
+      }, 10000); // 10 second timeout
 
-      this.ws.onopen = () => {
+      this.ws.onopen = (event) => {
         clearTimeout(connectionTimeout);
         console.log('[WebSocket] Connected to', this.url);
         this.reconnectAttempts = 0;
+        const wasReconnecting = this.isReconnecting;
         this.isReconnecting = false;
         this.emitConnectionStatus('connected');
 
         // Show success toast if this was a reconnection
-        if (this.reconnectAttempts > 0 || this.isReconnecting) {
+        if (wasReconnecting) {
           toast({
             title: 'Connection Restored',
             description: 'Successfully reconnected to CASPER backend',
@@ -99,34 +114,65 @@ class WebSocketManager {
 
         // Process any queued messages
         this.processMessageQueue();
+
+        // Send initial handshake
+        this.send({
+          type: 'handshake',
+          client: 'dashboard',
+          version: '1.0.0',
+          timestamp: Date.now(),
+        });
       };
 
       this.ws.onmessage = (event) => {
         try {
           clearTimeout(connectionTimeout);
+
+          // Validate message data
+          if (!event.data || typeof event.data !== 'string') {
+            console.warn('[WebSocket] Invalid message data received');
+            return;
+          }
+
           const data = JSON.parse(event.data) as WSAgentUpdate;
+
+          // Validate message structure
+          if (!data.type) {
+            console.warn('[WebSocket] Message missing type field');
+            return;
+          }
+
           this.handleMessage(data);
         } catch (e) {
-          console.warn('[WebSocket] Message parse error', e);
+          console.warn('[WebSocket] Message parse error', e, 'Raw data:', event.data);
         }
       };
 
       this.ws.onclose = (event) => {
         clearTimeout(connectionTimeout);
-        console.log('[WebSocket] Connection closed', event.code, event.reason);
+        const { code, reason, wasClean } = event;
+        console.log(`[WebSocket] Connection closed - Code: ${code}, Reason: ${reason}, Clean: ${wasClean}`);
         this.stopPingInterval();
         this.emitConnectionStatus('disconnected');
 
         if (!this.isManuallyDisconnected) {
-          // Show toast only on unexpected disconnection
-          if (this.connectionStatus === 'connected') {
-            toast({
-              title: 'Connection Lost',
-              description: 'Attempting to reconnect to CASPER backend...',
-              variant: 'destructive',
-            });
+          // Determine if we should attempt to reconnect based on close code
+          const shouldReconnect = this.shouldAttemptReconnect(code);
+
+          if (shouldReconnect) {
+            // Show toast only on unexpected disconnection
+            if (this.connectionStatus === 'connected' || this.connectionStatus === 'connecting') {
+              toast({
+                title: 'Connection Lost',
+                description: 'Attempting to reconnect to CASPER backend...',
+                variant: 'destructive',
+              });
+            }
+            this.scheduleReconnect();
+          } else {
+            console.log('[WebSocket] Not attempting reconnect due to close code:', code);
+            this.emitConnectionStatus('error');
           }
-          this.scheduleReconnect();
         }
       };
 
@@ -139,9 +185,30 @@ class WebSocketManager {
     } catch (e) {
       console.error('WebSocket initialization failed', e);
       this.emitConnectionStatus('error');
-      this.scheduleReconnect();
+      if (!this.isManuallyDisconnected) {
+        this.scheduleReconnect();
+      }
       return;
     }
+  }
+
+  private shouldAttemptReconnect(closeCode: number): boolean {
+    // Don't reconnect for these close codes
+    const noReconnectCodes = [
+      1000, // Normal closure
+      1001, // Going away
+      1005, // No status received
+      1006, // Abnormal closure (will reconnect)
+      4000, // Custom: Server shutdown
+      4001, // Custom: Server maintenance
+    ];
+
+    // Always reconnect for abnormal closure (1006)
+    if (closeCode === 1006) {
+      return true;
+    }
+
+    return !noReconnectCodes.includes(closeCode);
   }
 
   readyState() {
@@ -256,6 +323,11 @@ class WebSocketManager {
       return; // Don't forward pong messages
     }
 
+    // Handle heartbeat messages
+    if (message.type === 'heartbeat') {
+      return; // Don't forward heartbeat messages
+    }
+
     // Forward to listeners and store
     this.emit(message);
 
@@ -285,10 +357,108 @@ class WebSocketManager {
           console.log(`[WebSocket] Agent spawned: ${message.agent_id}`);
         }
         break;
+      case 'agent_completed':
+        if (message.agent_id) {
+          toast({
+            title: 'Agent Completed',
+            description: `Agent ${message.agent_id} has finished its task`,
+            variant: 'default',
+          });
+        }
+        break;
+      case 'command_started':
+        if (message.data?.command) {
+          console.log(`[WebSocket] Command started: ${message.data.command}`);
+        }
+        break;
+      case 'command_completed':
+        if (message.data?.command) {
+          const success = message.data.success !== false;
+          toast({
+            title: success ? 'Command Completed' : 'Command Failed',
+            description: `${message.data.command}: ${message.message || (success ? 'Success' : 'Failed')}`,
+            variant: success ? 'default' : 'destructive',
+          });
+        }
+        break;
+      case 'approval_resolved':
+        if (message.data?.approval_id) {
+          const action = message.data.action || 'resolved';
+          toast({
+            title: 'Approval Updated',
+            description: `Approval ${message.data.approval_id} was ${action}`,
+            variant: action === 'approved' ? 'default' : 'destructive',
+          });
+        }
+        break;
+      case 'terminal_output':
+        // Terminal output is handled by terminal components, just log
+        console.log(`[WebSocket] Terminal output received`);
+        break;
+      case 'file_changed':
+        if (message.data?.file_path) {
+          console.log(`[WebSocket] File changed: ${message.data.file_path}`);
+        }
+        break;
+      case 'test_result':
+        if (message.data?.test_type) {
+          const passed = message.data.success !== false;
+          toast({
+            title: `${message.data.test_type} Tests ${passed ? 'Passed' : 'Failed'}`,
+            description: message.message || `${message.data.test_type} test execution completed`,
+            variant: passed ? 'default' : 'destructive',
+          });
+        }
+        break;
+      case 'build_result':
+        if (message.data?.build_target) {
+          const success = message.data.success !== false;
+          toast({
+            title: `Build ${success ? 'Successful' : 'Failed'}`,
+            description: `${message.data.build_target}: ${message.message || (success ? 'Build completed' : 'Build failed')}`,
+            variant: success ? 'default' : 'destructive',
+          });
+        }
+        break;
+      case 'deployment_result':
+        if (message.data?.environment) {
+          const success = message.data.success !== false;
+          toast({
+            title: `Deployment ${success ? 'Successful' : 'Failed'}`,
+            description: `${message.data.environment}: ${message.message || (success ? 'Deployed successfully' : 'Deployment failed')}`,
+            variant: success ? 'default' : 'destructive',
+          });
+        }
+        break;
+      case 'ai_suggestion':
+        if (message.data?.suggestion) {
+          toast({
+            title: 'AI Suggestion',
+            description: message.data.suggestion.substring(0, 100) + (message.data.suggestion.length > 100 ? '...' : ''),
+            variant: 'default',
+          });
+        }
+        break;
+      case 'business_document_ready':
+        if (message.data?.document_type) {
+          toast({
+            title: 'Document Ready',
+            description: `${message.data.document_type} has been generated and is ready for review`,
+            variant: 'default',
+          });
+        }
+        break;
       case 'error':
         toast({
           title: 'Agent Error',
           description: message.message || 'An error occurred in the agent system',
+          variant: 'destructive',
+        });
+        break;
+      case 'warning':
+        toast({
+          title: 'Warning',
+          description: message.message || 'A warning was issued by the agent system',
           variant: 'destructive',
         });
         break;
@@ -297,6 +467,20 @@ class WebSocketManager {
           title: 'Task Submitted',
           description: message.description || 'New task has been queued',
         });
+        break;
+      case 'task_progress':
+        // Progress updates are frequent, only show for major milestones
+        if (message.data?.progress && message.data.progress % 25 === 0) {
+          console.log(`[WebSocket] Task progress: ${message.data.progress}%`);
+        }
+        break;
+      case 'system_status':
+        // System status updates are handled by store, just log
+        console.log(`[WebSocket] System status updated`);
+        break;
+      default:
+        // Log unhandled message types for debugging
+        console.log(`[WebSocket] Unhandled message type: ${message.type}`, message);
         break;
     }
   }

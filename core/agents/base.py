@@ -5,12 +5,15 @@ Provides foundation for all specialized agents with context management.
 
 import asyncio
 import json
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
+
+logger = logging.getLogger(__name__)
 
 
 class AgentRole(Enum):
@@ -191,6 +194,37 @@ class BaseAgent(ABC):
         Must update progress and manage handoffs.
         """
         pass
+
+    async def initialize(self, context: ContextBundle) -> None:
+        """
+        Initialize the agent with system context and prompting.
+        Called during layer spin-up sequence.
+        """
+        self.current_context = context
+        self.status = AgentStatus.IDLE
+
+        # Process initialization prompt if provided
+        if "initialization_prompt" in context.structural_pointers:
+            prompt = context.structural_pointers["initialization_prompt"]
+            # Agent-specific initialization logic can be added in subclasses
+
+        logger.info(f"Agent {self.role.value} initialized with session {context.session_id}")
+
+    async def shutdown(self) -> None:
+        """
+        Gracefully shutdown the agent.
+        Clean up resources and save state if needed.
+        """
+        self.status = AgentStatus.COMPLETED
+
+        # Save task history if needed
+        if self.task_history:
+            logger.info(f"Agent {self.role.value} completed {len(self.task_history)} tasks")
+
+        # Clear context to free memory
+        self.current_context = None
+
+        logger.info(f"Agent {self.role.value} shutdown complete")
 
     async def handoff(self,
                       target_role: AgentRole,

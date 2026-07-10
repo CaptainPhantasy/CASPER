@@ -2,6 +2,7 @@
 """
 CASPER2 Complete Terminal - All 49 Commands Implementation
 Full implementation following COT methodology with all tiers.
+Enhanced with agent-based natural language processing.
 """
 
 import asyncio
@@ -13,6 +14,7 @@ import subprocess
 import shutil
 from datetime import datetime
 from typing import Optional, Dict, List, Any
+import logging
 
 # Add project to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -28,6 +30,12 @@ from rich import print as rprint
 # Import original CASPER components
 from core.cli import CasperCLI, print_modern_banner
 from core.services.approval import HILApprovalService as ApprovalService
+
+# Import agent layer system for natural language processing
+from core.agents.layer_initialization import AgentLayerInitializer
+from core.agents.base import AgentRole, ContextBundle
+
+logger = logging.getLogger(__name__)
 
 
 # Command categories for organized help - ALL 49+ COMMANDS
@@ -102,7 +110,7 @@ COMMAND_CATEGORIES = {
 
 
 class CasperTerminalComplete:
-    """Complete CASPER2 terminal with all 49 commands"""
+    """Complete CASPER2 terminal with all 49 commands and agent-based NLP"""
 
     def __init__(self):
         self.console = Console()
@@ -112,12 +120,17 @@ class CasperTerminalComplete:
         self.backup_dir = self.casper_dir / "backups"
         self.export_dir = self.casper_dir / "exports"
 
+        # Agent layer system for natural language processing
+        self.agent_initializer = None
+        self.agent_session = None
+        self.layer_0_agent = None
+
         # Ensure directories exist
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         self.export_dir.mkdir(parents=True, exist_ok=True)
 
     async def initialize(self):
-        """Initialize CASPER CLI with approval mode from environment"""
+        """Initialize CASPER CLI with approval mode and agent layers"""
         self.casper_cli = CasperCLI()
 
         # Get approval mode from environment
@@ -150,6 +163,136 @@ class CasperTerminalComplete:
             pass
 
         await self.casper_cli.initialize()
+
+        # Initialize agent layers for natural language processing
+        self.console.print("[dim]→ Initializing agent layers...[/dim]")
+        try:
+            self.agent_initializer = AgentLayerInitializer()
+            self.agent_session = await self.agent_initializer.initialize_casper_session()
+
+            # Get Layer 0 agent for orchestration
+            from core.agents.layer_initialization import AgentLayer
+            if AgentLayer.LAYER_0 in self.agent_initializer.layer_agents:
+                self.layer_0_agent = self.agent_initializer.layer_agents[AgentLayer.LAYER_0][0]
+                self.console.print("[bold green]✓[/bold green] Agent layers initialized")
+            else:
+                self.console.print("[yellow]⚠ Agent layers initialized without Layer 0[/yellow]")
+        except Exception as e:
+            self.console.print(f"[yellow]⚠ Agent initialization warning: {e}[/yellow]")
+            logger.warning(f"Failed to initialize agent layers: {e}")
+
+    async def process_natural_language(self, input_text: str) -> bool:
+        """
+        Process natural language input through actual LLM and agent system.
+        NO PLACEHOLDERS - uses real LLM API for all responses.
+        Returns True if handled, False if should fall back to command processing.
+        """
+        # Import LLM service
+        from core.services.llm import llm_service
+
+        try:
+            self.console.print(f"[dim]→ Processing through LLM...[/dim]")
+
+            # Build context for LLM
+            system_prompt = """You are CASPER, an advanced AI development assistant with multi-agent capabilities.
+            You have access to specialized agents for Frontend, Backend, Testing, and DevOps tasks.
+
+            When the user asks a question, provide helpful, accurate information.
+            When the user requests a task, analyze what needs to be done and explain how you'll approach it.
+
+            You can execute real code changes, run tests, deploy applications, and more through your agent system.
+            Be concise but thorough in your responses."""
+
+            # Use actual LLM to process the input
+            response = await llm_service.complete(
+                prompt=input_text,
+                system=system_prompt,
+                max_tokens=1000
+            )
+
+            if not response:
+                # LLM failed - try to handle locally
+                self.console.print("[yellow]⚠ LLM service unavailable. Processing locally...[/yellow]")
+
+                # Check if it's a task-like request
+                action_words = ['create', 'make', 'build', 'test', 'debug', 'deploy', 'implement', 'add', 'fix', 'update', 'refactor', 'write', 'generate']
+                if any(word in input_text.lower() for word in action_words):
+                    # Route as task
+                    self.console.print(f"[dim]→ Routing to task execution: {input_text}[/dim]")
+                    await self.handle_task(input_text)
+                    return True
+                else:
+                    # Can't process without LLM
+                    self.console.print("[red]Unable to process natural language without LLM service.[/red]")
+                    self.console.print("[dim]Please configure ANTHROPIC_API_KEY or OPENAI_API_KEY in your environment.[/dim]")
+                    return False
+
+            # Display the LLM response
+            self.console.print("\n[bold cyan]CASPER Response:[/bold cyan]")
+            self.console.print(response)
+
+            # Now determine if we need to execute any actions based on the input
+            # Check if this looks like a task request that needs execution
+            task_indicators = [
+                'create', 'make', 'build', 'implement', 'add', 'write', 'generate',
+                'test', 'debug', 'deploy', 'fix', 'update', 'refactor', 'setup',
+                'install', 'configure', 'delete', 'remove'
+            ]
+
+            is_task_request = any(word in input_text.lower() for word in task_indicators)
+
+            if is_task_request:
+                # This is a task that needs execution
+                self.console.print("\n[dim]→ Executing task through agent system...[/dim]")
+
+                # Use the casper_cli to execute the task directly
+                try:
+                    await self.casper_cli.execute_task(input_text)
+                except Exception as e:
+                    self.console.print(f"[red]❌ Task execution failed: {e}[/red]")
+
+                    # Fallback to layer_0_agent if available
+                    if self.layer_0_agent:
+                        # Create context for agent execution
+                        context = ContextBundle(
+                            parent_task=input_text,
+                            session_id=self.agent_session['session_id'] if self.agent_session else None
+                        )
+
+                        # Analyze if we can handle this task
+                        can_handle, reason = await self.layer_0_agent.analyze_task(input_text, context)
+
+                        if can_handle:
+                            # Execute through the actual agent system
+                            result = await self.layer_0_agent.execute_task(input_text, context)
+
+                            if result and result.output:
+                                self.console.print("\n[bold green]Task Execution Result:[/bold green]")
+                                self.console.print(result.output)
+
+                            # If there were any errors, display them
+                            if result and result.errors:
+                                self.console.print("\n[bold red]Errors encountered:[/bold red]")
+                                for error in result.errors:
+                                    self.console.print(f"  • {error}")
+                        else:
+                            # Can't execute this specific task
+                            self.console.print(f"\n[yellow]Note: Unable to execute this task automatically.[/yellow]")
+                            self.console.print(f"[dim]Reason: {reason}[/dim]")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Natural language processing error: {e}")
+            self.console.print(f"[red]Error processing natural language: {e}[/red]")
+
+            # Fallback to basic task routing if it looks like a command
+            if any(word in input_text.lower() for word in ['create', 'test', 'debug', 'build']):
+                self.console.print("[dim]→ Falling back to direct task execution...[/dim]")
+                await self.handle_task(input_text)
+                return True
+
+            return False
 
     # ============= TIER 1: CORE COMMANDS =============
 
@@ -258,8 +401,11 @@ class CasperTerminalComplete:
             return
 
         try:
-            approval_service = ApprovalService()
-            pending = await approval_service.get_pending_operations()
+            # Use the global approval service instance from core.services.approval
+            from core.services.approval import approval_service
+
+            # Get pending operations (not async - it's a regular method)
+            pending = approval_service.get_pending_approvals()
 
             if pending:
                 self.console.print(f"[yellow]Found {len(pending)} pending operations:[/yellow]\n")
@@ -272,18 +418,23 @@ class CasperTerminalComplete:
 
                     table.add_row("Operation ID", op.id)
                     table.add_row("Type", op.operation_type)
-                    table.add_row("Path", op.details.get('path', 'N/A'))
-                    table.add_row("Description", op.details.get('description', 'N/A'))
+                    table.add_row("Path", op.path)
+                    table.add_row("Agent ID", op.agent_id)
+                    table.add_row("Created", op.created_at.strftime("%Y-%m-%d %H:%M:%S"))
+
+                    # Show content preview
+                    content_preview = op.content[:200] + "..." if len(op.content) > 200 else op.content
+                    table.add_row("Content Preview", content_preview)
 
                     self.console.print(Panel(table, title=f"[bold yellow]Pending Operation[/bold yellow]"))
 
                     # Ask for approval
                     from rich.prompt import Confirm
-                    if Confirm.ask("Approve this operation?", default=True):
-                        await approval_service.approve(op.id)
+                    if Confirm.ask("Approve this operation?", default=False):
+                        approval_service.approve_operation(op.id)
                         self.console.print("[green]✓ Approved[/green]\n")
                     else:
-                        await approval_service.reject(op.id)
+                        approval_service.reject_operation(op.id)
                         self.console.print("[red]✗ Rejected[/red]\n")
             else:
                 self.console.print("[dim]No pending operations to approve[/dim]")
@@ -294,25 +445,21 @@ class CasperTerminalComplete:
     # ============= TIER 3: DEVELOPMENT COMMANDS =============
 
     async def handle_create(self, args: str) -> None:
-        """Handle create command - creates new components"""
+        """Handle create command - creates new components, files, or folders"""
         if not args:
-            self.console.print("[red]❌ Usage:[/red] /create <component_type> <name>")
-            self.console.print("[dim]Example: /create component UserProfile[/dim]")
+            self.console.print("[red]❌ Usage:[/red] /create <what_to_create>")
+            self.console.print("[dim]Examples:[/dim]")
+            self.console.print("[dim]  /create a folder named projects[/dim]")
+            self.console.print("[dim]  /create a file called index.js[/dim]")
+            self.console.print("[dim]  /create component UserProfile[/dim]")
             return
 
-        parts = args.split(maxsplit=1)
-        component_type = parts[0] if parts else ""
-        name = parts[1] if len(parts) > 1 else ""
+        # Just pass the entire args as the creation task
+        self.console.print(f"[dim]→ Creating:[/dim] [cyan]{args}[/cyan]")
 
-        if not name:
-            self.console.print(f"[red]❌ Please provide a name for the {component_type}[/red]")
-            return
-
-        self.console.print(f"[dim]→ Creating {component_type}:[/dim] [cyan]{name}[/cyan]")
-
-        # Delegate to CASPER CLI
-        task = f"create a new {component_type} called {name}"
-        await self.handle_task(task)
+        # Pass directly to the task handler without modification
+        # The Worker agent will parse what needs to be created
+        await self.handle_task(f"create {args}")
 
     async def handle_test(self, args: str) -> None:
         """Handle test command - runs tests"""
@@ -868,6 +1015,16 @@ class CasperTerminalComplete:
     async def handle_command(self, command: str, args: str) -> bool:
         """Route command to appropriate handler"""
 
+        # Handle empty command edge case
+        if not command:
+            # If we get here with no command, treat the whole thing as natural language
+            full_input = f"{command} {args}".strip()
+            if full_input:
+                handled = await self.process_natural_language(full_input)
+                if handled:
+                    return False  # Don't exit
+            return False
+
         # Command mapping
         handlers = {
             # Core commands
@@ -944,9 +1101,45 @@ class CasperTerminalComplete:
             result = await handlers[command]()
             return result if command in ["exit", "quit", "q"] else False
         else:
-            self.console.print(f"[red]❌ Unknown command:[/red] [yellow]{command}[/yellow]")
-            self.console.print("[dim]Type 'help' for available commands[/dim]")
+            # Unknown command - try natural language as fallback
+            full_input = f"{command} {args}".strip()
+            self.console.print(f"[yellow]'{command}' is not a recognized command.[/yellow]")
+            self.console.print("[dim]→ Attempting to interpret as natural language...[/dim]")
+
+            # Try to process as natural language
+            handled = await self.process_natural_language(full_input)
+
+            if not handled:
+                self.console.print(f"[red]❌ Unable to process: {full_input}[/red]")
+                self.console.print("[dim]Type 'help' for available commands[/dim]")
+
             return False
+
+    async def execute_direct_task(self, task: str):
+        """Execute a single task directly from command line"""
+        print_casper2_banner()
+
+        # Initialize
+        await self.initialize()
+
+        # Execute task through natural language processing
+        print(f"\n[cyan]→ Executing task: {task}[/cyan]")
+
+        # Process as natural language
+        handled = await self.process_natural_language(task)
+
+        if not handled:
+            # Try as a command if NLP didn't handle it
+            parts = task.split(maxsplit=1)
+            if len(parts) == 2:
+                command, args = parts
+                await self.handle_command(command, args)
+            elif len(parts) == 1:
+                await self.handle_command(parts[0], "")
+
+        # Clean shutdown
+        if self.agent_initializer:
+            await self.agent_initializer.shutdown()
 
     async def run(self):
         """Main terminal loop"""
@@ -1001,7 +1194,20 @@ class CasperTerminalComplete:
                 if not user_input:
                     continue
 
-                # Parse command
+                # First, try natural language processing if not a clear command
+                # Check if it starts with a known command prefix
+                is_command = (user_input.startswith('/') or
+                             user_input.split()[0].lower() in ['help', 'task', 'analyze', 'status', 'approve',
+                                                                'clear', 'exit', 'quit', 'list', 'cls', 'q'])
+
+                if not is_command:
+                    # Try to process as natural language
+                    handled = await self.process_natural_language(user_input)
+                    if handled:
+                        self.console.print()  # Add spacing
+                        continue
+
+                # Parse as command if not handled by NLP or is explicit command
                 parts = user_input.split(' ', 1)
                 command = parts[0].lower()
                 args = parts[1] if len(parts) > 1 else ""
@@ -1057,9 +1263,34 @@ ________/\\\\\\\\_____/\\\\\\\\\________/\\\\\\\\\\\____/\\\\\\\\\\\\\____/\\\\\
 
 async def main():
     """Main entry point"""
+    import argparse
+
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='CASPER2 Complete Terminal')
+    parser.add_argument('task', nargs='?', help='Task to execute directly')
+    parser.add_argument('--yolo', action='store_true', help='Enable YOLO mode (auto-approve all operations)')
+    parser.add_argument('--auto', action='store_true', help='Enable AUTO mode (auto-approve safe operations)')
+    parser.add_argument('--strict', action='store_true', help='Enable STRICT mode (require approval for all operations)')
+
+    args = parser.parse_args()
+
+    # Set approval mode based on flags
+    if args.yolo:
+        os.environ['CASPER_APPROVAL_MODE'] = 'YOLO'
+    elif args.auto:
+        os.environ['CASPER_APPROVAL_MODE'] = 'AUTO'
+    elif args.strict:
+        os.environ['CASPER_APPROVAL_MODE'] = 'STRICT'
+
     terminal = CasperTerminalComplete()
+
     try:
-        await terminal.run()
+        if args.task:
+            # Execute task directly and exit
+            await terminal.execute_direct_task(args.task)
+        else:
+            # Run interactive mode
+            await terminal.run()
     except KeyboardInterrupt:
         print("\n👋 CASPER2 Terminal interrupted")
     except Exception as e:

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Check, Layout, Monitor, Smartphone, Tablet } from 'lucide-react';
+import { Icon } from '../icons/IconMapping';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,12 +20,12 @@ interface LayoutPresetSelectorProps {
 const getBreakpointIcon = (breakpoint?: string) => {
   switch (breakpoint) {
     case 'mobile':
-      return <Smartphone className="h-3 w-3" />;
+      return <Icon name="smartphone" className="h-3 w-3" />;
     case 'tablet':
-      return <Tablet className="h-3 w-3" />;
+      return <Icon name="tablet" className="h-3 w-3" />;
     case 'desktop':
     default:
-      return <Monitor className="h-3 w-3" />;
+      return <Icon name="monitor" className="h-3 w-3" />;
   }
 };
 
@@ -51,7 +51,7 @@ export const LayoutPresetSelector: React.FC<LayoutPresetSelectorProps> = ({
           className={cn('gap-2', className)}
           aria-label="Select layout preset"
         >
-          <Layout className="h-4 w-4" />
+          <Icon name="layout" className="h-4 w-4" />
           {currentPreset?.name || 'Custom'}
           <Badge variant="secondary" className="ml-1 gap-1 text-xs">
             {getBreakpointIcon(breakpoint)}
@@ -83,7 +83,7 @@ export const LayoutPresetSelector: React.FC<LayoutPresetSelectorProps> = ({
               </p>
             </div>
             {currentLayout === preset.id && (
-              <Check className="h-4 w-4 text-primary" />
+              <Icon name="check" className="h-4 w-4 text-primary" />
             )}
           </DropdownMenuItem>
         ))}

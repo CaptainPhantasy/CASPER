@@ -5,13 +5,15 @@ Provides real-time updates and API endpoints.
 
 import asyncio
 import json
+import time
+import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 import os
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -28,6 +30,17 @@ from core.services.approval import approval_service
 from core.services.business import business_service
 from core.services.development import development_service
 from core.terminal import TerminalWebSocketHandler
+from core.services.chat_service import chat_service
+from core.routers import workspace as workspace_router
+from core.routers import auth as auth_router
+from core.routers import approvals as approvals_router
+from core.routers import pipeline as pipeline_router
+from core.services.metrics import (
+    get_metrics,
+    get_metrics_content_type,
+    record_http_request,
+    set_build_info,
+)
 
 
 load_dotenv()
@@ -39,9 +52,13 @@ TASK_RATE_LIMIT = os.environ.get("TASK_RATE_LIMIT", "10/minute")
 ANALYSIS_RATE_LIMIT = os.environ.get("ANALYSIS_RATE_LIMIT", "20/minute")
 FILE_RATE_LIMIT = os.environ.get("FILE_RATE_LIMIT", "120/minute")
 FILETREE_RATE_LIMIT = os.environ.get("FILETREE_RATE_LIMIT", "60/minute")
-app = FastAPI(title="CASPER Prime API", version="0.1.0")
+app = FastAPI(title="CASPER Prime API", version="0.1.0-beta.1")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.include_router(workspace_router.router)
+app.include_router(auth_router.router)
+app.include_router(approvals_router.router)
+app.include_router(pipeline_router.router)
 
 # CORS configuration - externalized via environment
 default_origins = [
@@ -178,6 +195,9 @@ async def startup_event():
     await coordinator.start()
     await terminal_handler.start()
 
+    # Set build info for Prometheus metrics
+    set_build_info(version="0.1.0-beta.1")
+
     # Register progress callback for WebSocket updates
     coordinator.register_progress_callback(broadcast_progress_update)
 
@@ -227,6 +247,21 @@ async def websocket_endpoint(websocket: WebSocket):
                     **task_response
                 })
 
+            elif data.get("type") == "chat_message":
+                chat_message = data.get("message", "")
+                session_id = data.get("session_id", "default")
+
+                # Get response from ChatService
+                response_message = await chat_service.get_chat_response(chat_message)
+
+                # Send response back to the client
+                await websocket.send_json({
+                    "type": "agent_response",
+                    "message": response_message,
+                    "agent_role": "master",
+                    "timestamp": datetime.now().isoformat()
+                })
+
             elif data.get("type") == "ping":
                 # Respond to ping
                 await websocket.send_json({"type": "pong"})
@@ -241,10 +276,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # Terminal WebSocket endpoint
 @app.websocket("/ws/terminal")
-async def terminal_websocket_endpoint(websocket: WebSocket):
+async def terminal_websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
     """WebSocket endpoint for terminal sessions."""
     if terminal_handler:
-        await terminal_handler.handle_connection(websocket)
+        await terminal_handler.handle_connection(websocket, token)
     else:
         await websocket.close(code=1011, reason="Terminal handler not initialized")
 
@@ -502,15 +537,47 @@ async def health():
     return {"status": "ok", "time": datetime.now().isoformat()}
 
 
-# Codebase Management Endpoints
-@app.post("/api/workspace/open")
-async def open_workspace(request: WorkspaceRequest):
-    """Open a workspace/codebase for editing."""
-    try:
-        result = codebase_service.open_workspace(request.path)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+@app.get("/metrics")
+async def prometheus_metrics():
+    """Prometheus metrics endpoint for monitoring and observability."""
+    return Response(
+        content=get_metrics(),
+        media_type=get_metrics_content_type(),
+    )
+
+
+@app.get("/monitoring")
+async def monitoring_dashboard():
+    """Serve the CASPER monitoring dashboard HTML page."""
+    from pathlib import Path
+    dashboard_path = Path(__file__).parent.parent / "dashboard" / "monitoring.html"
+    if dashboard_path.exists():
+        return Response(
+            content=dashboard_path.read_text(),
+            media_type="text/html",
+        )
+    return Response(content="<h1>Monitoring dashboard not found</h1>", media_type="text/html")
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """Middleware to track HTTP request metrics."""
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    # Normalize path to avoid high cardinality (strip IDs)
+    path = request.url.path
+    # Replace UUIDs and numeric IDs with placeholders
+    path = re.sub(r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "/{id}", path)
+    path = re.sub(r"/\d+", "/{id}", path)
+    record_http_request(
+        method=request.method,
+        path=path,
+        status=response.status_code,
+        duration=duration,
+    )
+    return response
+
 
 
 @app.post("/api/task/analyze")
@@ -558,81 +625,6 @@ async def analyze_task_endpoint(request: Request, task_data: Dict[str, str]):
             "requiredAgents": agent_roles
         }
     }
-
-
-@app.get("/api/workspace/filetree")
-@limiter.limit(FILETREE_RATE_LIMIT)
-async def get_file_tree(request: Request):
-    """Get the current workspace file tree."""
-    try:
-        file_tree = codebase_service.get_file_tree()
-        return {"file_tree": file_tree, "files": file_tree}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/api/workspace/file")
-@limiter.limit(FILE_RATE_LIMIT)
-async def read_file(request_obj: Request, request: FileRequest):
-    """Read a file from the current workspace."""
-    try:
-        file_data = codebase_service.read_file(request.path)
-        return file_data
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="File not found")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/workspace/file")
-async def read_file_get(path: str = Query(..., description="Path to file relative to workspace root")):
-    """Support GET variant for compatibility."""
-    try:
-        return codebase_service.read_file(path)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="File not found")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/workspace/info")
-async def get_workspace_info():
-    """Get current workspace information."""
-    if not codebase_service.current_workspace:
-        raise HTTPException(status_code=400, detail="No workspace opened")
-
-    return codebase_service.get_workspace_info()
-
-
-@app.get("/api/workspace/recent")
-async def get_recent_workspaces():
-    """List recently opened workspaces."""
-    return {"recent": codebase_service.get_recent_workspaces()}
-
-
-@app.get("/api/workspace/search")
-async def search_workspace(query: str = Query(..., min_length=1), limit: int = Query(20, ge=1, le=100)):
-    """Search for files within the active workspace."""
-    if not codebase_service.current_workspace:
-        raise HTTPException(status_code=400, detail="No workspace opened")
-    return {"results": codebase_service.search_files(query, limit)}
-
-
-@app.get("/api/settings")
-async def get_settings():
-    """Return the persisted settings for the active workspace."""
-    if not codebase_service.current_workspace:
-        raise HTTPException(status_code=400, detail="No workspace opened")
-    info = codebase_service.get_workspace_info()
-    return info.get("settings", {})
-
-
-@app.put("/api/settings")
-async def update_settings(payload: SettingsPayload):
-    """Update settings for the active workspace."""
-    if not codebase_service.current_workspace:
-        raise HTTPException(status_code=400, detail="No workspace opened")
-    return codebase_service.update_settings(payload.dict())
 
 
 # Approval System API Endpoints

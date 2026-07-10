@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SettingsPayload } from '@/types';
 import { getSettings, updateSettings } from '@/services/api';
-import { Loader2, Settings2 } from 'lucide-react';
+import { Icon } from './icons/IconMapping';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -91,7 +91,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Settings2 className="h-4 w-4" />
+            <Icon name="settings" className="h-4 w-4" />
             Workspace settings
           </DialogTitle>
           <DialogDescription>
@@ -108,7 +108,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
         {loading || !settings ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Icon name="loader-2" className="h-5 w-5 animate-spin" />
             <span className="ml-2 text-sm">Loading settings…</span>
           </div>
         ) : (

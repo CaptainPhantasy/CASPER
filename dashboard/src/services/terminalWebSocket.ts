@@ -31,7 +31,21 @@ class TerminalWebSocketManager {
     this.url = `${protocol}//${location.hostname}:8742/ws/terminal`;
   }
 
-  connect() {
+  private async getAuthToken(): Promise<string | null> {
+    try {
+      const response = await fetch('/api/auth/token', { method: 'POST' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch auth token');
+      }
+      const data = await response.json();
+      return data.access_token;
+    } catch (error) {
+      console.error('[TerminalWS] Error fetching auth token:', error);
+      return null;
+    }
+  }
+
+  async connect() {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       return;
     }
@@ -47,7 +61,14 @@ class TerminalWebSocketManager {
     }
 
     try {
-      this.ws = new WebSocket(this.url);
+      const token = await this.getAuthToken();
+      if (!token) {
+        this.scheduleReconnect();
+        return;
+      }
+
+      const urlWithToken = `${this.url}?token=${token}`;
+      this.ws = new WebSocket(urlWithToken);
 
       const connectionTimeout = setTimeout(() => {
         if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
@@ -58,7 +79,7 @@ class TerminalWebSocketManager {
 
       this.ws.onopen = () => {
         clearTimeout(connectionTimeout);
-        console.log('[TerminalWS] Connected to', this.url);
+        console.log('[TerminalWS] Connected to', urlWithToken);
         this.reconnectAttempts = 0;
         this.isManuallyDisconnected = false;
         this.startPingInterval();

@@ -9,29 +9,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { searchWorkspace, API_BASE } from '@/services/api';
-import {
-  FileSearch,
-  Settings2,
-  SquarePen,
-  Wand2,
-  // Business Commands
-  FileText as DocumentText,
-  Calculator,
-  CreditCard,
-  // Development Commands
-  Database,
-  ShieldCheck,
-  Code2 as Code,
-  Box as Cube,
-  FileText,
-  // Productivity Commands
-  Clock,
-  Edit as Pencil,
-  Lightbulb,
-  // Emergency Commands
-  AlertTriangle,
-  Wrench
-} from 'lucide-react';
+import { Icon } from './icons/IconMapping';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -52,135 +30,38 @@ interface Command {
   id: string;
   label: string;
   description: string;
-  category: 'business' | 'development' | 'productivity' | 'emergency';
-  icon: React.ComponentType<any>;
+  category: 'business' | 'development' | 'productivity' | 'ai' | 'testing' | 'utility' | 'emergency';
+  icon: string;
   shortcut?: string;
   action: () => void | Promise<void>;
 }
 
-interface CommandGroup {
-  category: 'business' | 'development' | 'productivity' | 'emergency';
+interface CommandGroupDefinition {
+  category: 'business' | 'development' | 'productivity' | 'ai' | 'testing' | 'utility' | 'emergency';
   title: string;
   color: string;
   commands: Command[];
 }
 
-// Define command categories as per UI.md specifications
-const createCommandGroups = (): CommandGroup[] => {
+// Define all 49+ command categories as per CASPER terminal specifications
+const createCommandGroups = (): CommandGroupDefinition[] => {
   const executeCommand = async (commandId: string, params?: any) => {
     try {
       console.log(`Executing command: ${commandId}`, params);
 
       // Execute command via appropriate API endpoint
       let response;
-      switch (commandId) {
-        // Business Commands - integrate with /api/business/* endpoints
-        case 'proposal':
-          response = await fetch(`${API_BASE}/api/business/proposal`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'estimate':
-          response = await fetch(`${API_BASE}/api/business/estimate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'invoice':
-          response = await fetch(`${API_BASE}/api/business/invoice`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
+      const endpoint = getCommandEndpoint(commandId);
 
-        // Development Commands - integrate with /api/dev/* endpoints
-        case 'migrate':
-          response = await fetch(`${API_BASE}/api/dev/migrate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'seed':
-          response = await fetch(`${API_BASE}/api/dev/seed`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'scan':
-          response = await fetch(`${API_BASE}/api/dev/scan`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'lint':
-          response = await fetch(`${API_BASE}/api/dev/lint`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'api-gen':
-          response = await fetch(`${API_BASE}/api/dev/api-gen`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'logs':
-          response = await fetch(`${API_BASE}/api/dev/logs`, {
-            method: 'GET',
-          });
-          break;
-
-        // Productivity Commands - integrate with /api/productivity/* endpoints
-        case 'focus':
-          response = await fetch(`${API_BASE}/api/productivity/focus`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'notes':
-          response = await fetch(`${API_BASE}/api/productivity/notes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'til':
-          response = await fetch(`${API_BASE}/api/productivity/til`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-
-        // Emergency Commands - integrate with /api/emergency/* endpoints
-        case 'panic':
-          response = await fetch(`${API_BASE}/api/emergency/panic`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-        case 'hotfix':
-          response = await fetch(`${API_BASE}/api/emergency/hotfix`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params || {}),
-          });
-          break;
-
-        default:
-          console.warn(`Unknown command: ${commandId}`);
-          return;
+      if (endpoint) {
+        response = await fetch(`${API_BASE}${endpoint}`, {
+          method: endpoint.includes('logs') || endpoint.includes('status') ? 'GET' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: endpoint.includes('logs') || endpoint.includes('status') ? undefined : JSON.stringify(params || {}),
+        });
+      } else {
+        console.warn(`Unknown command: ${commandId}`);
+        return;
       }
 
       if (response && !response.ok) {
@@ -190,15 +71,85 @@ const createCommandGroups = (): CommandGroup[] => {
       const result = response ? await response.json().catch(() => ({})) : {};
       console.log(`Command ${commandId} completed:`, result);
 
-      // TODO: Show success notification
-      // toast.success(`${commandId} command completed successfully`);
-
     } catch (error) {
       console.error(`Command execution failed for ${commandId}:`, error);
-      // TODO: Show error notification
-      // toast.error(`${commandId} command failed: ${error.message}`);
       throw error;
     }
+  };
+
+  // Map commands to their API endpoints
+  const getCommandEndpoint = (commandId: string): string | null => {
+    const endpointMap: Record<string, string> = {
+      // Core Commands
+      'task': '/api/task',
+      'analyze': '/api/analyze',
+      'status': '/api/status',
+      'approve': '/api/approve',
+
+      // Business Commands
+      'proposal': '/api/business/proposal',
+      'invoice': '/api/business/invoice',
+      'contract': '/api/business/contract',
+      'quote': '/api/business/quote',
+      'timesheet': '/api/business/timesheet',
+      'estimate': '/api/business/estimate',
+
+      // Development Commands
+      'create': '/api/dev/create',
+      'test': '/api/dev/test',
+      'debug': '/api/dev/debug',
+      'review': '/api/dev/review',
+      'refactor': '/api/dev/refactor',
+      'init': '/api/dev/init',
+      'build': '/api/dev/build',
+      'deploy': '/api/dev/deploy',
+      'rollback': '/api/dev/rollback',
+      'migrate': '/api/dev/migrate',
+      'generate': '/api/dev/generate',
+      'scaffold': '/api/dev/scaffold',
+      'optimize': '/api/dev/optimize',
+      'profile': '/api/dev/profile',
+      'scan': '/api/dev/scan',
+      'lint': '/api/dev/lint',
+      'api-gen': '/api/dev/api-gen',
+      'logs': '/api/dev/logs',
+
+      // AI Commands
+      'ai-review': '/api/ai/review',
+      'ai-complete': '/api/ai/complete',
+      'ai-explain': '/api/ai/explain',
+      'ai-suggest': '/api/ai/suggest',
+      'ai-translate': '/api/ai/translate',
+
+      // Testing Commands
+      'unit-test': '/api/test/unit',
+      'integration-test': '/api/test/integration',
+      'e2e-test': '/api/test/e2e',
+      'load-test': '/api/test/load',
+      'security-test': '/api/test/security',
+
+      // Utility Commands
+      'search': '/api/utility/search',
+      'replace': '/api/utility/replace',
+      'format': '/api/utility/format',
+      'clean': '/api/utility/clean',
+      'backup': '/api/utility/backup',
+      'restore': '/api/utility/restore',
+      'export': '/api/utility/export',
+      'import': '/api/utility/import',
+      'sync': '/api/utility/sync',
+
+      // Productivity Commands
+      'focus': '/api/productivity/focus',
+      'notes': '/api/productivity/notes',
+      'til': '/api/productivity/til',
+
+      // Emergency Commands
+      'panic': '/api/emergency/panic',
+      'hotfix': '/api/emergency/hotfix'
+    };
+
+    return endpointMap[commandId] || null;
   };
 
   return [
@@ -212,7 +163,7 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Generate Proposal',
           description: 'AI-powered project proposals',
           category: 'business',
-          icon: DocumentText,
+          icon: 'file-text',
           shortcut: 'Ctrl+P',
           action: () => executeCommand('proposal')
         },
@@ -221,7 +172,7 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Create Estimate',
           description: 'Project cost and timeline estimation',
           category: 'business',
-          icon: Calculator,
+          icon: 'calculator',
           action: () => executeCommand('estimate')
         },
         {
@@ -229,8 +180,32 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Generate Invoice',
           description: 'Professional invoice generation',
           category: 'business',
-          icon: CreditCard,
+          icon: 'credit-card',
           action: () => executeCommand('invoice')
+        },
+        {
+          id: 'contract',
+          label: 'Draft Contract',
+          description: 'Generate legal contracts',
+          category: 'business',
+          icon: 'file-text',
+          action: () => executeCommand('contract')
+        },
+        {
+          id: 'quote',
+          label: 'Generate Quote',
+          description: 'Create project quotes',
+          category: 'business',
+          icon: 'receipt',
+          action: () => executeCommand('quote')
+        },
+        {
+          id: 'timesheet',
+          label: 'Manage Timesheet',
+          description: 'Time tracking and logging',
+          category: 'business',
+          icon: 'clock',
+          action: () => executeCommand('timesheet')
         }
       ]
     },
@@ -240,27 +215,125 @@ const createCommandGroups = (): CommandGroup[] => {
       color: 'text-blue-500',
       commands: [
         {
+          id: 'create',
+          label: 'Create Components',
+          description: 'Generate new code components',
+          category: 'development',
+          icon: 'code',
+          action: () => executeCommand('create')
+        },
+        {
+          id: 'test',
+          label: 'Run Tests',
+          description: 'Execute test suites',
+          category: 'development',
+          icon: 'test-tube',
+          shortcut: 'Ctrl+T',
+          action: () => executeCommand('test')
+        },
+        {
+          id: 'debug',
+          label: 'Debug Code',
+          description: 'Debug application issues',
+          category: 'development',
+          icon: 'bug',
+          action: () => executeCommand('debug')
+        },
+        {
+          id: 'review',
+          label: 'Code Review',
+          description: 'Review code changes',
+          category: 'development',
+          icon: 'eye',
+          action: () => executeCommand('review')
+        },
+        {
+          id: 'refactor',
+          label: 'Refactor Code',
+          description: 'Improve code structure',
+          category: 'development',
+          icon: 'refresh-cw',
+          action: () => executeCommand('refactor')
+        },
+        {
+          id: 'init',
+          label: 'Initialize Project',
+          description: 'Set up new project',
+          category: 'development',
+          icon: 'cube',
+          action: () => executeCommand('init')
+        },
+        {
+          id: 'build',
+          label: 'Build Project',
+          description: 'Compile and build application',
+          category: 'development',
+          icon: 'cube',
+          shortcut: 'Ctrl+B',
+          action: () => executeCommand('build')
+        },
+        {
+          id: 'deploy',
+          label: 'Deploy Application',
+          description: 'Deploy to production',
+          category: 'development',
+          icon: 'rocket',
+          action: () => executeCommand('deploy')
+        },
+        {
+          id: 'rollback',
+          label: 'Rollback Deployment',
+          description: 'Revert to previous version',
+          category: 'development',
+          icon: 'arrow-left',
+          action: () => executeCommand('rollback')
+        },
+        {
           id: 'migrate',
           label: 'Database Migration',
           description: 'Run database migrations',
           category: 'development',
-          icon: Database,
+          icon: 'database',
           action: () => executeCommand('migrate')
         },
         {
-          id: 'seed',
-          label: 'Seed Database',
-          description: 'Populate database with test data',
+          id: 'generate',
+          label: 'Generate Code',
+          description: 'Auto-generate code templates',
           category: 'development',
-          icon: Database,
-          action: () => executeCommand('seed')
+          icon: 'bolt',
+          action: () => executeCommand('generate')
+        },
+        {
+          id: 'scaffold',
+          label: 'Scaffold Structure',
+          description: 'Generate project scaffolding',
+          category: 'development',
+          icon: 'cube',
+          action: () => executeCommand('scaffold')
+        },
+        {
+          id: 'optimize',
+          label: 'Optimize Code',
+          description: 'Performance optimization',
+          category: 'development',
+          icon: 'trending-up',
+          action: () => executeCommand('optimize')
+        },
+        {
+          id: 'profile',
+          label: 'Profile Performance',
+          description: 'Analyze performance metrics',
+          category: 'development',
+          icon: 'trending-up',
+          action: () => executeCommand('profile')
         },
         {
           id: 'scan',
           label: 'Security Scan',
           description: 'Vulnerability and security analysis',
           category: 'development',
-          icon: ShieldCheck,
+          icon: 'shield-check',
           shortcut: 'Ctrl+Shift+S',
           action: () => executeCommand('scan')
         },
@@ -269,7 +342,7 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Code Linting',
           description: 'Code quality and style analysis',
           category: 'development',
-          icon: Code,
+          icon: 'code',
           action: () => executeCommand('lint')
         },
         {
@@ -277,7 +350,7 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Generate API',
           description: 'Scaffold API endpoints',
           category: 'development',
-          icon: Cube,
+          icon: 'cube',
           action: () => executeCommand('api-gen')
         },
         {
@@ -285,7 +358,7 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'View Logs',
           description: 'System and application log analysis',
           category: 'development',
-          icon: FileText,
+          icon: 'file-text',
           action: () => executeCommand('logs')
         }
       ]
@@ -300,7 +373,7 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Start Focus Session',
           description: 'Pomodoro timer and focus mode',
           category: 'productivity',
-          icon: Clock,
+          icon: 'clock',
           shortcut: 'Ctrl+F',
           action: () => executeCommand('focus')
         },
@@ -309,7 +382,7 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Quick Notes',
           description: 'Contextual note-taking',
           category: 'productivity',
-          icon: Pencil,
+          icon: 'pencil',
           action: () => executeCommand('notes')
         },
         {
@@ -317,8 +390,182 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Today I Learned',
           description: 'Knowledge capture and insights',
           category: 'productivity',
-          icon: Lightbulb,
+          icon: 'lightbulb',
           action: () => executeCommand('til')
+        }
+      ]
+    },
+    {
+      category: 'ai',
+      title: 'AI-Powered Tools',
+      color: 'text-indigo-500',
+      commands: [
+        {
+          id: 'ai-review',
+          label: 'AI Code Review',
+          description: 'Automated code analysis and suggestions',
+          category: 'ai',
+          icon: 'brain',
+          action: () => executeCommand('ai-review')
+        },
+        {
+          id: 'ai-complete',
+          label: 'AI Code Completion',
+          description: 'Intelligent code completion',
+          category: 'ai',
+          icon: 'sparkle',
+          action: () => executeCommand('ai-complete')
+        },
+        {
+          id: 'ai-explain',
+          label: 'AI Code Explanation',
+          description: 'Explain complex code segments',
+          category: 'ai',
+          icon: 'message-square',
+          action: () => executeCommand('ai-explain')
+        },
+        {
+          id: 'ai-suggest',
+          label: 'AI Suggestions',
+          description: 'Get AI-powered improvement suggestions',
+          category: 'ai',
+          icon: 'lightbulb',
+          action: () => executeCommand('ai-suggest')
+        },
+        {
+          id: 'ai-translate',
+          label: 'AI Code Translation',
+          description: 'Convert code between languages',
+          category: 'ai',
+          icon: 'language',
+          action: () => executeCommand('ai-translate')
+        }
+      ]
+    },
+    {
+      category: 'testing',
+      title: 'Testing Suite',
+      color: 'text-orange-500',
+      commands: [
+        {
+          id: 'unit-test',
+          label: 'Unit Tests',
+          description: 'Run unit test suite',
+          category: 'testing',
+          icon: 'check-circle',
+          action: () => executeCommand('unit-test')
+        },
+        {
+          id: 'integration-test',
+          label: 'Integration Tests',
+          description: 'Run integration tests',
+          category: 'testing',
+          icon: 'workflow',
+          action: () => executeCommand('integration-test')
+        },
+        {
+          id: 'e2e-test',
+          label: 'End-to-End Tests',
+          description: 'Run E2E test suite',
+          category: 'testing',
+          icon: 'globe',
+          action: () => executeCommand('e2e-test')
+        },
+        {
+          id: 'load-test',
+          label: 'Load Testing',
+          description: 'Performance and load testing',
+          category: 'testing',
+          icon: 'trending-up',
+          action: () => executeCommand('load-test')
+        },
+        {
+          id: 'security-test',
+          label: 'Security Testing',
+          description: 'Security vulnerability testing',
+          category: 'testing',
+          icon: 'shield',
+          action: () => executeCommand('security-test')
+        }
+      ]
+    },
+    {
+      category: 'utility',
+      title: 'Utility Tools',
+      color: 'text-cyan-500',
+      commands: [
+        {
+          id: 'search',
+          label: 'Search Codebase',
+          description: 'Search through project files',
+          category: 'utility',
+          icon: 'search',
+          shortcut: 'Ctrl+Shift+F',
+          action: () => executeCommand('search')
+        },
+        {
+          id: 'replace',
+          label: 'Find & Replace',
+          description: 'Find and replace text across files',
+          category: 'utility',
+          icon: 'replace',
+          action: () => executeCommand('replace')
+        },
+        {
+          id: 'format',
+          label: 'Format Code',
+          description: 'Auto-format code files',
+          category: 'utility',
+          icon: 'palette',
+          action: () => executeCommand('format')
+        },
+        {
+          id: 'clean',
+          label: 'Clean Project',
+          description: 'Clean build artifacts and cache',
+          category: 'utility',
+          icon: 'trash',
+          action: () => executeCommand('clean')
+        },
+        {
+          id: 'backup',
+          label: 'Backup Project',
+          description: 'Create project backup',
+          category: 'utility',
+          icon: 'archive',
+          action: () => executeCommand('backup')
+        },
+        {
+          id: 'restore',
+          label: 'Restore Backup',
+          description: 'Restore from backup',
+          category: 'utility',
+          icon: 'rotate-ccw',
+          action: () => executeCommand('restore')
+        },
+        {
+          id: 'export',
+          label: 'Export Data',
+          description: 'Export project data',
+          category: 'utility',
+          icon: 'download',
+          action: () => executeCommand('export')
+        },
+        {
+          id: 'import',
+          label: 'Import Data',
+          description: 'Import external data',
+          category: 'utility',
+          icon: 'upload',
+          action: () => executeCommand('import')
+        },
+        {
+          id: 'sync',
+          label: 'Sync Repositories',
+          description: 'Synchronize with remote repositories',
+          category: 'utility',
+          icon: 'refresh-cw',
+          action: () => executeCommand('sync')
         }
       ]
     },
@@ -332,7 +579,7 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Panic Mode',
           description: 'Emergency system diagnostics',
           category: 'emergency',
-          icon: AlertTriangle,
+          icon: 'alert-triangle',
           shortcut: 'Ctrl+Shift+P',
           action: () => executeCommand('panic')
         },
@@ -341,7 +588,7 @@ const createCommandGroups = (): CommandGroup[] => {
           label: 'Emergency Hotfix',
           description: 'Rapid issue resolution',
           category: 'emergency',
-          icon: Wrench,
+          icon: 'wrench',
           action: () => executeCommand('hotfix')
         }
       ]
@@ -453,11 +700,11 @@ export function CommandPalette({
 
         <CommandGroup heading="Quick actions">
           <CommandItem onSelect={() => { onOpenWorkspace(); onOpenChange(false); }}>
-            <SquarePen className="mr-2 h-4 w-4" />
+            <Icon name="edit" className="mr-2 h-4 w-4" />
             Open workspace…
           </CommandItem>
           <CommandItem onSelect={() => { onOpenSettings(); onOpenChange(false); }}>
-            <Settings2 className="mr-2 h-4 w-4" />
+            <Icon name="settings" className="mr-2 h-4 w-4" />
             Open settings
           </CommandItem>
         </CommandGroup>
@@ -468,14 +715,13 @@ export function CommandPalette({
             <CommandSeparator />
             <CommandGroup heading="Commands">
               {filteredCommands.map((command) => {
-                const Icon = command.icon;
                 return (
                   <CommandItem
                     key={command.id}
                     value={command.id}
                     onSelect={() => handleCommandSelect(command)}
                   >
-                    <Icon className={`mr-2 h-4 w-4 ${
+                    <Icon name={command.icon} className={`mr-2 h-4 w-4 ${
                       commandGroups.find(g => g.category === command.category)?.color || ''
                     }`} />
                     <div className="flex flex-col">
@@ -503,7 +749,7 @@ export function CommandPalette({
             <CommandGroup heading="Files">
               {results.map((file) => (
                 <CommandItem key={file.path} value={file.path} onSelect={handleSelect}>
-                  <FileSearch className="mr-2 h-4 w-4" />
+                  <Icon name="search" className="mr-2 h-4 w-4" />
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">{file.name}</span>
                     <span className="text-xs text-muted-foreground">{file.path}</span>
@@ -522,14 +768,13 @@ export function CommandPalette({
                 {index > 0 && <CommandSeparator />}
                 <CommandGroup heading={group.title}>
                   {group.commands.map((command) => {
-                    const Icon = command.icon;
                     return (
                       <CommandItem
                         key={command.id}
                         value={command.id}
                         onSelect={() => handleCommandSelect(command)}
                       >
-                        <Icon className={`mr-2 h-4 w-4 ${group.color}`} />
+                        <Icon name={command.icon} className={`mr-2 h-4 w-4 ${group.color}`} />
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{command.label}</span>
@@ -551,7 +796,7 @@ export function CommandPalette({
             <CommandSeparator />
             <CommandGroup heading="Agent tools">
               <CommandItem onSelect={() => { /* placeholder for future actions */ }} disabled>
-                <Wand2 className="mr-2 h-4 w-4" />
+                <Icon name="sparkle" className="mr-2 h-4 w-4" />
                 Spawn worker agent (coming soon)
               </CommandItem>
             </CommandGroup>

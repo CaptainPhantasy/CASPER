@@ -1,4 +1,4 @@
-import { Moon, Sun } from "lucide-react";
+import { Icon } from './icons/IconMapping';
 import * as React from "react";
 
 import { Switch } from "@/components/ui/switch";
@@ -30,9 +30,9 @@ export function ThemeToggle() {
 
   return (
     <div className="flex items-center space-x-2">
-      <Sun className="h-4 w-4 text-muted-foreground" />
+      <Icon name="sun" className="h-4 w-4 text-muted-foreground" />
       <Switch checked={isDark} onCheckedChange={handleToggle} aria-label="Toggle theme" />
-      <Moon className="h-4 w-4 text-muted-foreground" />
+      <Icon name="moon" className="h-4 w-4 text-muted-foreground" />
     </div>
   );
 }

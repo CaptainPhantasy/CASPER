@@ -6,10 +6,11 @@ Includes comprehensive error recovery and retry logic.
 """
 
 import os
+import re
 import asyncio
 import logging
 import time
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
 
@@ -33,6 +34,97 @@ except Exception:  # pragma: no cover - optional import
     AsyncOpenAI = None  # type: ignore
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Dynamic model resolution
+# ---------------------------------------------------------------------------
+# CASPER no longer hardcodes specific model ids. At runtime we query each
+# provider's /models endpoint, filter out deprecated/legacy families, and rank
+# what's actually available to the account. These constants are last-resort
+# fallbacks used ONLY when live discovery fails — and they are deliberately
+# current-generation, never the deprecated claude-3 / gpt-3 families.
+# Tiers/classes: primary+worker are the legacy two-tier names; frontier/standard/
+# cheap/tiny are the task-aware model classes used by the router (Feature 4).
+_ANTHROPIC_FALLBACK = {
+    "primary": "claude-sonnet-4-6",
+    "worker": "claude-haiku-4-5-20251001",
+    "frontier": "claude-opus-4-8",
+    "standard": "claude-sonnet-4-6",
+    "cheap": "claude-haiku-4-5-20251001",
+    "tiny": "claude-haiku-4-5-20251001",
+}
+_OPENAI_FALLBACK = {
+    "primary": "gpt-4o",
+    "worker": "gpt-4o-mini",
+    "frontier": "gpt-4o",
+    "standard": "gpt-4o",
+    "cheap": "gpt-4o-mini",
+    "tiny": "gpt-4o-mini",
+}
+
+# Matches deprecated / legacy model ids that should be auto-upgraded if a
+# caller still passes one (e.g. older hardcoded "claude-3-5-sonnet-...").
+_LEGACY_MODEL_RE = re.compile(
+    r"claude-(?:instant|1|2|3)[._-]|^claude-instant|^gpt-3|^text-|davinci|babbage",
+    re.IGNORECASE,
+)
+
+
+def _is_legacy_model(model_id: Optional[str]) -> bool:
+    return bool(model_id) and bool(_LEGACY_MODEL_RE.search(model_id))
+
+
+def _anthropic_rank(model_id: str):
+    """Sortable key (tier, version_tuple) for an Anthropic model id.
+    Higher = more capable / newer. No specific ids are hardcoded — ranking is
+    derived from the family name and embedded version numbers."""
+    mid = model_id.lower()
+    if "mythos" in mid or "fable" in mid:
+        tier = 5  # Mythos-class — above Opus
+    elif "opus" in mid:
+        tier = 4
+    elif "sonnet" in mid:
+        tier = 3
+    elif "haiku" in mid:
+        tier = 2
+    else:
+        tier = 1
+    version = tuple(int(n) for n in re.findall(r"\d+", mid))
+    return (tier, version)
+
+
+def _select_anthropic(ids: List[str], tier: str) -> Optional[str]:
+    ids = [i for i in ids if not _is_legacy_model(i)]
+    if not ids:
+        return None
+    low = str.lower
+    t = (tier or "primary").lower()
+    if t in ("worker", "cheap", "tiny"):
+        pool = [i for i in ids if "haiku" in low(i)] or ids
+    elif t == "standard":
+        pool = [i for i in ids if "sonnet" in low(i)] or [i for i in ids if "opus" in low(i)] or ids
+    elif t == "frontier":
+        pool = [i for i in ids if "opus" in low(i)] or [i for i in ids if "sonnet" in low(i)] or ids
+    else:  # primary — most capable; prefer Opus/Sonnet, avoid the fast tier
+        pool = [i for i in ids if "opus" in low(i) or "sonnet" in low(i)] or ids
+    return max(pool, key=_anthropic_rank)
+
+
+def _select_openai(ids: List[str], tier: str) -> Optional[str]:
+    ids = [i for i in ids if not _is_legacy_model(i)]
+    if not ids:
+        return None
+    t = (tier or "primary").lower()
+    if t in ("worker", "cheap", "tiny"):
+        prefs = ["gpt-4o-mini", "gpt-4.1-mini", "o4-mini", "gpt-4o"]
+    else:  # primary / standard / frontier
+        prefs = ["gpt-4o", "gpt-4.1", "o4", "gpt-4-turbo", "gpt-4"]
+    for p in prefs:
+        for i in ids:
+            if i == p or i.startswith(p):
+                return i
+    return ids[0]
 
 
 class LLMProvider(Enum):
@@ -112,9 +204,11 @@ class CircuitBreaker:
 
 class LLMService:
     def __init__(self):
-        # Get API keys from user-specific secure storage, with fallback to environment
-        self.anthropic_key = user_config.get_api_key("anthropic") or os.environ.get("ANTHROPIC_API_KEY")
-        self.openai_key = user_config.get_api_key("openai") or os.environ.get("OPENAI_API_KEY")
+        # Get API keys. Environment variables take precedence over stored keys so
+        # a freshly-rotated key in the environment/.env always overrides a stale
+        # value in encrypted local storage.
+        self.anthropic_key = os.environ.get("ANTHROPIC_API_KEY") or user_config.get_api_key("anthropic")
+        self.openai_key = os.environ.get("OPENAI_API_KEY") or user_config.get_api_key("openai")
         self._anthropic: Optional[AsyncAnthropic] = None
         self._openai: Optional[AsyncOpenAI] = None
 
@@ -139,6 +233,51 @@ class LLMService:
 
         # Retry configuration
         self.retry_config = RetryConfig()
+
+        # Resolved-model cache: {provider: {"primary": id, "worker": id}}.
+        # Populated lazily from each provider's live /models listing.
+        self._resolved_models: Dict[str, Dict[str, str]] = {}
+        self._resolve_lock = asyncio.Lock()
+
+    async def _discover_models(self, provider: str) -> Dict[str, str]:
+        """Query a provider's live model list and pick current (non-deprecated)
+        primary + worker models. Falls back to current-gen constants on error."""
+        try:
+            tiers = ("primary", "worker", "frontier", "standard", "cheap", "tiny")
+            if provider == "anthropic" and self._anthropic is not None:
+                page = await self._anthropic.models.list()
+                ids = [getattr(m, "id", None) for m in getattr(page, "data", [])]
+                ids = [i for i in ids if i]
+                chosen = {t: (_select_anthropic(ids, t) or _ANTHROPIC_FALLBACK[t]) for t in tiers}
+                logger.info(f"Resolved Anthropic models from {len(ids)} available: {chosen}")
+                return chosen
+            if provider == "openai" and self._openai is not None:
+                page = await self._openai.models.list()
+                ids = [getattr(m, "id", None) for m in getattr(page, "data", [])]
+                ids = [i for i in ids if i]
+                chosen = {t: (_select_openai(ids, t) or _OPENAI_FALLBACK[t]) for t in tiers}
+                logger.info(f"Resolved OpenAI models from {len(ids)} available: {chosen}")
+                return chosen
+        except Exception as e:
+            logger.warning(f"Live model discovery failed for {provider}: {e}; using current-gen fallback")
+        return dict(_ANTHROPIC_FALLBACK if provider == "anthropic" else _OPENAI_FALLBACK)
+
+    async def resolve_model(self, provider: str, tier: str = "primary") -> Optional[str]:
+        """Return a current model id for the given provider + tier
+        ('primary' or 'worker'), discovering and caching on first use."""
+        async with self._resolve_lock:
+            if provider not in self._resolved_models:
+                self._resolved_models[provider] = await self._discover_models(provider)
+        return self._resolved_models[provider].get(tier)
+
+    async def list_available_models(self) -> Dict[str, Dict[str, str]]:
+        """Expose the resolved model selection for both providers (for /api/status, diagnostics)."""
+        out: Dict[str, Dict[str, str]] = {}
+        if self._anthropic is not None:
+            out["anthropic"] = {**await self._discover_models("anthropic")}
+        if self._openai is not None:
+            out["openai"] = {**await self._discover_models("openai")}
+        return out
 
     def available(self) -> bool:
         return self._anthropic is not None or self._openai is not None
@@ -213,8 +352,8 @@ class LLMService:
         if not self._openai or not self.openai_breaker.can_call():
             return None
 
-        # Map to appropriate OpenAI model
-        openai_model = "gpt-4" if "claude" in model else model
+        # `model` here is already a resolved OpenAI model id (see complete()).
+        openai_model = model
 
         for attempt in range(self.retry_config.max_retries + 1):
             try:
@@ -248,25 +387,45 @@ class LLMService:
 
         return None
 
-    async def complete(self, prompt: str, system: str = "", model: str = "claude-3-5-sonnet-20241022", max_tokens: int = 1000) -> str:
+    async def complete(
+        self,
+        prompt: str,
+        system: str = "",
+        model: Optional[str] = None,
+        max_tokens: int = 1000,
+        tier: str = "primary",
+    ) -> str:
         """
         Generate text completion with comprehensive error recovery.
         Tries Anthropic first, falls back to OpenAI if configured.
+
+        Model selection is dynamic: if `model` is None or a deprecated/legacy id,
+        CASPER resolves a current model from the provider's live model list for
+        the requested `tier` ("primary" or "worker"). No model ids are hardcoded
+        in the hot path.
         """
         if not self.available():
             logger.warning("No LLM providers available")
             return ""
 
+        requested = model
+
         # Try Anthropic first if available
         if self._anthropic:
-            result = await self._call_anthropic_with_retry(prompt, system, model, max_tokens)
+            anth_model = requested
+            if not anth_model or _is_legacy_model(anth_model) or "claude" not in anth_model.lower():
+                anth_model = await self.resolve_model("anthropic", tier) or _ANTHROPIC_FALLBACK[tier]
+            result = await self._call_anthropic_with_retry(prompt, system, anth_model, max_tokens)
             if result is not None:
                 return result
 
         # Fallback to OpenAI if Anthropic failed or unavailable
         if self._openai:
             logger.info("Falling back to OpenAI API")
-            result = await self._call_openai_with_retry(prompt, system, model, max_tokens)
+            oai_model = requested
+            if not oai_model or _is_legacy_model(oai_model) or "gpt" not in (oai_model or "").lower():
+                oai_model = await self.resolve_model("openai", tier) or _OPENAI_FALLBACK[tier]
+            result = await self._call_openai_with_retry(prompt, system, oai_model, max_tokens)
             if result is not None:
                 return result
 

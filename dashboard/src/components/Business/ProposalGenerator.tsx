@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   DocumentTextIcon,
   SparklesIcon,
-  DownloadIcon,
+  ArrowDownTrayIcon,
   EyeIcon,
   ClockIcon,
   CurrencyDollarIcon
@@ -399,15 +399,15 @@ export function ProposalGenerator() {
                     Preview
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-                    <DownloadIcon className="mr-2 h-4 w-4" />
+                    <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
                     Export PDF
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleExport('markdown')}>
-                    <DownloadIcon className="mr-2 h-4 w-4" />
+                    <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
                     Export MD
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleExport('docx')}>
-                    <DownloadIcon className="mr-2 h-4 w-4" />
+                    <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
                     Export DOCX
                   </Button>
                 </div>

@@ -1,22 +1,80 @@
-import { X, FileWarning, Loader2, FileText, AlertCircle } from "lucide-react";
-import { Highlight, themes } from "prism-react-renderer";
+import { Icon } from './icons/IconMapping';
+import { useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CodeEditor } from "@/components/CodeEditor";
+import { Highlight, themes } from "prism-react-renderer";
+import { SaveDialog } from "@/components/SaveDialog";
+import { useToast } from "@/hooks/use-toast";
 
 import { useFileStore } from "@/stores/fileStore";
 import { cn } from "@/lib/utils";
 
 export function FileViewer() {
-  const { openFiles, activeFilePath, closeFile, setActiveFile } = useFileStore();
+  const { openFiles, activeFilePath, closeFile, setActiveFile, updateFileContent, saveFile } = useFileStore();
+  const [editMode, setEditMode] = useState<Record<string, boolean>>({});
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [fileToSave, setFileToSave] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const toggleEditMode = (filePath: string) => {
+    setEditMode(prev => ({
+      ...prev,
+      [filePath]: !prev[filePath]
+    }));
+  };
+
+  const handleSaveFile = async (filePath: string) => {
+    // Check if it's an untitled file
+    if (filePath.startsWith('/untitled-')) {
+      setFileToSave(filePath);
+      setSaveDialogOpen(true);
+    } else {
+      // Save existing file
+      const success = await saveFile(filePath);
+      if (success) {
+        toast({
+          title: "File Saved",
+          description: `Successfully saved ${filePath}`,
+        });
+      } else {
+        toast({
+          title: "Save Failed",
+          description: "Failed to save the file. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleSaveAs = async (newPath: string) => {
+    if (fileToSave) {
+      const success = await saveFile(fileToSave, newPath);
+      if (success) {
+        toast({
+          title: "File Saved",
+          description: `Successfully saved as ${newPath}`,
+        });
+        setSaveDialogOpen(false);
+        setFileToSave(null);
+      } else {
+        toast({
+          title: "Save Failed",
+          description: "Failed to save the file. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
 
   if (openFiles.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         <div className="text-center">
-          <FileText className="mx-auto h-12 w-12 opacity-50" />
+          <Icon name="file-text" className="mx-auto h-12 w-12 opacity-50" />
           <p className="mt-4 text-sm">No files open</p>
           <p className="mt-1 text-xs">Select a file from the tree to view its contents</p>
         </div>
@@ -25,7 +83,8 @@ export function FileViewer() {
   }
 
   return (
-    <Tabs value={activeFilePath || ""} onValueChange={setActiveFile} className="flex h-full flex-col">
+    <>
+      <Tabs value={activeFilePath || ""} onValueChange={setActiveFile} className="flex h-full flex-col">
       <TabsList className="h-auto w-full justify-start rounded-none border-b bg-card/60 p-0">
         <ScrollArea className="w-full">
           <div className="flex">
@@ -41,9 +100,15 @@ export function FileViewer() {
                     "data-[state=active]:after:bg-primary"
                   )}
                 >
-                  <span className="mr-2 text-sm">{file.name}</span>
-                  {file.isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
-                  {file.error && <AlertCircle className="h-3 w-3 text-destructive" />}
+                  <span className="mr-2 text-sm flex items-center gap-1">
+                    {file.isModified && (
+                      <span className="h-2 w-2 rounded-full bg-orange-500" title="Unsaved changes" />
+                    )}
+                    {file.name}
+                  </span>
+                  {file.isLoading && <Icon name="loader" className="h-3 w-3 animate-spin" />}
+                  {file.error && <Icon name="alert-circle" className="h-3 w-3 text-destructive" />}
+                  {editMode[file.path] && <Icon name="edit" className="h-3 w-3 ml-1 text-primary" />}
                 </TabsTrigger>
                 <Button
                   variant="ghost"
@@ -54,7 +119,7 @@ export function FileViewer() {
                     closeFile(file.path);
                   }}
                 >
-                  <X className="h-3 w-3" />
+                  <Icon name="x" className="h-3 w-3" />
                 </Button>
               </div>
             ))}
@@ -66,12 +131,12 @@ export function FileViewer() {
         <TabsContent key={file.path} value={file.path} className="mt-0 flex-1 overflow-hidden">
           {file.isLoading ? (
             <div className="flex h-full items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <Icon name="loader" className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : file.error ? (
             <div className="flex h-full items-center justify-center p-8">
               <Alert variant="destructive" className="max-w-md">
-                <AlertCircle className="h-4 w-4" />
+                <Icon name="alert-circle" className="h-4 w-4" />
                 <AlertTitle>Error loading file</AlertTitle>
                 <AlertDescription>{file.error}</AlertDescription>
               </Alert>
@@ -79,7 +144,7 @@ export function FileViewer() {
           ) : file.isBinary ? (
             <div className="flex h-full items-center justify-center p-8">
               <Alert className="max-w-md">
-                <FileWarning className="h-4 w-4" />
+                <Icon name="file-warning" className="h-4 w-4" />
                 <AlertTitle>Binary file</AlertTitle>
                 <AlertDescription>
                   The file "{file.name}" appears to be a binary file and cannot be displayed as text.
@@ -87,55 +152,154 @@ export function FileViewer() {
               </Alert>
             </div>
           ) : (
-            <FileContent file={file} />
+            <div className="flex h-full flex-col">
+              {/* Edit/View toggle button and Save button */}
+              <div className="flex items-center justify-between border-b bg-card/60 px-4 py-2">
+                <div className="flex items-center gap-2">
+                  {file.isModified && (
+                    <span className="text-xs text-muted-foreground">• Unsaved changes</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {(file.isModified || file.path.startsWith('/untitled-')) && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleSaveFile(file.path)}
+                      className="gap-2"
+                    >
+                      <Icon name="save" className="h-4 w-4" />
+                      Save
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant={editMode[file.path] ? "default" : "outline"}
+                    onClick={() => toggleEditMode(file.path)}
+                    className="gap-2"
+                  >
+                    {editMode[file.path] ? (
+                      <>
+                        <Icon name="edit" className="h-4 w-4" />
+                        Edit Mode
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="eye" className="h-4 w-4" />
+                        View Mode
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Content display */}
+              <div className="flex-1 overflow-hidden">
+                {editMode[file.path] ? (
+                  <CodeEditor
+                    filePath={file.path}
+                    initialContent={file.content}
+                    readOnly={false}
+                    className="h-full"
+                    onContentChange={(content) => updateFileContent(file.path, content)}
+                  />
+                ) : (
+                  <FileContent file={file} />
+                )}
+              </div>
+            </div>
           )}
         </TabsContent>
       ))}
-    </Tabs>
+      </Tabs>
+
+      <SaveDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        currentPath={fileToSave || ''}
+        onSave={handleSaveAs}
+      />
+    </>
   );
 }
 
 interface FileContentProps {
   file: {
     content: string;
-    language?: string;
     name: string;
+    path: string;
   };
 }
 
 function FileContent({ file }: FileContentProps) {
-  const isLightTheme = typeof document !== 'undefined' && document.documentElement.classList.contains("light");
-  const theme = isLightTheme ? themes.oneLight : themes.oneDark;
+  const getLanguage = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const languageMap: Record<string, string> = {
+      js: 'javascript',
+      jsx: 'jsx',
+      ts: 'typescript',
+      tsx: 'tsx',
+      py: 'python',
+      java: 'java',
+      c: 'c',
+      cpp: 'cpp',
+      cs: 'csharp',
+      go: 'go',
+      rs: 'rust',
+      rb: 'ruby',
+      php: 'php',
+      swift: 'swift',
+      kt: 'kotlin',
+      scala: 'scala',
+      sh: 'bash',
+      bash: 'bash',
+      yml: 'yaml',
+      yaml: 'yaml',
+      json: 'json',
+      xml: 'xml',
+      html: 'html',
+      css: 'css',
+      scss: 'scss',
+      sass: 'sass',
+      less: 'less',
+      sql: 'sql',
+      md: 'markdown',
+      markdown: 'markdown',
+    };
+    return languageMap[ext || ''] || 'plaintext';
+  };
 
-  // For non-code files or when syntax highlighting fails
-  if (!file.language || file.language === "text") {
-    return (
-      <ScrollArea className="h-full">
-        <pre className="p-4 text-sm leading-relaxed">
-          <code>{file.content}</code>
-        </pre>
-      </ScrollArea>
-    );
-  }
+  const language = getLanguage(file.name);
+  const lines = file.content.split('\n');
 
   return (
     <ScrollArea className="h-full">
-      <Highlight theme={theme} code={file.content} language={file.language}>
-        {({ className, style, tokens, getLineProps, getTokenProps }) => (
-          <pre className={cn(className, "p-4 text-sm leading-relaxed")} style={style}>
-            {tokens.map((line, lineIndex) => (
-              <div key={lineIndex} {...getLineProps({ line })}>
-                <span className="mr-4 inline-block w-10 select-none text-right text-muted-foreground/50">
-                  {lineIndex + 1}
-                </span>
-                {line.map((token, tokenIndex) => (
-                  <span key={tokenIndex} {...getTokenProps({ token })} />
+      {language === 'plaintext' ? (
+        <div className="p-4">
+          <pre className="text-sm">{file.content}</pre>
+        </div>
+      ) : (
+        <Highlight theme={themes.vsDark} code={file.content} language={language}>
+          {({ className, style, tokens, getLineProps, getTokenProps }) => (
+            <pre className={cn(className, "p-4 text-sm")} style={style}>
+              <code>
+                {tokens.map((line, i) => (
+                  <div key={i} {...getLineProps({ line, key: i })}>
+                    <span className="mr-4 inline-block w-8 select-none text-right text-muted-foreground">
+                      {i + 1}
+                    </span>
+                    {line.map((token, key) => (
+                      <span key={key} {...getTokenProps({ token, key })} />
+                    ))}
+                  </div>
                 ))}
-              </div>
-            ))}
-          </pre>
-        )}
-      </Highlight>
+              </code>
+            </pre>
+          )}
+        </Highlight>
+      )}
     </ScrollArea>
   );
 }
+
+export { FileContent };

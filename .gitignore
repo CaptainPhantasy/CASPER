@@ -49,18 +49,35 @@ yarn-error.log*
 
 # CASPER specific
 .casper/logs/
-.casper/context/bundles/
+.casper/context/
+.casper/output/
+.casper/pipeline_runs/
+.casper/security/
 .casper/cache/
+.casper/context/bundles/
+.casper/skills
+.casper/mcp/
+.casper/transformation/test_results/
+*.ctx
+*.ctx.gz
+*.sqlite3
+chroma.sqlite3
 *.log
 *.pid
 *.seed
 *.pid.lock
+.supercache/
+FLOYD.md.bak
 
-# Testing
+# Testing artifacts
 coverage/
 .pytest_cache/
 .coverage
 htmlcov/
+dashboard/test-results/
+dashboard/playwright-report/
+dashboard/screenshots/
+dashboard/verification/
 
 # Build outputs
 dist/
@@ -68,3 +85,7 @@ build/
 *.egg-info/
 dashboard/build/
 dashboard/dist/
+
+# Scratch and archives
+_archive/
+test-session/

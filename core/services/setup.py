@@ -57,15 +57,16 @@ class AIProviders:
             display_name="Anthropic (Claude)",
             api_key_env="ANTHROPIC_API_KEY",
             api_endpoint="https://api.anthropic.com/v1",
-            default_model="claude-3-5-sonnet-20241022",
+            # Default/reference models for the setup wizard only. At runtime,
+            # LLMService discovers and selects the current model dynamically
+            # (see core/services/llm.py), so these are not authoritative.
+            default_model="claude-sonnet-4-6",
             sdk_package="anthropic",
             compatible_with="anthropic",
             models=[
-                "claude-3-5-sonnet-20241022",
-                "claude-3-5-haiku-20241022",
-                "claude-3-opus-20240229",
-                "claude-3-sonnet-20240229",
-                "claude-3-haiku-20240307"
+                "claude-opus-4-8",
+                "claude-sonnet-4-6",
+                "claude-haiku-4-5-20251001",
             ]
         ),
 

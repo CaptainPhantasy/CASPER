@@ -1,12 +1,5 @@
 import * as React from 'react';
-import {
-  EyeOff,
-  Maximize2,
-  Minimize2,
-  PanelLeft,
-  Terminal,
-  Activity,
-} from 'lucide-react';
+import { Icon } from '../icons/IconMapping';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -23,20 +16,20 @@ interface PanelControlsProps {
 
 interface PanelControlButtonProps {
   panelId: PanelId;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: string;
   label: string;
 }
 
-const panelConfigs: Record<PanelId, { icon: React.ComponentType<{ className?: string }>; label: string }> = {
-  sidebar: { icon: PanelLeft, label: 'File Explorer' },
-  main: { icon: Maximize2, label: 'Main Content' },
-  activity: { icon: Activity, label: 'Agent Activity' },
-  terminal: { icon: Terminal, label: 'Terminal' },
+const panelConfigs: Record<PanelId, { icon: string; label: string }> = {
+  sidebar: { icon: 'panel-left', label: 'File Explorer' },
+  main: { icon: 'maximize', label: 'Main Content' },
+  activity: { icon: 'activity', label: 'Agent Activity' },
+  terminal: { icon: 'terminal', label: 'Terminal' },
 };
 
 const PanelControlButton: React.FC<PanelControlButtonProps> = ({
   panelId,
-  icon: Icon,
+  icon: iconName,
   label,
 }) => {
   const {
@@ -67,9 +60,9 @@ const PanelControlButton: React.FC<PanelControlButtonProps> = ({
 
   const getButtonIcon = () => {
     const state = getButtonState();
-    if (state === 'hidden') return EyeOff;
-    if (state === 'collapsed') return Minimize2;
-    return Icon;
+    if (state === 'hidden') return 'eye-off';
+    if (state === 'collapsed') return 'minimize';
+    return iconName;
   };
 
   const getButtonVariant = () => {
@@ -77,7 +70,7 @@ const PanelControlButton: React.FC<PanelControlButtonProps> = ({
     return state === 'visible' ? 'default' : 'outline';
   };
 
-  const ButtonIcon = getButtonIcon();
+  const buttonIconName = getButtonIcon();
 
   return (
     <TooltipProvider>
@@ -92,7 +85,7 @@ const PanelControlButton: React.FC<PanelControlButtonProps> = ({
               !visible && 'opacity-50'
             )}
           >
-            <ButtonIcon className="h-4 w-4" />
+            <Icon name={buttonIconName} className="h-4 w-4" />
             <span className="hidden sm:inline">{label}</span>
           </Button>
         </TooltipTrigger>

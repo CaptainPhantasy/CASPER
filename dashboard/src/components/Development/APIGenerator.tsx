@@ -2,6 +2,7 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
@@ -10,24 +11,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Zap,
-  Play,
-  RefreshCw,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  Loader2,
-  FileText,
-  Code,
-  Database,
-  Settings,
-  Plus,
-  Minus,
-  Eye,
-  Download,
-  Copy,
-  Server
-} from "lucide-react";
+  IconBolt as Zap,
+  IconPlayerPlay as Play,
+  IconRefresh as RefreshCw,
+  IconCircleCheck as CheckCircle,
+  IconAlertCircle as AlertCircle,
+  IconClock as Clock,
+  IconLoader2 as Loader2,
+  IconFileText as FileText,
+  IconCode as Code,
+  IconDatabase as Database,
+  IconSettings as Settings,
+  IconPlus as Plus,
+  IconMinus as Minus,
+  IconEye as Eye,
+  IconDownload as Download,
+  IconCopy as Copy,
+  IconServer as Server
+} from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/services/api";
 

@@ -27,4 +27,19 @@ export default defineConfig({
       },
     },
   },
+  // Mirror the dev proxy for `vite preview` so the production build served
+  // during E2E tests can reach the backend on :8742 (API + WebSocket).
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8742',
+        changeOrigin: true,
+      },
+      '/ws': {
+        target: 'ws://localhost:8742',
+        ws: true,
+        changeOrigin: true,
+      },
+    },
+  },
 })

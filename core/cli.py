@@ -310,8 +310,9 @@ class CasperCLI:
             "output_dir": str(output_dir),
             "max_tokens_per_task": 100000,
             "agent_settings": {
-                "primary_model": "claude-3-5-sonnet",
-                "worker_model": "claude-3-5-haiku",
+                # "auto" → resolved dynamically at runtime by LLMService.
+                "primary_model": "auto",
+                "worker_model": "auto",
             },
         }
         config_path = project_dir / ".casper/config/casper.json"
@@ -415,8 +416,8 @@ class CasperCLI:
         setup_service.interactive_setup()
 
 
-async def main():
-    """Main entry point for CLI."""
+async def main_async():
+    """Main async entry point for CLI."""
     parser = argparse.ArgumentParser(
         description="CASPER - Cognitive Agent System for Planning, Execution & Refinement"
     )
@@ -525,4 +526,10 @@ if __name__ == "__main__":
     print_modern_banner()
 
     # Run async main
-    asyncio.run(main())
+    asyncio.run(main_async())
+
+
+def main():
+    """Synchronous entry point for console_scripts (pipx/pip)."""
+    print_modern_banner()
+    asyncio.run(main_async())

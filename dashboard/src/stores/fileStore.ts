@@ -5,6 +5,8 @@ export interface OpenFile {
   path: string;
   name: string;
   content: string;
+  originalContent?: string;
+  isModified?: boolean;
   language?: string;
   isBinary?: boolean;
   isLoading?: boolean;
@@ -20,6 +22,8 @@ interface FileStoreState {
   closeFile: (path: string) => void;
   setActiveFile: (path: string) => void;
   updateFileContent: (path: string, content: string) => void;
+  saveFile: (path: string, newPath?: string) => Promise<boolean>;
+  renameFile: (oldPath: string, newPath: string, newName: string) => void;
   clearAllFiles: () => void;
 }
 
@@ -94,6 +98,22 @@ export const useFileStore = create<FileStoreState>((set, get) => ({
       return;
     }
 
+    // Check if it's a new untitled file
+    if (path.startsWith('/untitled-')) {
+      set(state => ({
+        openFiles: [...state.openFiles, {
+          path,
+          name,
+          content: '',
+          originalContent: '',
+          isModified: false,
+          language: getFileLanguage(name),
+        }],
+        activeFilePath: path,
+      }));
+      return;
+    }
+
     // Check if it's a binary file
     if (isBinaryFile(name)) {
       set(state => ({
@@ -130,7 +150,7 @@ export const useFileStore = create<FileStoreState>((set, get) => ({
       set(state => ({
         openFiles: state.openFiles.map(f =>
           f.path === path
-            ? { ...f, content, isLoading: false }
+            ? { ...f, content, originalContent: content, isModified: false, isLoading: false }
             : f
         ),
       }));
@@ -182,8 +202,63 @@ export const useFileStore = create<FileStoreState>((set, get) => ({
   updateFileContent: (path, content) => {
     set(state => ({
       openFiles: state.openFiles.map(f =>
-        f.path === path ? { ...f, content } : f
+        f.path === path ? {
+          ...f,
+          content,
+          isModified: content !== f.originalContent
+        } : f
       ),
+    }));
+  },
+
+  saveFile: async (path, newPath) => {
+    const state = get();
+    const file = state.openFiles.find(f => f.path === path);
+    if (!file) return false;
+
+    try {
+      // For untitled files, we need to provide a real path
+      const targetPath = newPath || path;
+      const isUntitled = path.startsWith('/untitled-');
+
+      if (isUntitled && !newPath) {
+        // Can't save untitled without a new path
+        return false;
+      }
+
+      // Here you would normally call an API to save the file
+      // For now, we'll just update the store to mark it as saved
+
+      set(state => ({
+        openFiles: state.openFiles.map(f =>
+          f.path === path ? {
+            ...f,
+            path: targetPath,
+            name: targetPath.split('/').pop() || f.name,
+            originalContent: f.content,
+            isModified: false
+          } : f
+        ),
+        activeFilePath: state.activeFilePath === path ? targetPath : state.activeFilePath
+      }));
+
+      return true;
+    } catch (error) {
+      console.error('Failed to save file:', error);
+      return false;
+    }
+  },
+
+  renameFile: (oldPath, newPath, newName) => {
+    set(state => ({
+      openFiles: state.openFiles.map(f =>
+        f.path === oldPath ? {
+          ...f,
+          path: newPath,
+          name: newName
+        } : f
+      ),
+      activeFilePath: state.activeFilePath === oldPath ? newPath : state.activeFilePath
     }));
   },
 

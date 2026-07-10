@@ -33,6 +33,9 @@ const generateSessionId = () => {
   return `terminal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
+// Track terminal counter globally for unique naming
+let terminalCounter = 0;
+
 export const useTerminalStore = create<TerminalState>((set, get) => ({
   sessions: new Map(),
   activeSessionId: null,
@@ -41,9 +44,24 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   createSession: (title?: string, cwd?: string) => {
     const sessionId = generateSessionId();
+    terminalCounter++; // Increment global counter
+
+    // Generate a meaningful title based on cwd or use counter
+    let sessionTitle = title;
+    if (!sessionTitle) {
+      if (cwd && cwd !== '~') {
+        // Use the last part of the path as the terminal name
+        const pathParts = cwd.split('/');
+        const folderName = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2] || 'root';
+        sessionTitle = `${folderName} - Terminal ${terminalCounter}`;
+      } else {
+        sessionTitle = `Terminal ${terminalCounter}`;
+      }
+    }
+
     const session: TerminalSession = {
       id: sessionId,
-      title: title || `Terminal ${get().sessions.size + 1}`,
+      title: sessionTitle,
       terminal: null,
       wsId: null,
       status: 'disconnected',

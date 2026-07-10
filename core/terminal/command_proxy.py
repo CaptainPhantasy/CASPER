@@ -466,8 +466,9 @@ class CommandProxy:
                 "output_dir": str(project_dir / ".casper" / "output"),
                 "max_tokens_per_task": 100000,
                 "agent_settings": {
-                    "primary_model": "claude-3-5-sonnet",
-                    "worker_model": "claude-3-5-haiku",
+                    # "auto" → resolved dynamically at runtime by LLMService.
+                    "primary_model": "auto",
+                    "worker_model": "auto",
                 },
                 "terminal": {
                     "enabled": True,

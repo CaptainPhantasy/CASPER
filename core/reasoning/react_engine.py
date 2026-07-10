@@ -20,10 +20,16 @@ from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 
-from langchain.tools import Tool, BaseTool
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.callbacks.base import AsyncCallbackHandler
-from langchain.schema import AgentAction, AgentFinish
+try:
+    from langchain_core.tools import BaseTool, StructuredTool
+    from langchain_core.agents import AgentAction, AgentFinish
+    from langchain_core.callbacks import AsyncCallbackHandler
+except ImportError:
+    # Fallback for older langchain versions
+    from langchain.tools import Tool, BaseTool
+    from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+    from langchain.callbacks.base import AsyncCallbackHandler
+    from langchain.schema import AgentAction, AgentFinish
 
 from core.services.llm import llm_service
 
@@ -118,6 +124,40 @@ class ProductionReActEngine:
             raise RuntimeError("No LLM service available - check API keys")
 
         logger.info(f"ProductionReActEngine initialized with {len(self.tools)} tools")
+
+    def _enforce_react_format(self, response: str) -> Dict[str, str]:
+        """
+        Enforce strict ReAct format parsing.
+        Handles variations in LLM output format.
+        Makes the parsing deterministic.
+        """
+        import re
+
+        # Remove common formatting issues
+        cleaned = response.strip()
+
+        # Extract Thought
+        thought_match = re.search(r'Thought:\s*(.*?)(?=Action:|Final Answer:|$)', cleaned, re.DOTALL | re.IGNORECASE)
+        thought = thought_match.group(1).strip() if thought_match else ""
+
+        # Extract Action
+        action_match = re.search(r'Action:\s*(\w+)', cleaned, re.IGNORECASE)
+        action = action_match.group(1).strip() if action_match else ""
+
+        # Extract Action Input
+        input_match = re.search(r'Action Input:\s*(.*?)(?=Observation:|Thought:|Final Answer:|$)', cleaned, re.DOTALL | re.IGNORECASE)
+        action_input = input_match.group(1).strip() if input_match else ""
+
+        # Extract Final Answer
+        final_match = re.search(r'Final Answer:\s*(.*)', cleaned, re.DOTALL | re.IGNORECASE)
+        final_answer = final_match.group(1).strip() if final_match else ""
+
+        return {
+            'thought': thought,
+            'action': action,
+            'action_input': action_input,
+            'final_answer': final_answer,
+        }
 
     def _call_tool(self, tool_name: str, tool_input: str) -> str:
         """Execute a tool and return the result"""
@@ -375,10 +415,12 @@ Be methodical and thorough. Always observe tool results before proceeding."""
                         "steps": steps
                     }
 
-                # Parse the response for Action/Action Input
-                if "Final Answer:" in response:
-                    # Extract final answer
-                    final_answer = response.split("Final Answer:")[-1].strip()
+                # Enforce ReAct format parsing (deterministic)
+                parsed = self._enforce_react_format(response)
+
+                # Check for final answer first
+                if parsed['final_answer']:
+                    final_answer = parsed['final_answer']
 
                     if callback:
                         await callback({
@@ -393,22 +435,13 @@ Be methodical and thorough. Always observe tool results before proceeding."""
                         "steps": steps
                     }
 
-                # Extract thought
-                thought = ""
-                if "Thought:" in response:
-                    thought_part = response.split("Thought:")[-1].split("Action:")[0].strip()
-                    thought = thought_part
+                # Extract using enforced format
+                thought = parsed['thought']
+                action = parsed['action']
+                action_input = parsed['action_input']
 
-                # Extract action and action input
-                action = ""
-                action_input = ""
-
-                if "Action:" in response and "Action Input:" in response:
-                    action_part = response.split("Action:")[-1].split("Action Input:")[0].strip()
-                    input_part = response.split("Action Input:")[-1].strip()
-
-                    action = action_part
-                    action_input = input_part
+                # Only proceed if we have a valid action
+                if action and action_input:
 
                     # Execute the tool
                     observation = self._call_tool(action, action_input)
@@ -584,7 +617,7 @@ Be methodical and thorough. Always observe tool results before proceeding."""
         return {
             "name": "ProductionReActEngine",
             "version": "1.0.0",
-            "model": "claude-3-5-sonnet-20241022",
+            "model": "dynamic (resolved at runtime via LLMService)",
             "tools": list(self.tools.keys()),
             "max_iterations": 15,
             "streaming": True,

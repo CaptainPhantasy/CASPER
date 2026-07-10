@@ -8,28 +8,28 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Wrench,
-  Database,
-  Shield,
-  Code,
-  Zap,
-  FileText,
-  Activity,
-  RefreshCw,
-  CheckCircle,
-  AlertCircle,
-  AlertTriangle,
-  Clock,
-  Loader2,
-  TrendingUp,
-  TrendingDown,
-  ArrowRight,
-  Play,
-  Settings,
-  BarChart3,
-  Target,
-  Server
-} from "lucide-react";
+  IconTool as Wrench,
+  IconDatabase as Database,
+  IconShield as Shield,
+  IconCode as Code,
+  IconBolt as Zap,
+  IconFileText as FileText,
+  IconActivity as Activity,
+  IconRefresh as RefreshCw,
+  IconCircleCheck as CheckCircle,
+  IconAlertCircle as AlertCircle,
+  IconAlertTriangle as AlertTriangle,
+  IconClock as Clock,
+  IconLoader2 as Loader2,
+  IconTrendingUp as TrendingUp,
+  IconTrendingDown as TrendingDown,
+  IconArrowRight as ArrowRight,
+  IconPlayerPlay as Play,
+  IconSettings as Settings,
+  IconChartBar as BarChart3,
+  IconTarget as Target,
+  IconServer as Server
+} from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/services/api";
 

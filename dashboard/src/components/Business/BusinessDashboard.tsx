@@ -11,7 +11,7 @@ import {
   CalculatorIcon,
   CreditCardIcon,
   ChartBarIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   ClockIcon,
   CurrencyDollarIcon,
   UserGroupIcon,
@@ -334,7 +334,7 @@ export function BusinessDashboard() {
                 </div>
                 <div className="text-sm text-muted-foreground">Total Revenue</div>
                 <div className="flex items-center space-x-1 mt-1">
-                  <TrendingUpIcon className="h-3 w-3 text-green-500" />
+                  <ArrowTrendingUpIcon className="h-3 w-3 text-green-500" />
                   <span className="text-xs text-green-600">+{getRevenueGrowth()}%</span>
                 </div>
               </div>

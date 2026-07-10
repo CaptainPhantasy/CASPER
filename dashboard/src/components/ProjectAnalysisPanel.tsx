@@ -1,4 +1,4 @@
-import { BarChart3, Clock, Files, FolderTree, TrendingUp } from 'lucide-react';
+import { Icon } from './icons/IconMapping';
 
 import { ProjectAnalysis } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,14 +60,14 @@ export function ProjectAnalysisPanel({ analysis, loading }: ProjectAnalysisPanel
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div className="flex flex-col gap-1 rounded-md border border-border/60 bg-muted/30 p-3">
             <span className="flex items-center gap-2 font-medium text-foreground">
-              <Files className="h-3.5 w-3.5 text-primary" />
+              <Icon name="files" className="h-3.5 w-3.5 text-primary" />
               Files
             </span>
             <span className="text-lg font-semibold">{analysis.total_files}</span>
           </div>
           <div className="flex flex-col gap-1 rounded-md border border-border/60 bg-muted/30 p-3">
             <span className="flex items-center gap-2 font-medium text-foreground">
-              <FolderTree className="h-3.5 w-3.5 text-primary" />
+              <Icon name="folder-tree" className="h-3.5 w-3.5 text-primary" />
               Directories
             </span>
             <span className="text-lg font-semibold">{analysis.total_directories}</span>
@@ -76,7 +76,7 @@ export function ProjectAnalysisPanel({ analysis, loading }: ProjectAnalysisPanel
 
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-            <BarChart3 className="h-3 w-3" />
+            <Icon name="trending-up" className="h-3 w-3" />
             File type distribution
           </div>
           <div className="flex flex-wrap gap-2">
@@ -97,7 +97,7 @@ export function ProjectAnalysisPanel({ analysis, loading }: ProjectAnalysisPanel
 
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-            <TrendingUp className="h-3 w-3" />
+            <Icon name="trending-up" className="h-3 w-3" />
             Largest files
           </div>
           <div className="space-y-2 text-xs">
@@ -118,7 +118,7 @@ export function ProjectAnalysisPanel({ analysis, loading }: ProjectAnalysisPanel
 
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-            <Clock className="h-3 w-3" />
+            <Icon name="clock" className="h-3 w-3" />
             Recently modified
           </div>
           <div className="space-y-2 text-xs">
