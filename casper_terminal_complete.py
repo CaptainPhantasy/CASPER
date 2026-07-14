@@ -30,6 +30,7 @@ from rich import print as rprint
 # Import original CASPER components
 from core.cli import CasperCLI, print_modern_banner
 from core.services.approval import HILApprovalService as ApprovalService
+from core.services.slash_commands import SlashCommandRegistry
 
 # Import agent layer system for natural language processing
 from core.agents.layer_initialization import AgentLayerInitializer
@@ -56,6 +57,13 @@ COMMAND_CATEGORIES = {
         "/status": "Show status (slash version)",
         "/help": "Display help (slash version)",
         "list": "List available agents and tasks"
+    },
+    "agent": {
+        "/goal": "Persist an evidence-gated project goal",
+        "/model": "Show or select the active provider/model",
+        "/plan": "Analyze a request without executing it",
+        "/diff": "Show the current Git diff",
+        "/pwd": "Show the active working directory"
     },
     "development": {
         "/create": "Create new components",
@@ -115,6 +123,7 @@ class CasperTerminalComplete:
     def __init__(self):
         self.console = Console()
         self.casper_cli = None
+        self.slash_commands = None
         self.project_root = Path.cwd()
         self.casper_dir = Path.home() / ".casper"
         self.backup_dir = self.casper_dir / "backups"
@@ -163,6 +172,7 @@ class CasperTerminalComplete:
             pass
 
         await self.casper_cli.initialize()
+        self.slash_commands = SlashCommandRegistry(self.casper_cli)
 
         # Initialize agent layers for natural language processing
         self.console.print("[dim]→ Initializing agent layers...[/dim]")
@@ -1012,6 +1022,12 @@ class CasperTerminalComplete:
         print_casper2_banner()
         self.console.print()
 
+    async def handle_agent_command(self, command: str, args: str) -> None:
+        """Delegate compact agent-style commands to the shared slash registry."""
+        if not self.slash_commands:
+            self.slash_commands = SlashCommandRegistry(self.casper_cli)
+        await self.slash_commands.execute(f"{command} {args}".rstrip())
+
     async def handle_command(self, command: str, args: str) -> bool:
         """Route command to appropriate handler"""
 
@@ -1046,6 +1062,12 @@ class CasperTerminalComplete:
             "/task": lambda: self.handle_task(args),
             "/analyze": lambda: self.handle_analyze(args),
             "/status": lambda: self.handle_status(),
+            "/goal": lambda: self.handle_agent_command("/goal", args),
+            "/model": lambda: self.handle_agent_command("/model", args),
+            "/models": lambda: self.handle_agent_command("/model", f"list {args}".strip()),
+            "/plan": lambda: self.handle_agent_command("/plan", args),
+            "/diff": lambda: self.handle_agent_command("/diff", args),
+            "/pwd": lambda: self.handle_agent_command("/pwd", args),
 
             # Development commands
             "/create": lambda: self.handle_create(args),

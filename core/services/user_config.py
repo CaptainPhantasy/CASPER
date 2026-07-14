@@ -148,7 +148,7 @@ class UserConfigManager:
             "total_api_keys": len(keys),
             "config_exists": self.config_file.exists(),
             "keys_encrypted": self.keys_file.exists(),
-            "last_provider": config.get("last_used_provider", "anthropic")
+            "last_provider": config.get("last_used_provider", "minimax")
         }
 
     def set_default_provider(self, provider: str):
@@ -163,7 +163,26 @@ class UserConfigManager:
     def get_default_provider(self) -> str:
         """Get the default AI provider for this user."""
         config = self.get_config()
-        return config.get("default_provider", "anthropic")
+        return config.get("default_provider", "minimax")
+
+    def set_default_model(self, provider: str, model: str):
+        """Set the preferred provider and model as one atomic configuration update."""
+        config = self.get_config()
+        config.update({
+            "last_used_provider": provider,
+            "default_provider": provider,
+            "default_model": model,
+            "default_model_provider": provider,
+        })
+        self.store_config(config)
+
+    def get_default_model(self, fallback: Optional[str] = None, provider: Optional[str] = None) -> Optional[str]:
+        """Get the explicitly selected model, or the supplied provider default."""
+        config = self.get_config()
+        configured_provider = config.get("default_model_provider", config.get("default_provider"))
+        if provider and configured_provider and configured_provider != provider:
+            return fallback
+        return config.get("default_model", fallback)
 
     def migrate_from_env_file(self, env_file: Path = None):
         """Migrate API keys from .env file to user-specific storage."""
@@ -182,9 +201,11 @@ class UserConfigManager:
                     key, value = line.split('=', 1)
 
                     # Check if it's an API key
-                    if any(provider in key.lower() for provider in ['openai', 'anthropic', 'deepseek', 'xai', 'mistral', 'zai', 'custom']):
+                    if any(provider in key.lower() for provider in ['minimax', 'opencode', 'openai', 'anthropic', 'deepseek', 'xai', 'mistral', 'zai', 'custom']):
                         # Map environment variable names to provider names
                         provider_mapping = {
+                            "MINIMAX_API_KEY": "minimax",
+                            "OPENCODE_API_KEY": "opencode-go",
                             "OPENAI_API_KEY": "openai",
                             "ANTHROPIC_API_KEY": "anthropic",
                             "DEEPSEEK_API_KEY": "deepseek",

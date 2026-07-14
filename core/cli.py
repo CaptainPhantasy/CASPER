@@ -461,6 +461,14 @@ async def main_async():
 
     args = parser.parse_args()
 
+    # The globally installed `casper` command is the interactive application
+    # when no subcommand is supplied.  Direct subcommands remain scriptable.
+    if args.command is None:
+        from casper_terminal_complete import CasperTerminalComplete
+
+        await CasperTerminalComplete().run()
+        return
+
     # Create CLI instance
     cli = CasperCLI()
 

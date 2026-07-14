@@ -35,6 +35,7 @@ from core.routers import workspace as workspace_router
 from core.routers import auth as auth_router
 from core.routers import approvals as approvals_router
 from core.routers import pipeline as pipeline_router
+from core.routers import gateway as gateway_router
 from core.services.metrics import (
     get_metrics,
     get_metrics_content_type,
@@ -59,6 +60,7 @@ app.include_router(workspace_router.router)
 app.include_router(auth_router.router)
 app.include_router(approvals_router.router)
 app.include_router(pipeline_router.router)
+app.include_router(gateway_router.router)
 
 # CORS configuration - externalized via environment
 default_origins = [

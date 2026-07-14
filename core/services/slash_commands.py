@@ -22,6 +22,7 @@ from rich.prompt import Prompt, Confirm
 from core.services.user_config import user_config
 from core.context.manager import ContextManager
 from core.services.personalization import personalization_manager
+from core.services.goal_engine import GoalEngine, GoalError
 
 console = Console()
 
@@ -46,6 +47,7 @@ class SlashCommandRegistry:
         self.commands: Dict[str, SlashCommand] = {}
         self.casper_cli = casper_cli
         self.context_manager = ContextManager()
+        self.goal_engine = GoalEngine()
         self.sessions_dir = Path.home() / ".casper" / "sessions"
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
 
@@ -150,6 +152,48 @@ class SlashCommandRegistry:
             usage="/clear",
             handler=self._cmd_clear,
             category="System"
+        ))
+
+        # === FAMILIAR AGENT COMMANDS (CODEX / CLAUDE CODE STYLE) ===
+        self.register(SlashCommand(
+            name="goal",
+            description="Persist one evidence-gated project goal",
+            usage="/goal [status|prove <evidence>|verify <pass|fail> <result>|complete|block <reason>|clear|<objective>]",
+            handler=self._cmd_goal,
+            category="Agent"
+        ))
+
+        self.register(SlashCommand(
+            name="model",
+            description="Show, list, or select the active provider and model",
+            usage="/model [list|set <provider> [model]]",
+            handler=self._cmd_model,
+            category="Agent",
+            aliases=["models"]
+        ))
+
+        self.register(SlashCommand(
+            name="plan",
+            description="Analyze a coding request without executing it",
+            usage="/plan <request>",
+            handler=self._cmd_plan,
+            category="Agent"
+        ))
+
+        self.register(SlashCommand(
+            name="diff",
+            description="Show the current Git diff",
+            usage="/diff [--stat|--cached]",
+            handler=self._cmd_diff,
+            category="Agent"
+        ))
+
+        self.register(SlashCommand(
+            name="pwd",
+            description="Show the active working directory",
+            usage="/pwd",
+            handler=self._cmd_pwd,
+            category="Agent"
         ))
 
         # === SESSION MANAGEMENT ===
@@ -627,6 +671,112 @@ class SlashCommandRegistry:
         """Clear the current session."""
         console.clear()
         console.print("[green]✅ Session cleared[/green]")
+
+    async def _cmd_goal(self, args: str):
+        """Run deterministic goal-state transitions with an evidence gate."""
+        parts = args.strip().split(" ", 1) if args.strip() else ["status"]
+        action = parts[0].lower()
+        value = parts[1].strip() if len(parts) > 1 else ""
+        try:
+            if action == "status":
+                goal = self.goal_engine.load()
+                if not goal:
+                    console.print("[yellow]No goal exists. Start one with /goal <objective>.[/yellow]")
+                    return
+            elif action == "prove":
+                goal = self.goal_engine.add_evidence(value)
+            elif action == "verify":
+                verification = value.split(" ", 1)
+                if len(verification) != 2 or verification[0].lower() not in {"pass", "fail"}:
+                    raise GoalError("Usage: /goal verify <pass|fail> <concrete result>")
+                goal = self.goal_engine.verify(verification[0].lower() == "pass", verification[1])
+            elif action == "complete":
+                goal = self.goal_engine.complete()
+            elif action == "block":
+                goal = self.goal_engine.block(value)
+            elif action == "clear":
+                self.goal_engine.clear()
+                console.print("[green]Goal state cleared.[/green]")
+                return
+            else:
+                goal = self.goal_engine.start(args)
+        except GoalError as error:
+            console.print(f"[red]INCOMPLETE: {error}[/red]")
+            return
+
+        verification = goal.get("verification") or {}
+        console.print(Panel.fit(
+            f"[bold]{goal['objective']}[/bold]\n"
+            f"Status: {goal['status'].upper()}\n"
+            f"Evidence: {len(goal.get('evidence', []))}\n"
+            f"Verification: {verification.get('status', 'NOT RUN')}",
+            title=f"Goal {goal['id'][:8]}",
+            border_style="cyan",
+        ))
+
+    async def _cmd_model(self, args: str):
+        """Show or change the provider/model pair used by CASPER."""
+        from core.services.setup import AIProviders
+
+        parts = args.strip().split()
+        if parts and parts[0].lower() == "list":
+            table = Table(title="Available model providers", show_header=True)
+            table.add_column("Provider")
+            table.add_column("Default model")
+            table.add_column("Endpoint")
+            for name, provider in AIProviders.PROVIDERS.items():
+                table.add_row(name, provider.default_model or "user supplied", provider.api_endpoint or "user supplied")
+            console.print(table)
+            return
+
+        if parts and parts[0].lower() == "set":
+            if len(parts) < 2:
+                console.print("[red]Usage: /model set <provider> [model][/red]")
+                return
+            provider_name = parts[1].lower()
+            provider = AIProviders.get_provider(provider_name)
+            if not provider:
+                console.print(f"[red]Unknown provider: {provider_name}[/red]")
+                return
+            model = " ".join(parts[2:]) or provider.default_model
+            user_config.set_default_model(provider_name, model)
+            console.print(f"[green]Active model: {provider_name}/{model}[/green]")
+            return
+
+        provider_name = user_config.get_default_provider()
+        provider = AIProviders.get_provider(provider_name)
+        fallback = provider.default_model if provider else None
+        model = user_config.get_default_model(fallback, provider_name) or "not configured"
+        console.print(f"[bold cyan]{provider_name}[/bold cyan] / [bright_white]{model}[/bright_white]")
+
+    async def _cmd_plan(self, args: str):
+        """Reuse CASPER's analyzer without submitting work for execution."""
+        if not args.strip():
+            console.print("[red]Usage: /plan <request>[/red]")
+        elif self.casper_cli:
+            await self.casper_cli.analyze_only(args.strip())
+        else:
+            console.print("[yellow]Planning requires CASPER CLI context[/yellow]")
+
+    async def _cmd_diff(self, args: str):
+        """Display a bounded, read-only Git diff."""
+        option = args.strip()
+        if option not in {"", "--stat", "--cached"}:
+            console.print("[red]Usage: /diff [--stat|--cached][/red]")
+            return
+        command = ["git", "diff"] + ([option] if option else [])
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            console.print(f"[red]{result.stderr.strip() or 'git diff failed'}[/red]")
+            return
+        output = result.stdout or "No changes."
+        if len(output) > 20_000:
+            output = output[:20_000] + "\n… diff truncated at 20,000 characters"
+        console.print(Syntax(output, "diff", word_wrap=False))
+
+    async def _cmd_pwd(self, args: str):
+        """Show the exact directory against which commands will operate."""
+        console.print(str(Path.cwd()))
 
     async def _cmd_save(self, args: str):
         """Save current session."""

@@ -41,6 +41,39 @@ class AIProviders:
     """Registry of supported AI providers with their configurations."""
 
     PROVIDERS = {
+        "minimax": ProviderConfig(
+            name="minimax",
+            display_name="MiniMax",
+            api_key_env="MINIMAX_API_KEY",
+            api_endpoint="https://api.minimax.io/v1",
+            default_model="MiniMax-M2.7-highspeed",
+            sdk_package="openai",
+            compatible_with="openai",
+            models=["MiniMax-M2.7-highspeed", "MiniMax-M2.7"]
+        ),
+
+        "opencode-go": ProviderConfig(
+            name="opencode-go",
+            display_name="OpenCode Go",
+            api_key_env="OPENCODE_API_KEY",
+            api_endpoint="https://opencode.ai/zen/go/v1",
+            default_model="minimax-m2.7",
+            sdk_package="openai",
+            compatible_with="openai",
+            models=["minimax-m2.7", "glm-5.2", "kimi-k2.7-code"]
+        ),
+
+        "opencode-zen": ProviderConfig(
+            name="opencode-zen",
+            display_name="OpenCode Zen",
+            api_key_env="OPENCODE_API_KEY",
+            api_endpoint="https://opencode.ai/zen/v1",
+            default_model="minimax-m2.7",
+            sdk_package="openai",
+            compatible_with="openai",
+            models=["minimax-m2.7"]
+        ),
+
         "openai": ProviderConfig(
             name="openai",
             display_name="OpenAI",
@@ -160,15 +193,18 @@ class SetupService:
         setup_panel = Panel.fit(
             "[bold cyan]CASPER AI Provider Setup[/bold cyan]\n\n"
             "[green]Available Providers:[/green]\n"
-            "• [yellow]1.[/yellow] OpenAI (GPT-4, GPT-3.5)\n"
-            "• [yellow]2.[/yellow] Anthropic (Claude 3.5, Claude 3)\n"
-            "• [yellow]3.[/yellow] DeepSeek (DeepSeek-Chat, DeepSeek-Coder)\n"
-            "• [yellow]4.[/yellow] Grok (xAI)\n"
-            "• [yellow]5.[/yellow] Mistral AI (Mistral Large, Medium, Small)\n"
-            "• [yellow]6.[/yellow] ZAI\n"
-            "• [yellow]7.[/yellow] Custom Provider (Any OpenAI-compatible API)\n"
-            "• [yellow]8.[/yellow] View Current Configuration\n"
-            "• [yellow]9.[/yellow] Test API Connection\n"
+            "• [yellow]1.[/yellow] MiniMax M2.7 Highspeed (default)\n"
+            "• [yellow]2.[/yellow] OpenCode Go (low-cost subscription)\n"
+            "• [yellow]3.[/yellow] OpenCode Zen\n"
+            "• [yellow]4.[/yellow] OpenAI\n"
+            "• [yellow]5.[/yellow] Anthropic (Claude)\n"
+            "• [yellow]6.[/yellow] DeepSeek\n"
+            "• [yellow]7.[/yellow] Grok (xAI)\n"
+            "• [yellow]8.[/yellow] Mistral AI\n"
+            "• [yellow]9.[/yellow] ZAI\n"
+            "• [yellow]10.[/yellow] Custom OpenAI-compatible provider\n"
+            "• [yellow]11.[/yellow] View current configuration\n"
+            "• [yellow]12.[/yellow] Test configured providers\n"
             "• [yellow]q.[/yellow] Exit to Shell\n\n"
             "[dim]Choose a provider to configure or manage your settings[/dim]",
             title="⚙️  AI Provider Setup",
@@ -259,7 +295,7 @@ class SetupService:
             f.write("# DO NOT COMMIT THIS FILE TO GIT\n\n")
 
             # Group by provider type
-            ai_keys = {k: v for k, v in env_content.items() if any(provider in k.lower() for provider in ['openai', 'anthropic', 'deepseek', 'xai', 'mistral', 'custom'])}
+            ai_keys = {k: v for k, v in env_content.items() if any(provider in k.lower() for provider in ['minimax', 'opencode', 'openai', 'anthropic', 'deepseek', 'xai', 'mistral', 'custom'])}
             other_keys = {k: v for k, v in env_content.items() if k not in ai_keys}
 
             # Write AI provider keys
@@ -292,8 +328,35 @@ class SetupService:
         console.print(f"[dim]→ Testing connection to {provider.display_name}...[/dim]")
 
         try:
+            if provider.name.startswith("opencode-"):
+                import httpx
+                from core.routers.gateway import detect_dialect, resolve_upstream_url
+
+                dialect = detect_dialect(provider.name, provider.default_model, provider.api_endpoint)
+                endpoint = resolve_upstream_url(provider.api_endpoint, dialect)
+                if dialect == "anthropic":
+                    headers = {
+                        "x-api-key": api_key,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json",
+                    }
+                    payload = {
+                        "model": provider.default_model,
+                        "messages": [{"role": "user", "content": "Reply with OK."}],
+                        "max_tokens": 10,
+                    }
+                else:
+                    headers = {"authorization": f"Bearer {api_key}", "content-type": "application/json"}
+                    payload = {
+                        "model": provider.default_model,
+                        "messages": [{"role": "user", "content": "Reply with OK."}],
+                        "max_tokens": 10,
+                    }
+                response = httpx.post(endpoint, headers=headers, json=payload, timeout=30.0, follow_redirects=False)
+                response.raise_for_status()
+
             # Import appropriate SDK based on compatibility
-            if provider.compatible_with == "openai":
+            elif provider.compatible_with == "openai":
                 from openai import OpenAI
                 client = OpenAI(
                     api_key=api_key,
@@ -363,7 +426,7 @@ class SetupService:
 
             choice = Prompt.ask(
                 "\n[bold bright_cyan]Select an option[/bold bright_cyan]",
-                choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "q"],
+                choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "q"],
                 default="q"
             )
 
@@ -371,22 +434,28 @@ class SetupService:
                 console.print("\n[green]→ Exiting to shell...[/green]")
                 break
             elif choice == "1":
-                self.configure_provider("openai")
+                self.configure_provider("minimax")
             elif choice == "2":
-                self.configure_provider("anthropic")
+                self.configure_provider("opencode-go")
             elif choice == "3":
-                self.configure_provider("deepseek")
+                self.configure_provider("opencode-zen")
             elif choice == "4":
-                self.configure_provider("grok")
+                self.configure_provider("openai")
             elif choice == "5":
-                self.configure_provider("mistral")
+                self.configure_provider("anthropic")
             elif choice == "6":
-                self.configure_provider("zai")
+                self.configure_provider("deepseek")
             elif choice == "7":
-                self.configure_provider("custom")
+                self.configure_provider("grok")
             elif choice == "8":
-                self.show_current_config()
+                self.configure_provider("mistral")
             elif choice == "9":
+                self.configure_provider("zai")
+            elif choice == "10":
+                self.configure_provider("custom")
+            elif choice == "11":
+                self.show_current_config()
+            elif choice == "12":
                 self._test_all_providers()
 
     def _test_all_providers(self):
