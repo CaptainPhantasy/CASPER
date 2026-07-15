@@ -46,8 +46,8 @@ export const OmegaTerminal: React.FC<OmegaTerminalProps> = ({
   const wsRef = useRef<WebSocket | null>(null);
 
   const [isConnected, setIsConnected] = useState(false);
-  const [securityStatus, setSecurityStatus] = useState<'active' | 'inactive'>('active');
-  const [fastPathEnabled, setFastPathEnabled] = useState(true);
+  const [securityStatus] = useState<'active' | 'inactive'>('active');
+  const [fastPathEnabled] = useState(true);
   const { toast } = useToast();
 
   const { updateSession } = useTerminalStore();
@@ -289,7 +289,7 @@ export const OmegaTerminal: React.FC<OmegaTerminalProps> = ({
     });
 
     // Handle terminal resize
-    terminal.onResize(({ cols, rows }) => {
+    terminal.onResize(() => {
       // Send resize event to Omega if needed
     });
 

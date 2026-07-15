@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ interface SaveDialogProps {
   onSave: (newPath: string) => void;
 }
 
-export function SaveDialog({ open, onOpenChange, currentPath, onSave }: SaveDialogProps) {
+export function SaveDialog({ open, onOpenChange, onSave }: SaveDialogProps) {
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
 

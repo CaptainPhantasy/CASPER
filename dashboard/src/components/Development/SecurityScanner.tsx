@@ -21,13 +21,6 @@ import {
   IconCircleCheck as CheckCircle,
   IconClock as Clock,
   IconLoader2 as Loader2,
-  IconBug as Bug,
-  IconSettings as Settings,
-  IconLock as Lock,
-  IconKey as Key,
-  IconFileText as FileText,
-  IconBolt as Zap,
-  IconTrendingUp as TrendingUp,
   IconEye as Eye,
   IconDownload as Download
 } from "@tabler/icons-react";
@@ -91,17 +84,6 @@ const getSeverityIcon = (severity: string) => {
   }
 };
 
-const getTypeIcon = (type: string) => {
-  switch (type) {
-    case 'vulnerability': return <Bug className="h-3 w-3" />;
-    case 'dependency': return <Zap className="h-3 w-3" />;
-    case 'code': return <FileText className="h-3 w-3" />;
-    case 'configuration': return <Settings className="h-3 w-3" />;
-    case 'secret': return <Key className="h-3 w-3" />;
-    default: return <Shield className="h-3 w-3" />;
-  }
-};
-
 const getStatusIcon = (status: string) => {
   switch (status) {
     case 'running':
@@ -125,7 +107,7 @@ export const SecurityScanner: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [selectedScanType, setSelectedScanType] = React.useState("full");
   const [targetPath, setTargetPath] = React.useState("");
-  const [selectedIssue, setSelectedIssue] = React.useState<SecurityIssue | null>(null);
+  const [, setSelectedIssue] = React.useState<SecurityIssue | null>(null);
 
   // Fetch scanner status and scan history
   const fetchScannerInfo = React.useCallback(async () => {

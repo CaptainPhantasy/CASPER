@@ -1,13 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  GatewayError,
-  detectGatewayDialect,
-  streamModelCompletion,
-} from './modelGateway';
+import { detectGatewayDialect, streamModelCompletion } from './modelGateway';
 
 
 describe('modelGateway', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('detects OpenCode Go dialects from the model schema', () => {
     expect(detectGatewayDialect({ provider: 'opencode-go', model: 'minimax-m2.7' })).toBe('anthropic');
     expect(detectGatewayDialect({ provider: 'minimax', model: 'MiniMax-M2.7-highspeed' })).toBe('openai');
@@ -52,7 +56,7 @@ describe('modelGateway', () => {
         // Consume the iterator to surface the request failure.
       }
     };
-    await expect(consume()).rejects.toMatchObject<Partial<GatewayError>>({
+    await expect(consume()).rejects.toMatchObject({
       status: 429,
       payload: { error: { message: 'vendor rate limit', code: 'rate_limit' } },
     });

@@ -19,7 +19,6 @@ export interface CommandOptions {
 
 class CommandService {
   private commandQueue: Map<string, { resolve: Function; reject: Function; startTime: number }> = new Map();
-  private defaultTimeout = 30000; // 30 seconds
 
   constructor() {
     // Listen for command completion events from WebSocket
@@ -33,10 +32,6 @@ class CommandService {
         });
       }
     });
-  }
-
-  private generateCommandId(): string {
-    return `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   private handleCommandCompletion(commandId: string, result: CommandResult) {
@@ -53,29 +48,6 @@ class CommandService {
 
       this.commandQueue.delete(commandId);
     }
-  }
-
-  private async executeWithTimeout<T>(
-    promise: Promise<T>,
-    commandId: string,
-    timeout: number = this.defaultTimeout
-  ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.commandQueue.delete(commandId);
-        reject(new Error('Command execution timeout'));
-      }, timeout);
-
-      promise
-        .then((result) => {
-          clearTimeout(timer);
-          resolve(result);
-        })
-        .catch((error) => {
-          clearTimeout(timer);
-          reject(error);
-        });
-    });
   }
 
   // Core Commands
@@ -110,7 +82,7 @@ class CommandService {
     }
   }
 
-  async analyzeTask(description: string, options: CommandOptions = {}): Promise<CommandResult> {
+  async analyzeTask(description: string, _options: CommandOptions = {}): Promise<CommandResult> {
     try {
       const result = await api.analyzeTask(description);
       return {
@@ -265,7 +237,7 @@ class CommandService {
     }
   }
 
-  async aiExplainCode(codeSnippet: string, context?: string, options: CommandOptions = {}): Promise<CommandResult> {
+  async aiExplainCode(codeSnippet: string, context?: string, _options: CommandOptions = {}): Promise<CommandResult> {
     try {
       const result = await api.aiExplainCode(codeSnippet, context);
       return {
@@ -334,7 +306,7 @@ class CommandService {
   }
 
   // Utility Commands
-  async searchCodebase(query: string, fileTypes: string[] = [], caseSensitive: boolean = false, options: CommandOptions = {}): Promise<CommandResult> {
+  async searchCodebase(query: string, fileTypes: string[] = [], caseSensitive: boolean = false, _options: CommandOptions = {}): Promise<CommandResult> {
     try {
       const result = await api.searchCodebase(query, fileTypes, caseSensitive);
       return {
@@ -377,7 +349,7 @@ class CommandService {
   }
 
   // Terminal Integration
-  async executeTerminalCommand(command: string, sessionId?: string, options: CommandOptions = {}): Promise<CommandResult> {
+  async executeTerminalCommand(command: string, sessionId?: string, _options: CommandOptions = {}): Promise<CommandResult> {
     try {
       // Use provided session ID or create a new one
       let terminalSessionId = sessionId;
@@ -459,7 +431,7 @@ class CommandService {
   }
 
   // Status and Information
-  async getSystemStatus(options: CommandOptions = {}): Promise<CommandResult> {
+  async getSystemStatus(_options: CommandOptions = {}): Promise<CommandResult> {
     try {
       const result = await api.getAgentStatus();
       return {
@@ -476,7 +448,7 @@ class CommandService {
     }
   }
 
-  async getPendingApprovals(options: CommandOptions = {}): Promise<CommandResult> {
+  async getPendingApprovals(_options: CommandOptions = {}): Promise<CommandResult> {
     try {
       const result = await api.getPendingApprovals();
       return {

@@ -9,7 +9,7 @@ import { Separator } from './ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { wsManager } from '../services/websocket';
 import { useAgentStore } from '../stores/agentStore';
-import { Agent, AgentRole, AgentStatus } from '../types';
+import { AgentRole } from '../types';
 import { cn } from '../lib/utils';
 import { toast } from '../hooks/use-toast';
 

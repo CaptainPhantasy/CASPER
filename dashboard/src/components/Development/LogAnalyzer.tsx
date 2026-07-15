@@ -2,7 +2,6 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
@@ -13,7 +12,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   IconFileText as FileText,
   IconSearch as Search,
-  IconFilter as Filter,
   IconRefresh as RefreshCw,
   IconCircleCheck as CheckCircle,
   IconAlertCircle as AlertCircle,
@@ -22,14 +20,10 @@ import {
   IconLoader2 as Loader2,
   IconBug as Bug,
   IconInfoCircle as Info,
-  IconBolt as Zap,
   IconTrendingUp as TrendingUp,
   IconTrendingDown as TrendingDown,
   IconChevronDown as ChevronDown,
   IconChevronRight as ChevronRight,
-  IconDownload as Download,
-  IconEye as Eye,
-  IconCalendar as Calendar,
   IconActivity as Activity
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
@@ -170,11 +164,11 @@ export const LogAnalyzer: React.FC = () => {
   const [timeRange, setTimeRange] = React.useState("24h");
   const [logLevel, setLogLevel] = React.useState("all");
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [selectedLogger, setSelectedLogger] = React.useState("all");
+  const [selectedLogger] = React.useState("all");
 
   // UI state
   const [expandedSections, setExpandedSections] = React.useState<Record<string, boolean>>({});
-  const [selectedEntry, setSelectedEntry] = React.useState<LogEntry | null>(null);
+  const [, setSelectedEntry] = React.useState<LogEntry | null>(null);
 
   // Fetch log metrics and analysis history
   const fetchLogInfo = React.useCallback(async () => {

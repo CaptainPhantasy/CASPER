@@ -270,8 +270,6 @@ function FileContent({ file }: FileContentProps) {
   };
 
   const language = getLanguage(file.name);
-  const lines = file.content.split('\n');
-
   return (
     <ScrollArea className="h-full">
       {language === 'plaintext' ? (

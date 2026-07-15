@@ -92,7 +92,7 @@ class WebSocketManager {
         }
       }, 10000); // 10 second timeout
 
-      this.ws.onopen = (event) => {
+      this.ws.onopen = () => {
         clearTimeout(connectionTimeout);
         console.log('[WebSocket] Connected to', this.url);
         this.reconnectAttempts = 0;

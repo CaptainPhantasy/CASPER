@@ -20,14 +20,11 @@ import {
   IconClock as Clock,
   IconLoader2 as Loader2,
   IconFileText as FileText,
-  IconBug as Bug,
   IconBolt as Zap,
   IconTrendingUp as TrendingUp,
   IconTrendingDown as TrendingDown,
   IconChevronDown as ChevronDown,
   IconChevronRight as ChevronRight,
-  IconSettings as Settings,
-  IconFilter as Filter,
   IconDownload as Download
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
@@ -141,7 +138,7 @@ export const CodeQuality: React.FC = () => {
   const [selectedLinter, setSelectedLinter] = React.useState("eslint");
   const [targetPath, setTargetPath] = React.useState("");
   const [fixMode, setFixMode] = React.useState("check");
-  const [selectedIssue, setSelectedIssue] = React.useState<LintIssue | null>(null);
+  const [, setSelectedIssue] = React.useState<LintIssue | null>(null);
   const [issueCategoriesOpen, setIssueCategoriesOpen] = React.useState<Record<string, boolean>>({});
 
   // Fetch quality metrics and lint history

@@ -190,9 +190,9 @@ const PROJECT_STATUS_COLORS = {
 
 export function BusinessDashboard() {
   const { toast } = useToast();
-  const [metrics, setMetrics] = useState<BusinessMetrics>(SAMPLE_METRICS);
-  const [activities, setActivities] = useState<RecentActivity[]>(SAMPLE_ACTIVITIES);
-  const [projects, setProjects] = useState<ProjectOverview[]>(SAMPLE_PROJECTS);
+  const [metrics] = useState<BusinessMetrics>(SAMPLE_METRICS);
+  const [activities] = useState<RecentActivity[]>(SAMPLE_ACTIVITIES);
+  const [projects] = useState<ProjectOverview[]>(SAMPLE_PROJECTS);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

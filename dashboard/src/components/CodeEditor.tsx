@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Editor, { OnChange, OnMount } from '@monaco-editor/react';
 import { editor } from 'monaco-editor';
 import { useToast } from '@/hooks/use-toast';
@@ -109,7 +109,7 @@ export function CodeEditor({
     });
   };
 
-  const handleEditorChange: OnChange = (value, event) => {
+  const handleEditorChange: OnChange = (value, _event) => {
     const newContent = value || '';
     setContent(newContent);
     setIsDirty(newContent !== initialContent);

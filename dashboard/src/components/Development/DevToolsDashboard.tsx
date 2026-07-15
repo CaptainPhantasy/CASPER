@@ -24,11 +24,9 @@ import {
   IconTrendingUp as TrendingUp,
   IconTrendingDown as TrendingDown,
   IconArrowRight as ArrowRight,
-  IconPlayerPlay as Play,
   IconSettings as Settings,
   IconChartBar as BarChart3,
-  IconTarget as Target,
-  IconServer as Server
+  IconTarget as Target
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/services/api";
@@ -84,16 +82,6 @@ interface QuickAction {
   disabled?: boolean;
   loading?: boolean;
 }
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'active': return 'text-green-600 dark:text-green-400';
-    case 'idle': return 'text-muted-foreground';
-    case 'error': return 'text-red-600 dark:text-red-400';
-    case 'disabled': return 'text-gray-400';
-    default: return 'text-muted-foreground';
-  }
-};
 
 const getStatusIcon = (status: string) => {
   switch (status) {
