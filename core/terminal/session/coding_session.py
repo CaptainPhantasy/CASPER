@@ -8,11 +8,10 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 from dataclasses import dataclass, asdict
 import threading
 import logging
-from contextlib import asynccontextmanager
 
 from ..interfaces import ISession, SessionState, SessionError, MAX_CONTEXT_TOKENS
 from ...context.manager import ContextManager
@@ -50,7 +49,11 @@ class CodingSession(ISession):
 
     def __init__(self, storage_path: str = None, context_manager: ContextManager = None):
         """Initialize session manager with persistent storage"""
-        self.storage_path = Path(storage_path or "/Volumes/Storage/Development/CASPER DEV/.casper/sessions")
+        self.storage_path = (
+            Path(storage_path).expanduser().resolve()
+            if storage_path
+            else (Path.cwd() / ".casper" / "sessions").resolve()
+        )
         self.db_path = self.storage_path / "sessions.db"
         self.context_manager = context_manager or ContextManager()
 
@@ -71,6 +74,14 @@ class CodingSession(ISession):
     def _ensure_directories(self) -> None:
         """Ensure required directories exist"""
         self.storage_path.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _context_uuid(session_id: str) -> uuid.UUID:
+        """Map public session IDs to stable UUID keys for ContextManager."""
+        try:
+            return uuid.UUID(session_id)
+        except ValueError:
+            return uuid.uuid5(uuid.NAMESPACE_URL, f"casper-session:{session_id}")
 
     def _init_database(self) -> None:
         """Initialize SQLite database with complete schema"""
@@ -234,7 +245,7 @@ class CodingSession(ISession):
         }
 
         # Store context
-        session_uuid = uuid.UUID(session_id)
+        session_uuid = self._context_uuid(session_id)
         self.context_manager.store_context(session_uuid, initial_context)
 
     async def add_interaction(self, session_id: str, user_input: str, response: str, metadata: Dict[str, Any] = None) -> None:
@@ -358,7 +369,7 @@ class CodingSession(ISession):
         session_state = self._active_sessions[session_id]
 
         # Load context from context manager
-        session_uuid = uuid.UUID(session_id)
+        session_uuid = self._context_uuid(session_id)
         stored_context = self.context_manager.load_context(session_uuid) or {}
 
         # Get recent interactions
@@ -482,7 +493,7 @@ class CodingSession(ISession):
                 conn.commit()
 
         # Update context manager
-        session_uuid = uuid.UUID(session_id)
+        session_uuid = self._context_uuid(session_id)
         context_update = {
             "session_id": session_id,
             "last_persisted": datetime.now(timezone.utc).isoformat(),

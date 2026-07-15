@@ -6,9 +6,9 @@ Implements ITerminalUI interface with multi-pane layout and advanced features.
 import asyncio
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Callable
+from pathlib import Path
+from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
-from contextlib import contextmanager
 
 # Rich imports for beautiful terminal output
 from rich.console import Console, RenderableType
@@ -16,30 +16,21 @@ from rich.layout import Layout
 from rich.panel import Panel
 from rich.live import Live
 from rich.progress import Progress, TaskID, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
-from rich.status import Status
 from rich.syntax import Syntax
-from rich.table import Table
-from rich.columns import Columns
-from rich.align import Align
 from rich.text import Text
-from rich.style import Style
-from rich.spinner import Spinner
 
 # Prompt-toolkit imports for advanced input
 from prompt_toolkit import Application
-from prompt_toolkit.application import get_app
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout.layout import Layout as PTLayout
-from prompt_toolkit.layout.containers import HSplit, VSplit, Window
-from prompt_toolkit.widgets import TextArea, Frame, SearchToolbar
-from prompt_toolkit.layout.controls import FormattedTextControl
-from prompt_toolkit.shortcuts import input_dialog, message_dialog
 from prompt_toolkit.styles import Style as PTStyle
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.application.current import get_app_session
 from prompt_toolkit.patch_stdout import patch_stdout
 
-from ..interfaces import ITerminalUI, StreamChunk, WSMessageType
+from ..interfaces import ITerminalUI, StreamChunk
+from .coding_commands import CodingCommandDispatcher
+from .feature_manager import COMMAND_HELP, LocalCommandResult, TerminalFeatureManager
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -58,12 +49,29 @@ class TerminalUI(ITerminalUI):
     Implements the ITerminalUI interface completely with beautiful Rich output.
     """
 
-    def __init__(self, title: str = "CASPER Prime Terminal"):
-        self.console = Console(force_terminal=True, width=120)
+    def __init__(
+        self,
+        title: str = "CASPER Prime Terminal",
+        state_root: Optional[Path | str] = None,
+        project_root: Optional[Path | str] = None,
+        console: Optional[Console] = None,
+    ):
+        self.features = TerminalFeatureManager(state_root)
+        self.project_root = Path(project_root or Path.cwd()).expanduser().resolve()
+        self.coding_commands = CodingCommandDispatcher(
+            self.project_root, self.features,
+        )
+        COMMAND_HELP.update(self.coding_commands.help_entries())
+        self.console = console or Console(
+            force_terminal=None,
+            no_color=self.features.no_color,
+            record=True,
+        )
         self.layout = Layout(name="root")
         self.live: Optional[Live] = None
         self.running = False
         self.title = title
+        self._runner_task: Optional[asyncio.Task] = None
 
         # Multi-pane state
         self.panes: Dict[str, PaneState] = {
@@ -104,14 +112,12 @@ class TerminalUI(ITerminalUI):
         # Application state
         self.app: Optional[Application] = None
         self.input_buffer = ""
-        self.history: List[str] = []
+        self.history: List[str] = self.features.history()
         self.history_index = 0
 
         # Streaming state
         self.stream_active = False
         self.chunk_queue = asyncio.Queue()
-
-        logger = logging.getLogger(__name__)
 
     def _setup_key_bindings(self):
         """Setup keyboard shortcuts for terminal interaction"""
@@ -157,7 +163,7 @@ class TerminalUI(ITerminalUI):
             self._toggle_pane("tests")
 
     async def start_ui(self) -> None:
-        """Start the terminal UI with multi-pane layout"""
+        """Initialize the TUI and schedule its renderer without blocking input."""
         if self.running:
             return
 
@@ -177,18 +183,20 @@ class TerminalUI(ITerminalUI):
         # Setup layout
         self._setup_layout()
 
-        # Start live display
+        # Start the live display in a background task so initialization can
+        # continue into the interactive prompt loop.
         self.live = Live(self.layout, console=self.console, refresh_per_second=10)
+        self._runner_task = asyncio.create_task(self._run_ui(), name="casper-tui-renderer")
+        await asyncio.sleep(0)
 
+    async def _run_ui(self) -> None:
+        """Own the Rich live context and streaming consumer."""
+        if not self.live:
+            return
         with self.live:
-            # Display startup banner
             await self._show_startup_banner()
-
-            # Start chunk processing task
             chunk_task = asyncio.create_task(self._process_chunks())
-
             try:
-                # Keep UI running
                 while self.running:
                     await asyncio.sleep(0.1)
             finally:
@@ -197,6 +205,19 @@ class TerminalUI(ITerminalUI):
                     await chunk_task
                 except asyncio.CancelledError:
                     pass
+
+    def refresh_console_capabilities(self) -> None:
+        """Apply capability-aware color settings to the active console."""
+        self.console.no_color = self.features.no_color
+        self._refresh_layout()
+
+    def refresh_layout(self) -> None:
+        """Public refresh hook used by deterministic local commands."""
+        self._refresh_layout()
+
+    def rebuild_layout(self) -> None:
+        """Public layout rebuild hook used by deterministic local commands."""
+        self._setup_layout()
 
     def _setup_layout(self):
         """Setup the multi-pane layout structure"""
@@ -235,8 +256,8 @@ class TerminalUI(ITerminalUI):
             # Header
             if "header" in self.layout:
                 self.layout["header"].update(Panel(
-                    f"[bold bright_cyan]{self.title}[/bold bright_cyan] - Interactive Coding Terminal",
-                    style="cyan",
+                    Text(f"{self.title} - Interactive Coding Terminal", style="bold"),
+                    style=self.features.theme["border"],
                     padding=(0, 1)
                 ))
 
@@ -247,21 +268,28 @@ class TerminalUI(ITerminalUI):
                     self.layout[pane_name].update(Panel(
                         content,
                         title=f"[bold]{pane.title}[/bold]",
-                        border_style="bright_blue" if pane_name == "input" else "dim",
+                        border_style=(
+                            self.features.theme["border"]
+                            if pane_name == "input" else "dim"
+                        ),
                         padding=(0, 1)
                     ))
 
             # Footer with shortcuts
             if "footer" in self.layout:
-                shortcuts = "[F1] Help [F5] Reasoning [F6] Code [F7] Tests [Ctrl+C] Cancel [Ctrl+L] Clear"
+                bindings = self.features.settings.get("shortcuts", {})
+                shortcuts = " ".join(
+                    f"[{keys}] {action.title()}" for action, keys in bindings.items()
+                )
+                if self.features.notifications:
+                    shortcuts += f" | {self.features.notifications[-1]}"
                 self.layout["footer"].update(Panel(
-                    f"[dim]{shortcuts}[/dim]",
+                    Text(shortcuts, style="dim"),
                     style="dim",
                     padding=(0, 1)
                 ))
-        except Exception as e:
-            # Silently handle layout errors during testing
-            pass
+        except Exception as exc:
+            logger.debug("TUI layout refresh failed: %s", exc)
 
     def _format_pane_content(self, pane: PaneState) -> RenderableType:
         """Format content for a pane with syntax highlighting"""
@@ -270,7 +298,7 @@ class TerminalUI(ITerminalUI):
                 return Syntax(
                     pane.content,
                     pane.syntax_language,
-                    theme="monokai",
+                    theme=self.features.theme["syntax"],
                     line_numbers=True if pane.syntax_language in ["python", "javascript", "typescript"] else False,
                     word_wrap=True
                 )
@@ -305,6 +333,8 @@ class TerminalUI(ITerminalUI):
     async def _handle_chunk(self, chunk: StreamChunk):
         """Handle individual stream chunks"""
         chunk_type = chunk.type.lower()
+        self.features.remember_edit(self.panes)
+        target_pane = "reasoning"
 
         if chunk_type == "thought" or chunk_type == "reasoning":
             # Add to reasoning pane
@@ -317,12 +347,14 @@ class TerminalUI(ITerminalUI):
             self.panes["reasoning"].content = new_content.strip()
 
         elif chunk_type == "action" or chunk_type == "command":
+            target_pane = "input"
             # Add to input pane
             current = self.panes["input"].content
             new_content = f"{current}\n🔧 Action: {chunk.content}"
             self.panes["input"].content = new_content.strip()
 
         elif chunk_type == "code":
+            target_pane = "code"
             # Update code pane
             self.panes["code"].content = chunk.content
             # Try to detect language from metadata
@@ -330,6 +362,7 @@ class TerminalUI(ITerminalUI):
                 self.panes["code"].syntax_language = chunk.metadata["language"]
 
         elif chunk_type == "test" or chunk_type == "result":
+            target_pane = "tests"
             # Add to tests pane
             current = self.panes["tests"].content
             if current == "# Test results and logs":
@@ -347,7 +380,8 @@ class TerminalUI(ITerminalUI):
             new_content = f"{current}\n[{timestamp}] ❌ ERROR: {chunk.content}"
             self.panes["reasoning"].content = new_content.strip()
 
-        # Refresh the layout
+        self.features.append_transcript(target_pane, chunk_type, chunk.content)
+        self.features.autosave(self.panes)
         self._refresh_layout()
 
     async def get_user_input(self, prompt: str = "casper> ") -> str:
@@ -373,14 +407,13 @@ class TerminalUI(ITerminalUI):
         from prompt_toolkit import prompt
         from prompt_toolkit.completion import WordCompleter
         from prompt_toolkit.history import InMemoryHistory
+        from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 
         # Setup completions
-        casper_commands = [
-            "help", "status", "task", "analyze", "list", "init", "setup",
-            "clear", "exit", "quit", "history", "refresh"
-        ]
+        casper_commands = sorted(COMMAND_HELP) + ["exit", "quit"]
 
-        completer = WordCompleter(casper_commands + self.history, ignore_case=True)
+        self.history = self.features.history()
+        completer = WordCompleter(casper_commands, ignore_case=True, sentence=True)
         history = InMemoryHistory()
 
         # Add previous commands to history
@@ -392,18 +425,42 @@ class TerminalUI(ITerminalUI):
                 prompt,
                 completer=completer,
                 history=history,
+                auto_suggest=AutoSuggestFromHistory(),
+                key_bindings=self.kb,
                 style=PTStyle.from_dict({
                     'prompt': '#ansibrightcyan bold',
                     'input': '#ansiwhite',
                 })
             )
 
-            if result.strip() and result not in self.history:
-                self.history.append(result.strip())
+            self.features.record_history(result)
+            self.history = self.features.history()
 
             return result
         except (KeyboardInterrupt, EOFError):
             return ""
+
+    async def execute_command(self, command_line: str) -> LocalCommandResult:
+        """Run a deterministic TUI command or return an unhandled result."""
+        result = await self.coding_commands.execute(self, command_line)
+        if not result.handled:
+            result = await self.features.execute(self, command_line)
+        if result.handled and result.message:
+            self.features.remember_edit(self.panes)
+            current = self.panes["reasoning"].content
+            if current == "Ready to process your request...":
+                current = ""
+            self.panes["reasoning"].content = (
+                f"{current}\n{result.message}".strip()
+            )
+            self.features.append_transcript("reasoning", "local-command", result.message)
+            self.features.autosave(self.panes)
+            self._refresh_layout()
+        return result
+
+    def bind_integration(self, integration: Any) -> None:
+        """Expose live MCP, agent, session, and pipeline state to commands."""
+        self.coding_commands.bind_integration(integration)
 
     async def show_progress(self, message: str, percentage: Optional[float] = None) -> None:
         """Show progress indicator with optional percentage"""
@@ -424,6 +481,7 @@ class TerminalUI(ITerminalUI):
 
     async def clear_screen(self) -> None:
         """Clear the terminal screen and reset panes"""
+        self.features.remember_edit(self.panes)
         # Clear all pane content
         self.panes["reasoning"].content = "Ready to process your request..."
         self.panes["input"].content = "casper> "
@@ -436,7 +494,7 @@ class TerminalUI(ITerminalUI):
                 self.progress.remove_task(task_id)
             self.progress_tasks.clear()
 
-        # Refresh layout
+        self.features.autosave(self.panes)
         self._refresh_layout()
 
     async def show_error(self, error: str) -> None:
@@ -458,6 +516,7 @@ class TerminalUI(ITerminalUI):
         """Toggle visibility of a pane"""
         if pane_name in self.panes:
             self.panes[pane_name].visible = not self.panes[pane_name].visible
+            self.features.autosave(self.panes)
             if self.running:
                 self._setup_layout()  # Rebuild layout
 
@@ -499,7 +558,10 @@ Input:
 
     async def _show_startup_banner(self):
         """Show beautiful startup banner"""
-        banner = """
+        if self.features.settings.get("plain"):
+            banner = "CASPER Prime Terminal UI\nInteractive Coding Assistant\nReady."
+        else:
+            banner = """
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                     🚀 CASPER Prime Terminal UI                     ║
 ║                      Interactive Coding Assistant                    ║
@@ -519,11 +581,23 @@ Welcome to the advanced terminal interface for CASPER Prime!
 
         self.panes["reasoning"].content = banner
         self._refresh_layout()
-        await asyncio.sleep(2)  # Show banner for 2 seconds
+        if not self.features.settings.get("reduced_motion"):
+            await asyncio.sleep(0.15)
 
     async def shutdown(self):
         """Gracefully shutdown the terminal UI"""
+        if self.panes:
+            self.features.autosave(self.panes)
         self.running = False
+
+        current = asyncio.current_task()
+        if self._runner_task and self._runner_task is not current:
+            self._runner_task.cancel()
+            try:
+                await self._runner_task
+            except asyncio.CancelledError:
+                pass
+            self._runner_task = None
 
         if self.live:
             self.live.stop()
@@ -531,8 +605,6 @@ Welcome to the advanced terminal interface for CASPER Prime!
         if self.progress:
             self.progress.stop()
 
-        # Clear resources
-        self.panes.clear()
         self.progress_tasks.clear()
 
         self.console.print("[dim]Terminal UI shutdown complete.[/dim]")
@@ -547,9 +619,15 @@ Welcome to the advanced terminal interface for CASPER Prime!
 
 
 # Factory function for easy instantiation
-def create_terminal_ui(title: str = "CASPER Prime Terminal") -> TerminalUI:
+def create_terminal_ui(
+    title: str = "CASPER Prime Terminal",
+    state_root: Optional[Path | str] = None,
+    project_root: Optional[Path | str] = None,
+) -> TerminalUI:
     """Factory function to create a configured TerminalUI instance"""
-    return TerminalUI(title=title)
+    return TerminalUI(
+        title=title, state_root=state_root, project_root=project_root,
+    )
 
 
 # Example usage and testing

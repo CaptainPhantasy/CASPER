@@ -12,9 +12,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-from coding_session import CodingSession, SessionError, TokenizedInteraction
-from ..interfaces import SessionState, MAX_CONTEXT_TOKENS
-from ...context.manager import ContextManager
+from .coding_session import CodingSession
+from ..interfaces import SessionError, SessionState, MAX_CONTEXT_TOKENS
 
 
 class TestCodingSession(unittest.TestCase):
@@ -424,19 +423,19 @@ def run_comprehensive_tests():
 
     # Summary
     print(f"\n{'='*60}")
-    print(f"Test Results Summary:")
+    print("Test Results Summary:")
     print(f"  Tests Run: {result.testsRun}")
     print(f"  Failures: {len(result.failures)}")
     print(f"  Errors: {len(result.errors)}")
     print(f"  Success Rate: {((result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100):.1f}%")
 
     if result.failures:
-        print(f"\n❌ Failures:")
+        print("\n❌ Failures:")
         for test, traceback in result.failures:
             print(f"  - {test}: {traceback}")
 
     if result.errors:
-        print(f"\n💥 Errors:")
+        print("\n💥 Errors:")
         for test, traceback in result.errors:
             print(f"  - {test}: {traceback}")
 

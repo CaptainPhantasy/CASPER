@@ -7,50 +7,62 @@ PRODUCTION GRADE - Zero placeholders, everything must work.
 import asyncio
 import logging
 import os
-import json
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from contextlib import asynccontextmanager
 
 from ..interfaces import (
     IIntegration, ISession, IStreaming, IParser, ITerminalUI,
-    CodingIntent, CodingAction, SessionState, StreamChunk, WSMessageType,
-    TerminalError, SessionError, StreamingError, ParsingError
+    SessionState, TerminalError
 )
 from ..pty_manager import PTYManager
 from ..websocket_handler import TerminalWebSocketHandler
 from ..command_proxy import CommandProxy
 from ..security import SecurityMiddleware
+from .fallbacks import (
+    FallbackNLParser,
+    FallbackSessionManager,
+    FallbackStreamingProcessor,
+    FallbackTerminalUI,
+)
 
 # Import agent layer initialization
 from core.agents.layer_initialization import AgentLayerInitializer
 
-# Import the actual implementations from other agents
-try:
-    from ..session.coding_session import CodingSession
-    from ..streaming.streaming_orchestrator import StreamingOrchestrator
-    from ..nlp.intent_parser import IntentParser
-    from ..ui.terminal_ui import TerminalUI as AgentTerminalUI
-    AGENTS_AVAILABLE = True
-except ImportError as e:
-    logger.warning(f"Agent implementations not available: {e}")
-    CodingSession = None
-    StreamingOrchestrator = None
-    IntentParser = None
-    AgentTerminalUI = None
-    AGENTS_AVAILABLE = False
-
-# Import fallback implementations
-from .fallbacks import (
-    FallbackSessionManager, FallbackStreamingProcessor,
-    FallbackNLParser, FallbackTerminalUI
-)
-
 logger = logging.getLogger(__name__)
 
+# Import specialist implementations independently. One stale optional component
+# must not disable the working TUI, session manager, or streaming engine.
+try:
+    from ..session.coding_session import CodingSession
+except ImportError as exc:
+    logger.warning("Coding session implementation unavailable: %s", exc)
+    CodingSession = None
+
+try:
+    from ..streaming.streaming_orchestrator import StreamingOrchestrator
+except ImportError as exc:
+    logger.warning("Streaming implementation unavailable: %s", exc)
+    StreamingOrchestrator = None
+
+try:
+    from ..nlp.intent_parser import IntentParser
+except ImportError as exc:
+    logger.warning("NLP implementation unavailable: %s", exc)
+    IntentParser = None
+
+try:
+    from ..ui.terminal_ui import TerminalUI as AgentTerminalUI
+except ImportError as exc:
+    logger.warning("Terminal UI implementation unavailable: %s", exc)
+    AgentTerminalUI = None
+
+AGENTS_AVAILABLE = any(
+    component is not None
+    for component in (CodingSession, StreamingOrchestrator, IntentParser, AgentTerminalUI)
+)
 
 class TerminalIntegration(IIntegration):
     """
@@ -290,6 +302,9 @@ class TerminalIntegration(IIntegration):
                 # Use agent implementation if it implements ITerminalUI
                 if hasattr(AgentTerminalUI, 'start_ui'):
                     self.terminal_ui = AgentTerminalUI()
+                    bind_integration = getattr(self.terminal_ui, "bind_integration", None)
+                    if bind_integration:
+                        bind_integration(self)
                     await self.terminal_ui.start_ui()
                     logger.info("Using agent-based terminal UI")
                 else:
@@ -336,11 +351,15 @@ class TerminalIntegration(IIntegration):
                     # Get user input
                     user_input = await self.terminal_ui.get_user_input("casper> ")
 
+                    if not user_input.strip():
+                        continue
+
                     if user_input.lower() in ['exit', 'quit', 'bye']:
                         break
 
                     # Process the input
-                    await self._process_user_input(session_id, user_input)
+                    if await self._process_user_input(session_id, user_input):
+                        break
 
                 except KeyboardInterrupt:
                     logger.info("Received keyboard interrupt")
@@ -357,9 +376,15 @@ class TerminalIntegration(IIntegration):
             logger.error(f"Interactive session failed: {e}")
             raise TerminalError(f"Interactive session failed: {e}")
 
-    async def _process_user_input(self, session_id: str, user_input: str) -> None:
-        """Process user input through the complete pipeline."""
+    async def _process_user_input(self, session_id: str, user_input: str) -> bool:
+        """Process local TUI commands or route an AI request through the pipeline."""
         try:
+            execute_command = getattr(self.terminal_ui, "execute_command", None)
+            if execute_command:
+                local_result = await execute_command(user_input)
+                if local_result.handled:
+                    return bool(local_result.exit_requested)
+
             # Parse the input into coding intent
             intent = await self.nlp_parser.parse_input(user_input)
 
@@ -373,10 +398,12 @@ class TerminalIntegration(IIntegration):
             # Add interaction to session
             await self.session_manager.add_interaction(user_input, "Response processed")
             await self.session_manager.persist()
+            return False
 
         except Exception as e:
             logger.error(f"Error processing user input: {e}")
             await self.terminal_ui.show_error(f"Processing error: {e}")
+            return False
 
     async def handle_mcp_connection(self, websocket: WebSocket) -> None:
         """Handle Model Context Protocol connection from IDE."""
@@ -480,11 +507,11 @@ class TerminalIntegration(IIntegration):
 
         try:
             # Close all MCP connections
-            for connection_id, websocket in list(self.mcp_connections.items()):
+            for websocket in list(self.mcp_connections.values()):
                 try:
                     await websocket.close()
-                except:
-                    pass
+                except Exception as exc:
+                    logger.debug("WebSocket close failed during shutdown: %s", exc)
             self.mcp_connections.clear()
 
             # Clean up all sessions
@@ -497,7 +524,11 @@ class TerminalIntegration(IIntegration):
 
             # Shutdown UI
             if self.terminal_ui:
-                await self.terminal_ui.clear_screen()
+                shutdown_ui = getattr(self.terminal_ui, "shutdown", None)
+                if shutdown_ui:
+                    await shutdown_ui()
+                else:
+                    await self.terminal_ui.clear_screen()
 
             # Shutdown infrastructure
             if self.websocket_handler:
@@ -529,6 +560,7 @@ async def main():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
+    integration = None
     try:
         # Create integration instance
         integration = TerminalIntegration()
@@ -542,10 +574,11 @@ async def main():
     except Exception as e:
         logger.error(f"Terminal failed: {e}")
     finally:
-        try:
-            await integration.shutdown()
-        except:
-            pass
+        if integration is not None:
+            try:
+                await integration.shutdown()
+            except Exception as exc:
+                logger.debug("Terminal shutdown failed: %s", exc)
 
 
 if __name__ == "__main__":

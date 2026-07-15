@@ -4,12 +4,9 @@ Demonstrates all features working in production scenario.
 """
 
 import asyncio
-import json
 import time
-from pathlib import Path
-from datetime import datetime
 
-from coding_session import CodingSession
+from .coding_session import CodingSession
 from ...context.manager import ContextManager
 
 
@@ -156,7 +153,7 @@ async def demo_session_lifecycle():
         )
 
         concurrent_context = await session_manager.get_context(session_id)
-        print(f"   Concurrent interactions added successfully")
+        print("   Concurrent interactions added successfully")
         print(f"   Total interactions after concurrent test: {concurrent_context['metrics']['total_interactions']}")
         results["concurrent_operations"] = "✅ SUCCESS"
 
@@ -218,7 +215,7 @@ def demo_persistence_verification():
         await manager1.persist(session.session_id)
 
         print(f"   Created session: {session.session_id}")
-        print(f"   Added interaction and file modification")
+        print("   Added interaction and file modification")
         return session.session_id
 
     async def phase_2(session_id):

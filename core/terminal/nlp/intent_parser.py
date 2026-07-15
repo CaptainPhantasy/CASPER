@@ -18,24 +18,20 @@ import json
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional, Tuple, Set
+from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
 from dataclasses import dataclass
 
 # Core imports
 from ..interfaces import IParser, CodingIntent, CodingAction, ParsingError
-from ...tools.production_tools import ProductionTools, ToolResult
+from ...tools.production_tools import ProductionTools
 
-# LangChain imports for real NLP
-from langchain.llms import OpenAI
-from langchain.chat_models import ChatOpenAI
-from langchain.schema import BaseMessage, HumanMessage, SystemMessage, AIMessage
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
-from langchain.chains import ConversationChain
-from langchain.memory import ConversationBufferWindowMemory
-from langchain.prompts import PromptTemplate
+# LangChain 1.x split provider integrations and core message types into
+# dedicated packages. Keep imports limited to the components used here so an
+# unrelated optional integration cannot prevent the parser from loading.
+from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -78,7 +74,7 @@ class IntentParser(IParser):
 
     def __init__(self, project_root: Optional[str] = None):
         """Initialize parser with production tools and LangChain models"""
-        self.project_root = Path(project_root or "/Volumes/Storage/Development/CASPER DEV/core/terminal")
+        self.project_root = Path(project_root or Path.cwd()).resolve()
         self.tools = ProductionTools(str(self.project_root))
 
         # LangChain models for NLP (initialized lazily)
@@ -517,7 +513,7 @@ class IntentParser(IParser):
                             start_pos=0,
                             end_pos=len(node.name)
                         ))
-            except:
+            except SyntaxError:
                 # If AST parsing fails, use pattern matching on code block
                 pattern_entities = self._extract_with_patterns(code_block)
                 entities.extend(pattern_entities)
@@ -734,8 +730,9 @@ class IntentParser(IParser):
             Return only the completions, one per line.
             """
 
-            response = await self.llm.agenerate([HumanMessage(content=prompt)])
-            completions = response.generations[0][0].text.strip().split('\n')
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            content = response.content if isinstance(response.content, str) else str(response.content)
+            completions = content.strip().split('\n')
 
             return [comp.strip() for comp in completions if comp.strip()]
 
