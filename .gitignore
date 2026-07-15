@@ -34,6 +34,7 @@ env/
 
 # Node/React
 node_modules/
+.npm-cache/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -58,6 +59,8 @@ yarn-error.log*
 .casper/skills
 .casper/mcp/
 .casper/transformation/test_results/
+.casper/chromadb/
+/core/terminal/.casper/
 *.ctx
 *.ctx.gz
 *.sqlite3
@@ -66,8 +69,11 @@ chroma.sqlite3
 *.pid
 *.seed
 *.pid.lock
-.supercache/
+.supercache
+.supercache*/
 FLOYD.md.bak
+/FLOYD.md
+/logs/
 
 # Testing artifacts
 coverage/
