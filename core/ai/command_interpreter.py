@@ -15,6 +15,7 @@ from core.services.llm import llm_service
 
 class CommandType(Enum):
     """Types of commands CASPER can handle"""
+
     FILE_OPERATION = "file_operation"
     CODE_GENERATION = "code_generation"
     TESTING = "testing"
@@ -28,6 +29,7 @@ class CommandType(Enum):
 @dataclass
 class InterpretedCommand:
     """Structured representation of user intent"""
+
     command_type: CommandType
     action: str  # Specific action (create, modify, delete, etc.)
     targets: List[Dict[str, Any]]  # What to act on
@@ -53,7 +55,7 @@ class CasperCommandInterpreter:
             "project_root": os.environ.get("CASPER_PROJECT_ROOT", str(Path.cwd())),
             "project_type": None,  # Could detect: react, python, etc.
             "existing_files": [],
-            "recent_operations": []
+            "recent_operations": [],
         }
 
         # Detect project type
@@ -154,12 +156,15 @@ class CasperCommandInterpreter:
 
         return prompt
 
-    def _parse_interpretation(self, response: str, user_input: str) -> InterpretedCommand:
+    def _parse_interpretation(
+        self, response: str, user_input: str
+    ) -> InterpretedCommand:
         """Parse AI response into InterpretedCommand"""
         try:
             # Extract JSON from response
             import re
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if not json_match:
                 return self._fallback_interpretation(user_input)
 
@@ -179,7 +184,7 @@ class CasperCommandInterpreter:
                 context=data.get("context", {}),
                 confidence=float(data.get("confidence", 0.5)),
                 raw_input=user_input,
-                suggested_agent=data.get("suggested_agent", "worker")
+                suggested_agent=data.get("suggested_agent", "worker"),
             )
 
             # Add to history for context
@@ -207,10 +212,15 @@ class CasperCommandInterpreter:
                 cmd_type = CommandType.FILE_OPERATION
                 action = "create"
                 suggested_agent = "worker"
-            elif any(word in user_lower for word in ["component", "module", "class", "function"]):
+            elif any(
+                word in user_lower
+                for word in ["component", "module", "class", "function"]
+            ):
                 cmd_type = CommandType.CODE_GENERATION
                 action = "create"
-                suggested_agent = "frontend_prime" if "component" in user_lower else "backend_prime"
+                suggested_agent = (
+                    "frontend_prime" if "component" in user_lower else "backend_prime"
+                )
             else:
                 cmd_type = CommandType.UNKNOWN
                 action = "unknown"
@@ -235,7 +245,7 @@ class CasperCommandInterpreter:
             context={},
             confidence=0.3,  # Low confidence for fallback
             raw_input=user_input,
-            suggested_agent=suggested_agent
+            suggested_agent=suggested_agent,
         )
 
     def explain_interpretation(self, command: InterpretedCommand) -> str:
@@ -243,10 +253,12 @@ class CasperCommandInterpreter:
         explanation = f"I understood that you want to {command.action}"
 
         if command.targets:
-            target_desc = ", ".join([
-                f"{t.get('type', 'item')} '{t.get('name', 'unnamed')}'"
-                for t in command.targets
-            ])
+            target_desc = ", ".join(
+                [
+                    f"{t.get('type', 'item')} '{t.get('name', 'unnamed')}'"
+                    for t in command.targets
+                ]
+            )
             explanation += f" {target_desc}"
 
         if command.command_type == CommandType.FILE_OPERATION:
@@ -260,7 +272,9 @@ class CasperCommandInterpreter:
 
         return explanation
 
-    async def validate_interpretation(self, command: InterpretedCommand) -> Tuple[bool, str]:
+    async def validate_interpretation(
+        self, command: InterpretedCommand
+    ) -> Tuple[bool, str]:
         """
         Validate that the interpretation makes sense and is safe to execute.
         Returns (is_valid, explanation)
@@ -268,12 +282,18 @@ class CasperCommandInterpreter:
 
         # Check confidence threshold
         if command.confidence < 0.4:
-            return False, "I'm not confident enough in my interpretation. Could you rephrase?"
+            return (
+                False,
+                "I'm not confident enough in my interpretation. Could you rephrase?",
+            )
 
         # Check for dangerous operations
         if command.action in ["delete", "remove", "destroy"]:
             if command.confidence < 0.8:
-                return False, "This looks like a destructive operation. Please be more specific."
+                return (
+                    False,
+                    "This looks like a destructive operation. Please be more specific.",
+                )
 
         # Validate file paths don't escape project
         project_root = Path(self.project_context["project_root"])

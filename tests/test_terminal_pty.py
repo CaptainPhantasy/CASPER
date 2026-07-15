@@ -21,7 +21,7 @@ class TestPTYSession:
     @pytest.fixture
     def mock_pty_session(self):
         """Create a mock PTY session for testing."""
-        with patch('subprocess.Popen') as mock_popen:
+        with patch("subprocess.Popen") as mock_popen:
             mock_process = Mock()
             mock_process.pid = 12345
             mock_popen.return_value = mock_process
@@ -30,7 +30,7 @@ class TestPTYSession:
                 session_id="test-session",
                 master_fd=10,
                 slave_fd=11,
-                process=mock_process
+                process=mock_process,
             )
             session.is_active = True
             return session
@@ -51,15 +51,15 @@ class TestPTYSession:
         mock_pty_session.set_output_callback(callback)
         assert mock_pty_session.output_callback == callback
 
-    @patch('os.write')
+    @patch("os.write")
     def test_write_success(self, mock_write, mock_pty_session):
         """Test successful write to PTY."""
         test_data = "test command\n"
         mock_pty_session.write(test_data)
 
-        mock_write.assert_called_once_with(10, test_data.encode('utf-8'))
+        mock_write.assert_called_once_with(10, test_data.encode("utf-8"))
 
-    @patch('os.write')
+    @patch("os.write")
     def test_write_failure(self, mock_write, mock_pty_session):
         """Test write failure handling."""
         mock_write.side_effect = OSError("Write failed")
@@ -67,8 +67,8 @@ class TestPTYSession:
 
         assert mock_pty_session.is_active is False
 
-    @patch('select.select')
-    @patch('os.read')
+    @patch("select.select")
+    @patch("os.read")
     def test_read_success(self, mock_read, mock_select, mock_pty_session):
         """Test successful read from PTY."""
         mock_select.return_value = ([10], [], [])  # fd 10 is ready
@@ -77,7 +77,7 @@ class TestPTYSession:
         result = mock_pty_session.read()
         assert result == "output data"
 
-    @patch('select.select')
+    @patch("select.select")
     def test_read_no_data(self, mock_select, mock_pty_session):
         """Test read when no data is available."""
         mock_select.return_value = ([], [], [])  # No fd ready
@@ -85,7 +85,7 @@ class TestPTYSession:
         result = mock_pty_session.read()
         assert result is None
 
-    @patch('fcntl.ioctl')
+    @patch("fcntl.ioctl")
     def test_resize_success(self, mock_ioctl, mock_pty_session):
         """Test successful terminal resize."""
         mock_pty_session.resize(50, 120)
@@ -95,7 +95,7 @@ class TestPTYSession:
         assert call_args[0][0] == 10  # master_fd
         assert call_args[0][1] is not None  # TIOCSWINSZ constant
 
-    @patch('fcntl.ioctl')
+    @patch("fcntl.ioctl")
     def test_resize_failure(self, mock_ioctl, mock_pty_session):
         """Test resize failure handling."""
         mock_ioctl.side_effect = OSError("Resize failed")
@@ -105,7 +105,7 @@ class TestPTYSession:
 
     def test_close_session(self, mock_pty_session):
         """Test session closure."""
-        with patch('os.close') as mock_close:
+        with patch("os.close") as mock_close:
             mock_pty_session.close()
 
             assert mock_pty_session.is_active is False
@@ -141,8 +141,10 @@ class TestPTYManager:
     @pytest.mark.asyncio
     async def test_create_session_success(self, pty_manager):
         """Test successful session creation."""
-        with patch('pty.openpty') as mock_openpty, \
-             patch('subprocess.Popen') as mock_popen:
+        with (
+            patch("pty.openpty") as mock_openpty,
+            patch("subprocess.Popen") as mock_popen,
+        ):
 
             mock_openpty.return_value = (10, 11)
             mock_process = Mock()
@@ -162,8 +164,10 @@ class TestPTYManager:
     @pytest.mark.asyncio
     async def test_create_session_with_options(self, pty_manager):
         """Test session creation with custom options."""
-        with patch('pty.openpty') as mock_openpty, \
-             patch('subprocess.Popen') as mock_popen:
+        with (
+            patch("pty.openpty") as mock_openpty,
+            patch("subprocess.Popen") as mock_popen,
+        ):
 
             mock_openpty.return_value = (10, 11)
             mock_process = Mock()
@@ -173,20 +177,19 @@ class TestPTYManager:
             env = {"TEST_VAR": "test_value"}
 
             session_id = await pty_manager.create_session(
-                working_dir=working_dir,
-                env=env
+                working_dir=working_dir, env=env
             )
 
             # Verify subprocess.Popen was called with correct parameters
             call_args = mock_popen.call_args
-            assert call_args[1]['cwd'] == working_dir
-            assert call_args[1]['env']['TEST_VAR'] == "test_value"
-            assert call_args[1]['env']['TERM'] == 'xterm-256color'
+            assert call_args[1]["cwd"] == working_dir
+            assert call_args[1]["env"]["TEST_VAR"] == "test_value"
+            assert call_args[1]["env"]["TERM"] == "xterm-256color"
 
     @pytest.mark.asyncio
     async def test_create_session_failure(self, pty_manager):
         """Test session creation failure handling."""
-        with patch('pty.openpty') as mock_openpty:
+        with patch("pty.openpty") as mock_openpty:
             mock_openpty.side_effect = OSError("PTY creation failed")
 
             with pytest.raises(OSError):
@@ -276,10 +279,10 @@ class TestPTYManager:
         info = pty_manager.get_session_info(session_id)
 
         assert info is not None
-        assert info['session_id'] == session_id
-        assert info['is_active'] is True
-        assert info['last_activity'] == 123456.789
-        assert info['process_pid'] == 12345
+        assert info["session_id"] == session_id
+        assert info["is_active"] is True
+        assert info["last_activity"] == 123456.789
+        assert info["process_pid"] == 12345
 
     def test_list_sessions(self, pty_manager):
         """Test listing all sessions."""
@@ -359,7 +362,7 @@ class TestPTYIntegration:
 
             # Verify we got some output
             assert len(output_data) > 0
-            output_text = ''.join(output_data)
+            output_text = "".join(output_data)
             assert "Hello Terminal" in output_text or "echo" in output_text
 
             # Test resize
@@ -419,7 +422,7 @@ class TestPTYIntegration:
             # Create session with custom environment
             custom_env = {
                 "TEST_VARIABLE": "test_value_123",
-                "CUSTOM_PATH": "/custom/path"
+                "CUSTOM_PATH": "/custom/path",
             }
 
             session_id = await manager.create_session(env=custom_env)
@@ -432,7 +435,7 @@ class TestPTYIntegration:
             await manager.write_to_session(session_id, "echo $TEST_VARIABLE\n")
             await asyncio.sleep(0.5)
 
-            output_text = ''.join(output_data)
+            output_text = "".join(output_data)
             assert "test_value_123" in output_text or "TEST_VARIABLE" in output_text
 
         finally:
@@ -462,7 +465,9 @@ class TestPTYPerformance:
             creation_time = time.time() - start_time
 
             # Should create 10 sessions in under 2 seconds
-            assert creation_time < 2.0, f"Session creation took {creation_time}s, expected < 2.0s"
+            assert (
+                creation_time < 2.0
+            ), f"Session creation took {creation_time}s, expected < 2.0s"
             assert len(manager.sessions) == 10
 
             # Clean up

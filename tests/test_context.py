@@ -10,7 +10,11 @@ def test_context_reducer_limits_tokens():
     bundle = {
         "parent_task": "a" * 5000,
         "decisions_made": [
-            {"decision": f"decision-{i}", "rationale": "r" * 50, "timestamp": "2020-01-01T00:00:00"}
+            {
+                "decision": f"decision-{i}",
+                "rationale": "r" * 50,
+                "timestamp": "2020-01-01T00:00:00",
+            }
             for i in range(20)
         ],
         "artifacts_created": [f"file_{i}.py" for i in range(30)],
@@ -19,7 +23,9 @@ def test_context_reducer_limits_tokens():
     reduced = ContextReducer.reduce_to_token_limit(bundle, limit=200)
     assert len(reduced.get("decisions_made", [])) <= 5
     assert len(reduced.get("artifacts_created", [])) <= 10
-    assert ContextReducer.estimate_tokens(str(reduced)) <= 200 * 1.2  # allow small overhead
+    assert (
+        ContextReducer.estimate_tokens(str(reduced)) <= 200 * 1.2
+    )  # allow small overhead
 
 
 def test_context_manager_persists_reduced_bundle(project_root):
@@ -35,6 +41,7 @@ def test_context_manager_persists_reduced_bundle(project_root):
             data = json.load(fh)
         else:
             import zlib
+
             data = json.loads(zlib.decompress(fh.read()).decode())
     assert Path(path).exists()
     assert "parent_task" in data

@@ -14,6 +14,7 @@ from datetime import datetime
 # Import the production tools for ChromaDB integration
 try:
     from core.tools.production_tools import ProductionTools
+
     CHROMADB_AVAILABLE = True
 except ImportError:
     CHROMADB_AVAILABLE = False
@@ -27,7 +28,9 @@ class ExplainCommand(BaseCommand):
 
     def __init__(self):
         super().__init__(name="explain")
-        self.description = "Explain concepts, code, or topics with semantic knowledge retrieval"
+        self.description = (
+            "Explain concepts, code, or topics with semantic knowledge retrieval"
+        )
         self.usage = "/explain <topic_or_code_to_explain>"
         self.category = "Knowledge Retrieval"
         self.react_engine = ReActEngine()
@@ -52,14 +55,14 @@ class ExplainCommand(BaseCommand):
                 {
                     "chromadb_available": CHROMADB_AVAILABLE,
                     "production_tools": self.production_tools is not None,
-                    "query_length": len(args)
-                }
+                    "query_length": len(args),
+                },
             )
 
             # ACT phase - perform explanation with knowledge retrieval
             action_result = self.react_engine.act(
                 "Searching knowledge base and generating explanation",
-                {"topic": args, "method": "semantic_search_with_generation"}
+                {"topic": args, "method": "semantic_search_with_generation"},
             )
 
             # Execute the explanation process
@@ -69,12 +72,12 @@ class ExplainCommand(BaseCommand):
             if explanation_data["success"]:
                 observation = self.react_engine.observe(
                     f"Explanation generated successfully with {explanation_data['sources_found']} knowledge sources",
-                    explanation_data
+                    explanation_data,
                 )
             else:
                 observation = self.react_engine.observe(
                     f"Explanation generation encountered issues: {explanation_data.get('error', 'Unknown error')}",
-                    explanation_data
+                    explanation_data,
                 )
 
             return CommandResult(
@@ -84,17 +87,17 @@ class ExplainCommand(BaseCommand):
                     "topic": args,
                     "explanation_data": explanation_data,
                     "reasoning_summary": self.react_engine.summarize_reasoning(),
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
                 },
                 error=explanation_data.get("error"),
-                reasoning=self.react_engine.get_reasoning_chain()
+                reasoning=self.react_engine.get_reasoning_chain(),
             )
 
         except Exception as e:
             # OBSERVE phase - execution error
             self.react_engine.observe(
                 f"Explanation execution encountered error: {str(e)}",
-                {"error": str(e), "topic": args}
+                {"error": str(e), "topic": args},
             )
 
             return CommandResult(
@@ -105,9 +108,9 @@ class ExplainCommand(BaseCommand):
                     "topic": args,
                     "error_details": str(e),
                     "reasoning_summary": self.react_engine.summarize_reasoning(),
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
                 },
-                reasoning=self.react_engine.get_reasoning_chain()
+                reasoning=self.react_engine.get_reasoning_chain(),
             )
 
     async def _perform_explanation(self, topic: str) -> Dict[str, Any]:
@@ -122,7 +125,7 @@ class ExplainCommand(BaseCommand):
                 "explanation": "",
                 "sources_found": 0,
                 "search_performed": False,
-                "success": True
+                "success": True,
             }
 
             # Try to search existing knowledge with ChromaDB
@@ -130,13 +133,14 @@ class ExplainCommand(BaseCommand):
                 knowledge_results = await self._search_knowledge_base(topic)
                 if knowledge_results["success"]:
                     explanation_data["knowledge_sources"] = knowledge_results["sources"]
-                    explanation_data["sources_found"] = len(knowledge_results["sources"])
+                    explanation_data["sources_found"] = len(
+                        knowledge_results["sources"]
+                    )
                     explanation_data["search_performed"] = True
 
             # Generate explanation based on available knowledge and topic analysis
             explanation_data["explanation"] = await self._generate_explanation(
-                topic,
-                explanation_data["knowledge_sources"]
+                topic, explanation_data["knowledge_sources"]
             )
 
             # Store this explanation for future reference
@@ -151,7 +155,7 @@ class ExplainCommand(BaseCommand):
                 "error": str(e),
                 "explanation": f"Error generating explanation for '{topic}': {str(e)}",
                 "sources_found": 0,
-                "search_performed": False
+                "search_performed": False,
             }
 
     async def _search_knowledge_base(self, topic: str) -> Dict[str, Any]:
@@ -159,9 +163,7 @@ class ExplainCommand(BaseCommand):
         try:
             # Search for related content
             search_result = await self.production_tools.search_memory(
-                query=topic,
-                n_results=5,
-                include_metadata=True
+                query=topic, n_results=5, include_metadata=True
             )
 
             if search_result.success:
@@ -169,31 +171,23 @@ class ExplainCommand(BaseCommand):
                 for result in search_result.data["results"]:
                     source = {
                         "content": result["document"],
-                        "relevance_score": 1.0 - result["distance"] if result["distance"] else 1.0,
-                        "metadata": result.get("metadata", {})
+                        "relevance_score": (
+                            1.0 - result["distance"] if result["distance"] else 1.0
+                        ),
+                        "metadata": result.get("metadata", {}),
                     }
                     sources.append(source)
 
-                return {
-                    "success": True,
-                    "sources": sources,
-                    "search_query": topic
-                }
+                return {"success": True, "sources": sources, "search_query": topic}
             else:
-                return {
-                    "success": False,
-                    "error": search_result.error,
-                    "sources": []
-                }
+                return {"success": False, "error": search_result.error, "sources": []}
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "sources": []
-            }
+            return {"success": False, "error": str(e), "sources": []}
 
-    async def _generate_explanation(self, topic: str, knowledge_sources: List[Dict[str, Any]]) -> str:
+    async def _generate_explanation(
+        self, topic: str, knowledge_sources: List[Dict[str, Any]]
+    ) -> str:
         """
         Generate a comprehensive explanation based on topic analysis and knowledge sources.
         Returns real explanation - not placeholders.
@@ -204,7 +198,7 @@ class ExplainCommand(BaseCommand):
 
             explanation_parts = [
                 f"# Explanation: {topic}\n",
-                f"**Topic Analysis:** {topic_analysis['category']}\n"
+                f"**Topic Analysis:** {topic_analysis['category']}\n",
             ]
 
             # Add knowledge from semantic search if available
@@ -212,7 +206,9 @@ class ExplainCommand(BaseCommand):
                 explanation_parts.append("\n## From Knowledge Base:\n")
                 for i, source in enumerate(knowledge_sources[:3], 1):  # Top 3 sources
                     relevance = f"({source['relevance_score']:.2f} relevance)"
-                    explanation_parts.append(f"{i}. {source['content'][:200]}... {relevance}\n")
+                    explanation_parts.append(
+                        f"{i}. {source['content'][:200]}... {relevance}\n"
+                    )
 
             # Add structured explanation based on topic category
             explanation_parts.append(f"\n## Detailed Explanation:\n")
@@ -235,7 +231,9 @@ class ExplainCommand(BaseCommand):
             # Add practical examples if applicable
             if topic_analysis["category"] in ["programming", "technology"]:
                 explanation_parts.append(f"\n## Practical Applications:\n")
-                explanation_parts.extend(await self._generate_examples(topic, topic_analysis["category"]))
+                explanation_parts.extend(
+                    await self._generate_examples(topic, topic_analysis["category"])
+                )
 
             return "".join(explanation_parts)
 
@@ -247,11 +245,29 @@ class ExplainCommand(BaseCommand):
         topic_lower = topic.lower()
 
         # Categorize the topic
-        if any(word in topic_lower for word in ['function', 'class', 'method', 'variable', 'code', 'python', 'javascript', 'api']):
+        if any(
+            word in topic_lower
+            for word in [
+                "function",
+                "class",
+                "method",
+                "variable",
+                "code",
+                "python",
+                "javascript",
+                "api",
+            ]
+        ):
             category = "programming"
-        elif any(word in topic_lower for word in ['database', 'server', 'cloud', 'docker', 'git', 'aws']):
+        elif any(
+            word in topic_lower
+            for word in ["database", "server", "cloud", "docker", "git", "aws"]
+        ):
             category = "technology"
-        elif any(word in topic_lower for word in ['how to', 'process', 'workflow', 'steps', 'method']):
+        elif any(
+            word in topic_lower
+            for word in ["how to", "process", "workflow", "steps", "method"]
+        ):
             category = "process"
         else:
             category = "general"
@@ -262,17 +278,37 @@ class ExplainCommand(BaseCommand):
 
         # Add common related terms based on category
         if category == "programming":
-            related_terms = ["syntax", "debugging", "testing", "documentation", "best practices"]
+            related_terms = [
+                "syntax",
+                "debugging",
+                "testing",
+                "documentation",
+                "best practices",
+            ]
         elif category == "technology":
-            related_terms = ["architecture", "scalability", "security", "performance", "integration"]
+            related_terms = [
+                "architecture",
+                "scalability",
+                "security",
+                "performance",
+                "integration",
+            ]
         elif category == "process":
-            related_terms = ["methodology", "workflow", "automation", "optimization", "management"]
+            related_terms = [
+                "methodology",
+                "workflow",
+                "automation",
+                "optimization",
+                "management",
+            ]
 
         return {
             "category": category,
             "related_terms": related_terms,
             "word_count": len(words),
-            "complexity": "high" if len(words) > 5 else "medium" if len(words) > 2 else "low"
+            "complexity": (
+                "high" if len(words) > 5 else "medium" if len(words) > 2 else "low"
+            ),
         }
 
     async def _explain_programming_concept(self, topic: str) -> List[str]:
@@ -286,7 +322,7 @@ class ExplainCommand(BaseCommand):
             f"**Common Use Cases:**\n",
             f"- Software development and application building\n",
             f"- Problem-solving and algorithm implementation\n",
-            f"- System integration and automation\n\n"
+            f"- System integration and automation\n\n",
         ]
 
     async def _explain_technology_concept(self, topic: str) -> List[str]:
@@ -300,7 +336,7 @@ class ExplainCommand(BaseCommand):
             f"**Implementation Considerations:**\n",
             f"- Scalability and performance requirements\n",
             f"- Security and reliability factors\n",
-            f"- Integration with existing systems\n\n"
+            f"- Integration with existing systems\n\n",
         ]
 
     async def _explain_process_concept(self, topic: str) -> List[str]:
@@ -314,7 +350,7 @@ class ExplainCommand(BaseCommand):
             f"**Best Practices:**\n",
             f"- Documentation of each step\n",
             f"- Regular review and optimization\n",
-            f"- Automation where possible\n\n"
+            f"- Automation where possible\n\n",
         ]
 
     async def _explain_general_concept(self, topic: str) -> List[str]:
@@ -328,7 +364,7 @@ class ExplainCommand(BaseCommand):
             f"**Understanding Approach:**\n",
             f"- Break down into smaller components\n",
             f"- Consider practical applications\n",
-            f"- Relate to familiar concepts\n\n"
+            f"- Relate to familiar concepts\n\n",
         ]
 
     async def _generate_examples(self, topic: str, category: str) -> List[str]:
@@ -340,14 +376,14 @@ class ExplainCommand(BaseCommand):
                 f"- Code implementation patterns\n",
                 f"- Common libraries and frameworks\n",
                 f"- Debugging and testing strategies\n",
-                f"- Performance optimization techniques\n"
+                f"- Performance optimization techniques\n",
             ]
         elif category == "technology":
             examples = [
                 f"- Real-world deployment scenarios\n",
                 f"- Industry use cases and applications\n",
                 f"- Integration with popular platforms\n",
-                f"- Monitoring and maintenance approaches\n"
+                f"- Monitoring and maintenance approaches\n",
             ]
 
         return examples
@@ -362,8 +398,8 @@ class ExplainCommand(BaseCommand):
                         "type": "explanation",
                         "topic": topic,
                         "generated_at": datetime.utcnow().isoformat() + "Z",
-                        "source": "explain_command"
-                    }
+                        "source": "explain_command",
+                    },
                 )
         except Exception as e:
             # Don't fail the whole explanation if storage fails

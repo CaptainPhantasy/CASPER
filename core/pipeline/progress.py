@@ -39,7 +39,12 @@ class ProgressEvent:
     ts: float = field(default_factory=time.time)
 
     def to_dict(self) -> Dict:
-        return {"stage": self.stage.value, "label": self.label, "detail": self.detail, "ts": self.ts}
+        return {
+            "stage": self.stage.value,
+            "label": self.label,
+            "detail": self.detail,
+            "ts": self.ts,
+        }
 
 
 class ProgressTracker:
@@ -55,7 +60,9 @@ class ProgressTracker:
         self._callbacks.append(cb)
 
     def set_stage(self, stage: PipelineStage, detail: str = "") -> ProgressEvent:
-        event = ProgressEvent(stage=stage, label=STAGE_LABELS.get(stage, stage.value), detail=detail)
+        event = ProgressEvent(
+            stage=stage, label=STAGE_LABELS.get(stage, stage.value), detail=detail
+        )
         self.current = event
         self.history.append(event)
         payload = {"run_id": self.run_id, **event.to_dict()}
@@ -117,7 +124,9 @@ class ChangeLedger:
         try:
             r = subprocess.run(
                 ["git", "ls-files", "--error-unmatch", path],
-                cwd=str(self.project_root), capture_output=True, timeout=5,
+                cwd=str(self.project_root),
+                capture_output=True,
+                timeout=5,
             )
             return r.returncode == 0
         except Exception:
@@ -137,23 +146,51 @@ class ChangeLedger:
             return None
 
     def record_create(self, path: str, summary: str = "") -> ChangeLedgerEntry:
-        return self._append(ChangeLedgerEntry.new(
-            "create", path, summary or f"Created {path}", reversible=True))
+        return self._append(
+            ChangeLedgerEntry.new(
+                "create", path, summary or f"Created {path}", reversible=True
+            )
+        )
 
-    def record_modify(self, path: str, backup_ref: Optional[str], summary: str = "") -> ChangeLedgerEntry:
+    def record_modify(
+        self, path: str, backup_ref: Optional[str], summary: str = ""
+    ) -> ChangeLedgerEntry:
         # Reversible via git or a pre-change snapshot.
         reversible = backup_ref is not None or self._git_tracked(path)
-        return self._append(ChangeLedgerEntry.new(
-            "modify", path, summary or f"Modified {path}", reversible=reversible, undo_ref=backup_ref))
+        return self._append(
+            ChangeLedgerEntry.new(
+                "modify",
+                path,
+                summary or f"Modified {path}",
+                reversible=reversible,
+                undo_ref=backup_ref,
+            )
+        )
 
     def record_move(self, src: str, dst: str, summary: str = "") -> ChangeLedgerEntry:
-        return self._append(ChangeLedgerEntry.new(
-            "move", dst, summary or f"Moved {src} → {dst}", reversible=True, undo_ref=src))
+        return self._append(
+            ChangeLedgerEntry.new(
+                "move",
+                dst,
+                summary or f"Moved {src} → {dst}",
+                reversible=True,
+                undo_ref=src,
+            )
+        )
 
-    def record_delete(self, path: str, quarantine_ref: str, summary: str = "") -> ChangeLedgerEntry:
+    def record_delete(
+        self, path: str, quarantine_ref: str, summary: str = ""
+    ) -> ChangeLedgerEntry:
         # Deletes are implemented as quarantine moves, so they're reversible.
-        return self._append(ChangeLedgerEntry.new(
-            "delete", path, summary or f"Removed {path} (quarantined)", reversible=True, undo_ref=quarantine_ref))
+        return self._append(
+            ChangeLedgerEntry.new(
+                "delete",
+                path,
+                summary or f"Removed {path} (quarantined)",
+                reversible=True,
+                undo_ref=quarantine_ref,
+            )
+        )
 
     # --- undo ------------------------------------------------------------
     def undo(self, entry_id: str) -> Dict[str, str]:
@@ -164,28 +201,44 @@ class ChangeLedger:
         if entry.undone:
             return {"status": "noop", "message": "Already undone."}
         if not entry.reversible:
-            return {"status": "error", "message": "This change can't be automatically undone."}
+            return {
+                "status": "error",
+                "message": "This change can't be automatically undone.",
+            }
 
         full = self._abs(entry.path) if entry.path else None
         try:
             if entry.action == "create" and full:
                 # Quarantine the created file (non-destructive removal).
                 if os.path.exists(full):
-                    dest = self.quarantine / f"undo_{os.path.basename(full)}_{uuid.uuid4().hex[:6]}"
+                    dest = (
+                        self.quarantine
+                        / f"undo_{os.path.basename(full)}_{uuid.uuid4().hex[:6]}"
+                    )
                     shutil.move(full, dest)
             elif entry.action == "modify" and full:
                 if entry.undo_ref and (self.backups / entry.undo_ref).exists():
                     shutil.copy2(self.backups / entry.undo_ref, full)
                 elif self._git_tracked(entry.path):
-                    subprocess.run(["git", "checkout", "--", entry.path],
-                                   cwd=str(self.project_root), timeout=10)
+                    subprocess.run(
+                        ["git", "checkout", "--", entry.path],
+                        cwd=str(self.project_root),
+                        timeout=10,
+                    )
                 else:
-                    return {"status": "error", "message": "No snapshot available to restore."}
+                    return {
+                        "status": "error",
+                        "message": "No snapshot available to restore.",
+                    }
             elif entry.action == "move" and full and entry.undo_ref:
                 shutil.move(full, self._abs(entry.undo_ref))
             elif entry.action == "delete" and entry.undo_ref:
                 # Restore from quarantine.
-                src = entry.undo_ref if os.path.isabs(entry.undo_ref) else str(self.quarantine / entry.undo_ref)
+                src = (
+                    entry.undo_ref
+                    if os.path.isabs(entry.undo_ref)
+                    else str(self.quarantine / entry.undo_ref)
+                )
                 if os.path.exists(src) and full:
                     shutil.move(src, full)
                 else:
@@ -198,7 +251,12 @@ class ChangeLedger:
     def human_log(self) -> List[Dict]:
         """Plain-language change log for non-developers."""
         return [
-            {"id": e.id, "what": e.summary, "reversible": e.reversible, "undone": e.undone,
-             "when": time.strftime("%H:%M:%S", time.localtime(e.ts))}
+            {
+                "id": e.id,
+                "what": e.summary,
+                "reversible": e.reversible,
+                "undone": e.undone,
+                "when": time.strftime("%H:%M:%S", time.localtime(e.ts)),
+            }
             for e in self.entries
         ]

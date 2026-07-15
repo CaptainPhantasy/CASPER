@@ -25,20 +25,21 @@ from core.pipeline.models import AutonomyDecision, RiskLevel
 
 
 class AutonomyMode(str, Enum):
-    STRICT = "STRICT"   # escalate everything except trivially safe reads
-    AUTO = "AUTO"       # auto safe/low/moderate; escalate high/critical
-    YOLO = "YOLO"       # auto everything except CRITICAL
+    STRICT = "STRICT"  # escalate everything except trivially safe reads
+    AUTO = "AUTO"  # auto safe/low/moderate; escalate high/critical
+    YOLO = "YOLO"  # auto everything except CRITICAL
 
 
 @dataclass
 class ProposedAction:
     """A normalized description of something an agent wants to do."""
-    action_type: str            # create | modify | delete | move | command | deploy | network | credential | spend
+
+    action_type: str  # create | modify | delete | move | command | deploy | network | credential | spend
     path: Optional[str] = None
     command: Optional[str] = None
     detail: str = ""
     estimated_cost_usd: float = 0.0
-    reversible: Optional[bool] = None   # None → inferred
+    reversible: Optional[bool] = None  # None → inferred
 
 
 # Command patterns that are destructive / irreversible / public-impact.
@@ -51,7 +52,9 @@ _DEPLOY_CMD = re.compile(
     r"\b(deploy|publish|release|vercel|netlify|heroku|gh\s+release|npm\s+publish|docker\s+push)\b",
     re.IGNORECASE,
 )
-_NETWORK_SEND = re.compile(r"\b(curl|wget|http(ie)?)\b.*\b(-X\s*(POST|PUT|DELETE)|--data|-d\b)", re.IGNORECASE)
+_NETWORK_SEND = re.compile(
+    r"\b(curl|wget|http(ie)?)\b.*\b(-X\s*(POST|PUT|DELETE)|--data|-d\b)", re.IGNORECASE
+)
 _READ_ONLY_CMD = re.compile(
     r"^\s*(ls|cat|head|tail|grep|rg|find|pwd|echo|wc|stat|git\s+(status|log|diff|show)|"
     r"npm\s+run\s+(build|lint|test)|pytest|python\s+-m\s+pytest|node\s+--version|tsc(\s|$))",
@@ -62,7 +65,9 @@ _READ_ONLY_CMD = re.compile(
 class GraduatedAutonomy:
     """Risk classifier + gate decision maker."""
 
-    def __init__(self, mode: AutonomyMode = AutonomyMode.AUTO, spend_threshold_usd: float = 1.0):
+    def __init__(
+        self, mode: AutonomyMode = AutonomyMode.AUTO, spend_threshold_usd: float = 1.0
+    ):
         self.mode = mode
         self.spend_threshold_usd = spend_threshold_usd
 
@@ -75,19 +80,27 @@ class GraduatedAutonomy:
         cmd = action.command or ""
 
         if at == "delete":
-            return RiskLevel.HIGH       # destructive — matches governance no-delete rule
+            return RiskLevel.HIGH  # destructive — matches governance no-delete rule
         if at == "credential":
             return RiskLevel.HIGH
         if at == "deploy":
-            return RiskLevel.CRITICAL   # public impact
+            return RiskLevel.CRITICAL  # public impact
         if at == "spend":
-            return RiskLevel.HIGH if action.estimated_cost_usd >= self.spend_threshold_usd else RiskLevel.MODERATE
+            return (
+                RiskLevel.HIGH
+                if action.estimated_cost_usd >= self.spend_threshold_usd
+                else RiskLevel.MODERATE
+            )
         if at == "network":
-            return RiskLevel.HIGH       # external send / data leaving the machine
+            return RiskLevel.HIGH  # external send / data leaving the machine
         if at == "move":
-            return RiskLevel.LOW        # reversible
+            return RiskLevel.LOW  # reversible
         if at in ("create", "modify"):
-            return RiskLevel.SAFE if self._is_local_reversible(action) else RiskLevel.MODERATE
+            return (
+                RiskLevel.SAFE
+                if self._is_local_reversible(action)
+                else RiskLevel.MODERATE
+            )
         if at == "command":
             if _DESTRUCTIVE_CMD.search(cmd):
                 return RiskLevel.CRITICAL
@@ -97,7 +110,7 @@ class GraduatedAutonomy:
                 return RiskLevel.HIGH
             if _READ_ONLY_CMD.search(cmd):
                 return RiskLevel.SAFE
-            return RiskLevel.MODERATE   # unknown command — cautious default
+            return RiskLevel.MODERATE  # unknown command — cautious default
         return RiskLevel.MODERATE
 
     def _is_local_reversible(self, action: ProposedAction) -> bool:
@@ -143,7 +156,9 @@ class GraduatedAutonomy:
         if at == "deploy":
             return "This makes your project publicly accessible on the internet."
         if at == "spend":
-            return f"This uses paid API credits (about ${action.estimated_cost_usd:.2f})."
+            return (
+                f"This uses paid API credits (about ${action.estimated_cost_usd:.2f})."
+            )
         if at == "network":
             return "This sends data from your machine to an external service."
         if at == "credential":

@@ -2,8 +2,8 @@ DECOMPOSE_PROMPT = (
     "You are Master Prime. Decompose the task into 3-8 subtasks. "
     "For each subtask, assign role: master|backend_prime|frontend_prime|testing_prime|worker. "
     "Include an estimated token budget and dependencies referencing prior indices. "
-    "Output strict JSON array with objects: {\"description\": str, \"role\": str, "
-    "\"priority\": \"high|medium|low\", \"depends_on\": number[]}.\n\n"
+    'Output strict JSON array with objects: {"description": str, "role": str, '
+    '"priority": "high|medium|low", "depends_on": number[]}.\n\n'
     "Task: {task}\n"
 )
 
@@ -27,7 +27,6 @@ TEST_PLAN_PROMPT = (
 
 SELF_REPAIR_PROMPT = (
     "Analyze failing outputs and error logs, hypothesize fixes, and propose a minimal patch.\n"
-    "Return JSON: {\"hypothesis\": str, \"patch\": {\"path\": str, \"before\": str, \"after\": str}}.\n\n"
+    'Return JSON: {"hypothesis": str, "patch": {"path": str, "before": str, "after": str}}.\n\n'
     "Errors:\n{errors}\n"
 )
-

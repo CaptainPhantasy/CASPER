@@ -87,7 +87,7 @@ def _extract_json(text: str) -> Optional[Dict[str, Any]]:
     end = cleaned.rfind("}")
     if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(cleaned[start:end + 1])
+            return json.loads(cleaned[start : end + 1])
         except Exception:
             return None
     return None
@@ -125,19 +125,27 @@ class InputCompiler:
         if not data:
             # Degraded mode (no/failed LLM): build a minimal honest spec so the
             # pipeline still functions, flagged with an explicit assumption.
-            logger.warning("Input compiler could not parse an LLM spec; using degraded single-requirement spec.")
+            logger.warning(
+                "Input compiler could not parse an LLM spec; using degraded single-requirement spec."
+            )
             spec = FrozenSpec.new(intent, summary=intent.strip()[:140])
-            spec.requirements.append(SpecRequirement(
-                id=_new_id("req"),
-                text=intent.strip(),
-                acceptance_criteria=["Output addresses the request as literally stated."],
-                priority="must",
-            ))
-            spec.assumptions.append(Assumption(
-                statement="No clarification was possible; the request is taken literally.",
-                basis="LLM-based compilation was unavailable.",
-                confidence=0.3,
-            ))
+            spec.requirements.append(
+                SpecRequirement(
+                    id=_new_id("req"),
+                    text=intent.strip(),
+                    acceptance_criteria=[
+                        "Output addresses the request as literally stated."
+                    ],
+                    priority="must",
+                )
+            )
+            spec.assumptions.append(
+                Assumption(
+                    statement="No clarification was possible; the request is taken literally.",
+                    basis="LLM-based compilation was unavailable.",
+                    confidence=0.3,
+                )
+            )
             return spec.freeze()
 
         spec = self._build_spec(intent, data)
@@ -159,7 +167,7 @@ class InputCompiler:
             return await llm_service.complete(
                 prompt=_COMPILER_INSTRUCTION + intent.strip(),
                 system=_COMPILER_SYSTEM,
-                tier="frontier",          # compiling intent is reasoning-heavy
+                tier="frontier",  # compiling intent is reasoning-heavy
                 max_tokens=2000,
             )
         except Exception as e:
@@ -167,7 +175,9 @@ class InputCompiler:
             return ""
 
     def _build_spec(self, intent: str, data: Dict[str, Any]) -> FrozenSpec:
-        spec = FrozenSpec.new(intent, summary=str(data.get("summary", "")).strip() or intent[:140])
+        spec = FrozenSpec.new(
+            intent, summary=str(data.get("summary", "")).strip() or intent[:140]
+        )
 
         for r in data.get("requirements", []) or []:
             if not isinstance(r, dict):
@@ -175,19 +185,34 @@ class InputCompiler:
             text = str(r.get("text", "")).strip()
             if not text:
                 continue
-            spec.requirements.append(SpecRequirement(
-                id=_new_id("req"),
-                text=text,
-                acceptance_criteria=[str(c) for c in (r.get("acceptance_criteria") or []) if str(c).strip()],
-                priority=str(r.get("priority", "must")).lower() if str(r.get("priority", "must")).lower() in ("must", "should", "could") else "must",
-            ))
+            spec.requirements.append(
+                SpecRequirement(
+                    id=_new_id("req"),
+                    text=text,
+                    acceptance_criteria=[
+                        str(c)
+                        for c in (r.get("acceptance_criteria") or [])
+                        if str(c).strip()
+                    ],
+                    priority=(
+                        str(r.get("priority", "must")).lower()
+                        if str(r.get("priority", "must")).lower()
+                        in ("must", "should", "could")
+                        else "must"
+                    ),
+                )
+            )
 
         # Guarantee at least one requirement.
         if not spec.requirements:
-            spec.requirements.append(SpecRequirement(
-                id=_new_id("req"), text=intent.strip(),
-                acceptance_criteria=["Output addresses the request."], priority="must",
-            ))
+            spec.requirements.append(
+                SpecRequirement(
+                    id=_new_id("req"),
+                    text=intent.strip(),
+                    acceptance_criteria=["Output addresses the request."],
+                    priority="must",
+                )
+            )
 
         for a in data.get("assumptions", []) or []:
             if not isinstance(a, dict):
@@ -199,10 +224,20 @@ class InputCompiler:
                 conf = float(a.get("confidence", 0.5))
             except Exception:
                 conf = 0.5
-            spec.assumptions.append(Assumption(statement=stmt, basis=str(a.get("basis", "")).strip(), confidence=max(0.0, min(1.0, conf))))
+            spec.assumptions.append(
+                Assumption(
+                    statement=stmt,
+                    basis=str(a.get("basis", "")).strip(),
+                    confidence=max(0.0, min(1.0, conf)),
+                )
+            )
 
-        spec.constraints = [str(c).strip() for c in (data.get("constraints") or []) if str(c).strip()]
-        spec.out_of_scope = [str(c).strip() for c in (data.get("out_of_scope") or []) if str(c).strip()]
+        spec.constraints = [
+            str(c).strip() for c in (data.get("constraints") or []) if str(c).strip()
+        ]
+        spec.out_of_scope = [
+            str(c).strip() for c in (data.get("out_of_scope") or []) if str(c).strip()
+        ]
 
         for q in (data.get("clarifying_questions") or [])[: self.max_questions]:
             if not isinstance(q, dict):
@@ -210,13 +245,17 @@ class InputCompiler:
             qtext = str(q.get("question", "")).strip()
             if not qtext:
                 continue
-            spec.open_questions.append(ClarifyingQuestion(
-                id=_new_id("q"),
-                question=qtext,
-                why=str(q.get("why", "")).strip(),
-                options=[str(o) for o in (q.get("options") or []) if str(o).strip()],
-                required=bool(q.get("required", True)),
-            ))
+            spec.open_questions.append(
+                ClarifyingQuestion(
+                    id=_new_id("q"),
+                    question=qtext,
+                    why=str(q.get("why", "")).strip(),
+                    options=[
+                        str(o) for o in (q.get("options") or []) if str(o).strip()
+                    ],
+                    required=bool(q.get("required", True)),
+                )
+            )
 
         return spec
 
@@ -225,7 +264,9 @@ class InputCompiler:
             if q.id in answers and answers[q.id]:
                 q.answer = str(answers[q.id])
 
-    def _apply_answers_and_freeze(self, spec: FrozenSpec, answers: Dict[str, str]) -> FrozenSpec:
+    def _apply_answers_and_freeze(
+        self, spec: FrozenSpec, answers: Dict[str, str]
+    ) -> FrozenSpec:
         self._fold_answers(spec, answers)
         # Promote answered questions into explicit constraints so the contract
         # captures the user's decisions.

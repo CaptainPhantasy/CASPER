@@ -18,7 +18,9 @@ async def demo_session_lifecycle():
     # Initialize session manager
     demo_path = "/tmp/claude/casper_session_demo"
     context_manager = ContextManager(demo_path + "/.casper")
-    session_manager = CodingSession(storage_path=demo_path, context_manager=context_manager)
+    session_manager = CodingSession(
+        storage_path=demo_path, context_manager=context_manager
+    )
 
     print(f"✅ Session Manager initialized at: {demo_path}")
 
@@ -40,19 +42,27 @@ async def demo_session_lifecycle():
         # 2. Add coding interactions
         print("\n💬 2. Adding Coding Interactions...")
         interactions = [
-            ("Create a Python class for managing user accounts",
-             "Here's a Python class for user account management:\n\nclass UserAccount:\n    def __init__(self, username, email):\n        self.username = username\n        self.email = email\n        self.created_at = datetime.now()\n        self.active = True\n\n    def deactivate(self):\n        self.active = False\n\n    def update_email(self, new_email):\n        self.email = new_email"),
-
-            ("Add password hashing to the UserAccount class",
-             "Here's the updated UserAccount class with password hashing:\n\nimport hashlib\n\nclass UserAccount:\n    def __init__(self, username, email, password):\n        self.username = username\n        self.email = email\n        self.password_hash = self._hash_password(password)\n        self.created_at = datetime.now()\n        self.active = True\n\n    def _hash_password(self, password):\n        return hashlib.sha256(password.encode()).hexdigest()\n\n    def verify_password(self, password):\n        return self.password_hash == self._hash_password(password)"),
-
-            ("Create unit tests for the UserAccount class",
-             "Here are comprehensive unit tests for the UserAccount class:\n\nimport unittest\nfrom datetime import datetime\n\nclass TestUserAccount(unittest.TestCase):\n    def setUp(self):\n        self.user = UserAccount('testuser', 'test@example.com', 'password123')\n\n    def test_user_creation(self):\n        self.assertEqual(self.user.username, 'testuser')\n        self.assertEqual(self.user.email, 'test@example.com')\n        self.assertTrue(self.user.active)\n\n    def test_password_verification(self):\n        self.assertTrue(self.user.verify_password('password123'))\n        self.assertFalse(self.user.verify_password('wrongpassword'))\n\n    def test_deactivation(self):\n        self.user.deactivate()\n        self.assertFalse(self.user.active)")
+            (
+                "Create a Python class for managing user accounts",
+                "Here's a Python class for user account management:\n\nclass UserAccount:\n    def __init__(self, username, email):\n        self.username = username\n        self.email = email\n        self.created_at = datetime.now()\n        self.active = True\n\n    def deactivate(self):\n        self.active = False\n\n    def update_email(self, new_email):\n        self.email = new_email",
+            ),
+            (
+                "Add password hashing to the UserAccount class",
+                "Here's the updated UserAccount class with password hashing:\n\nimport hashlib\n\nclass UserAccount:\n    def __init__(self, username, email, password):\n        self.username = username\n        self.email = email\n        self.password_hash = self._hash_password(password)\n        self.created_at = datetime.now()\n        self.active = True\n\n    def _hash_password(self, password):\n        return hashlib.sha256(password.encode()).hexdigest()\n\n    def verify_password(self, password):\n        return self.password_hash == self._hash_password(password)",
+            ),
+            (
+                "Create unit tests for the UserAccount class",
+                "Here are comprehensive unit tests for the UserAccount class:\n\nimport unittest\nfrom datetime import datetime\n\nclass TestUserAccount(unittest.TestCase):\n    def setUp(self):\n        self.user = UserAccount('testuser', 'test@example.com', 'password123')\n\n    def test_user_creation(self):\n        self.assertEqual(self.user.username, 'testuser')\n        self.assertEqual(self.user.email, 'test@example.com')\n        self.assertTrue(self.user.active)\n\n    def test_password_verification(self):\n        self.assertTrue(self.user.verify_password('password123'))\n        self.assertFalse(self.user.verify_password('wrongpassword'))\n\n    def test_deactivation(self):\n        self.user.deactivate()\n        self.assertFalse(self.user.active)",
+            ),
         ]
 
         for i, (user_input, response) in enumerate(interactions, 1):
-            await session_manager.add_interaction(session_id, user_input, response,
-                                                metadata={"interaction_type": "coding", "step": i})
+            await session_manager.add_interaction(
+                session_id,
+                user_input,
+                response,
+                metadata={"interaction_type": "coding", "step": i},
+            )
             print(f"   Added interaction {i}: {user_input[:50]}...")
 
         print(f"   Total interactions: {len(interactions)}")
@@ -64,7 +74,7 @@ async def demo_session_lifecycle():
             "/project/models/user_account.py",
             "/project/tests/test_user_account.py",
             "/project/utils/auth_helpers.py",
-            "/project/config/database.py"
+            "/project/config/database.py",
         ]
 
         for file_path in files:
@@ -91,20 +101,23 @@ async def demo_session_lifecycle():
 
         # 6. Add more interactions to test token limit
         print("\n🔄 6. Testing Token Limit Management...")
-        long_text = "This is a comprehensive explanation of advanced software engineering concepts including design patterns, SOLID principles, test-driven development, continuous integration, microservices architecture, and scalable system design. " * 50
+        long_text = (
+            "This is a comprehensive explanation of advanced software engineering concepts including design patterns, SOLID principles, test-driven development, continuous integration, microservices architecture, and scalable system design. "
+            * 50
+        )
 
-        initial_tokens = context['session_state']['context_tokens']
+        initial_tokens = context["session_state"]["context_tokens"]
 
         # Add many long interactions
         for i in range(20):
             await session_manager.add_interaction(
                 session_id,
                 f"Question {i}: Explain advanced concept with details: {long_text[:100]}",
-                f"Answer {i}: {long_text}"
+                f"Answer {i}: {long_text}",
             )
 
         updated_context = await session_manager.get_context(session_id)
-        final_tokens = updated_context['session_state']['context_tokens']
+        final_tokens = updated_context["session_state"]["context_tokens"]
 
         print(f"   Initial tokens: {initial_tokens}")
         print(f"   Final tokens: {final_tokens}")
@@ -130,7 +143,9 @@ async def demo_session_lifecycle():
         recovered_state = await session_manager.recover(session_id)
         print(f"   Recovered session: {recovered_state.session_id}")
         print(f"   Session active: {recovered_state.active}")
-        print(f"   Conversation history: {len(recovered_state.conversation_history)} items")
+        print(
+            f"   Conversation history: {len(recovered_state.conversation_history)} items"
+        )
         print(f"   Files modified: {len(recovered_state.files_modified)} files")
         results["session_recovery"] = "✅ SUCCESS"
 
@@ -142,19 +157,21 @@ async def demo_session_lifecycle():
                 await session_manager.add_interaction(
                     session_id,
                     f"{prefix} Question {i}: How to implement feature X?",
-                    f"{prefix} Answer {i}: Implement feature X using these steps..."
+                    f"{prefix} Answer {i}: Implement feature X using these steps...",
                 )
 
         # Run concurrent tasks
         await asyncio.gather(
             concurrent_interactions(session_id, "Thread-A"),
             concurrent_interactions(session_id, "Thread-B"),
-            concurrent_interactions(session_id, "Thread-C")
+            concurrent_interactions(session_id, "Thread-C"),
         )
 
         concurrent_context = await session_manager.get_context(session_id)
         print("   Concurrent interactions added successfully")
-        print(f"   Total interactions after concurrent test: {concurrent_context['metrics']['total_interactions']}")
+        print(
+            f"   Total interactions after concurrent test: {concurrent_context['metrics']['total_interactions']}"
+        )
         results["concurrent_operations"] = "✅ SUCCESS"
 
         # 11. Create and test multiple sessions
@@ -166,7 +183,7 @@ async def demo_session_lifecycle():
             await session_manager.add_interaction(
                 new_session.session_id,
                 f"Multi-session test {i}",
-                f"Response for session {i}"
+                f"Response for session {i}",
             )
 
         multi_stats = await session_manager.get_session_stats()
@@ -187,6 +204,7 @@ async def demo_session_lifecycle():
     except Exception as e:
         print(f"❌ Error during demo: {e}")
         import traceback
+
         traceback.print_exc()
         results["error"] = f"❌ FAILED: {e}"
 
@@ -209,9 +227,11 @@ def demo_persistence_verification():
         await manager1.add_interaction(
             session.session_id,
             "Create a data persistence layer",
-            "Here's a complete data persistence layer implementation..."
+            "Here's a complete data persistence layer implementation...",
         )
-        await manager1.add_file_modification(session.session_id, "/project/db/persistence.py")
+        await manager1.add_file_modification(
+            session.session_id, "/project/db/persistence.py"
+        )
         await manager1.persist(session.session_id)
 
         print(f"   Created session: {session.session_id}")
@@ -238,7 +258,10 @@ def demo_persistence_verification():
         context = await manager2.get_context(session_id)
         print(f"   Context tokens: {context['session_state']['context_tokens']}")
 
-        return len(recovered.conversation_history) > 0 and len(recovered.files_modified) > 0
+        return (
+            len(recovered.conversation_history) > 0
+            and len(recovered.files_modified) > 0
+        )
 
     # Run phases
     loop = asyncio.new_event_loop()
@@ -268,10 +291,14 @@ def print_results_summary(results):
             success_count += 1
         print(f"{status} {test_name.replace('_', ' ').title()}: {result}")
 
-    print(f"\n📊 Success Rate: {success_count}/{total_count} ({success_count/total_count*100:.1f}%)")
+    print(
+        f"\n📊 Success Rate: {success_count}/{total_count} ({success_count/total_count*100:.1f}%)"
+    )
 
     overall_success = success_count == total_count
-    print(f"🎉 Overall Result: {'PRODUCTION READY ✅' if overall_success else 'NEEDS FIXES ❌'}")
+    print(
+        f"🎉 Overall Result: {'PRODUCTION READY ✅' if overall_success else 'NEEDS FIXES ❌'}"
+    )
 
     return overall_success
 
@@ -286,14 +313,18 @@ async def main():
 
     # Run persistence verification
     persistence_success = demo_persistence_verification()
-    results["persistence_verification"] = "✅ SUCCESS" if persistence_success else "❌ FAILED"
+    results["persistence_verification"] = (
+        "✅ SUCCESS" if persistence_success else "❌ FAILED"
+    )
 
     # Print results
     overall_success = print_results_summary(results)
 
     duration = time.time() - start_time
     print(f"\n⏱️  Demo completed in {duration:.2f} seconds")
-    print(f"🎯 Production readiness: {'CONFIRMED' if overall_success else 'REQUIRES FIXES'}")
+    print(
+        f"🎯 Production readiness: {'CONFIRMED' if overall_success else 'REQUIRES FIXES'}"
+    )
 
     return overall_success
 

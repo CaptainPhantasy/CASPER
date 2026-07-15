@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.services.llm import (
@@ -29,10 +30,10 @@ from core.services.llm import (
     LLMProvider,
 )
 
-
 # ---------------------------------------------------------------------------
 # CircuitBreaker unit tests
 # ---------------------------------------------------------------------------
+
 
 class TestCircuitBreaker:
     """Test circuit breaker state machine."""
@@ -109,9 +110,7 @@ class TestCircuitBreaker:
     def test_half_open_allows_test_calls(self):
         """HALF_OPEN allows calls for testing recovery."""
         config = CircuitBreakerConfig(
-            failure_threshold=1,
-            recovery_timeout=0,
-            half_open_max_calls=2
+            failure_threshold=1, recovery_timeout=0, half_open_max_calls=2
         )
         cb = CircuitBreaker(config)
 
@@ -126,6 +125,7 @@ class TestCircuitBreaker:
 # ---------------------------------------------------------------------------
 # RetryConfig tests
 # ---------------------------------------------------------------------------
+
 
 class TestRetryConfig:
     """Test retry configuration and backoff calculation."""
@@ -162,7 +162,7 @@ class TestRetryConfig:
 
         # Attempt 2: base_delay * exponential_base^2
         delay_2 = service._calculate_delay(2)
-        assert delay_2 == config.base_delay * (config.exponential_base ** 2)
+        assert delay_2 == config.base_delay * (config.exponential_base**2)
 
     def test_backoff_capped_at_max_delay(self):
         """Backoff delay is capped at max_delay."""
@@ -179,6 +179,7 @@ class TestRetryConfig:
 # Rate limit error classification tests
 # ---------------------------------------------------------------------------
 
+
 class TestRetryableErrors:
     """Test that rate limit and connection errors are retryable."""
 
@@ -190,6 +191,7 @@ class TestRetryableErrors:
         rate_limit_err = Exception("rate_limit_error")
         # Patch isinstance check by using the actual class if available
         from core.services.llm import RateLimitError as RLError
+
         if RLError is not Exception:
             rate_limit_err = RLError("test", response=MagicMock(), body=None)
 
@@ -200,6 +202,7 @@ class TestRetryableErrors:
         service = LLMService()
 
         from core.services.llm import APIConnectionError
+
         conn_err = Exception("connection_error")
         if APIConnectionError is not Exception:
             conn_err = APIConnectionError(request=MagicMock())
@@ -221,6 +224,7 @@ class TestRetryableErrors:
 # LLM complete() fallback behavior tests
 # ---------------------------------------------------------------------------
 
+
 class TestLLMFallbackBehavior:
     """Test LLM service fallback and failure handling."""
 
@@ -231,7 +235,7 @@ class TestLLMFallbackBehavior:
         service._anthropic = None
         service._openai = None
 
-        with patch.object(service, 'available', return_value=False):
+        with patch.object(service, "available", return_value=False):
             result = await service.complete("test prompt")
             assert result == ""
 
@@ -242,13 +246,27 @@ class TestLLMFallbackBehavior:
         service._anthropic = MagicMock()
         service._openai = MagicMock()
 
-        with patch.object(service, 'available', return_value=True), \
-             patch.object(service, '_call_anthropic_with_retry',
-                         new_callable=AsyncMock, return_value="anthropic response"), \
-             patch.object(service, '_call_openai_with_retry',
-                         new_callable=AsyncMock, return_value="openai response") as mock_oai, \
-             patch.object(service, 'resolve_model', new_callable=AsyncMock,
-                         return_value="claude-sonnet-4-6"):
+        with (
+            patch.object(service, "available", return_value=True),
+            patch.object(
+                service,
+                "_call_anthropic_with_retry",
+                new_callable=AsyncMock,
+                return_value="anthropic response",
+            ),
+            patch.object(
+                service,
+                "_call_openai_with_retry",
+                new_callable=AsyncMock,
+                return_value="openai response",
+            ) as mock_oai,
+            patch.object(
+                service,
+                "resolve_model",
+                new_callable=AsyncMock,
+                return_value="claude-sonnet-4-6",
+            ),
+        ):
 
             result = await service.complete("test prompt")
 
@@ -262,13 +280,24 @@ class TestLLMFallbackBehavior:
         service._anthropic = MagicMock()
         service._openai = MagicMock()
 
-        with patch.object(service, 'available', return_value=True), \
-             patch.object(service, '_call_anthropic_with_retry',
-                         new_callable=AsyncMock, return_value=None), \
-             patch.object(service, '_call_openai_with_retry',
-                         new_callable=AsyncMock, return_value="openai response"), \
-             patch.object(service, 'resolve_model', new_callable=AsyncMock,
-                         return_value="gpt-4o"):
+        with (
+            patch.object(service, "available", return_value=True),
+            patch.object(
+                service,
+                "_call_anthropic_with_retry",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch.object(
+                service,
+                "_call_openai_with_retry",
+                new_callable=AsyncMock,
+                return_value="openai response",
+            ),
+            patch.object(
+                service, "resolve_model", new_callable=AsyncMock, return_value="gpt-4o"
+            ),
+        ):
 
             result = await service.complete("test prompt")
 
@@ -281,13 +310,27 @@ class TestLLMFallbackBehavior:
         service._anthropic = MagicMock()
         service._openai = MagicMock()
 
-        with patch.object(service, 'available', return_value=True), \
-             patch.object(service, '_call_anthropic_with_retry',
-                         new_callable=AsyncMock, return_value=None), \
-             patch.object(service, '_call_openai_with_retry',
-                         new_callable=AsyncMock, return_value=None), \
-             patch.object(service, 'resolve_model', new_callable=AsyncMock,
-                         return_value="mock-model"):
+        with (
+            patch.object(service, "available", return_value=True),
+            patch.object(
+                service,
+                "_call_anthropic_with_retry",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch.object(
+                service,
+                "_call_openai_with_retry",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch.object(
+                service,
+                "resolve_model",
+                new_callable=AsyncMock,
+                return_value="mock-model",
+            ),
+        ):
 
             result = await service.complete("test prompt")
             assert result == ""
@@ -299,11 +342,21 @@ class TestLLMFallbackBehavior:
         service._anthropic = MagicMock()
         service._openai = None
 
-        with patch.object(service, 'available', return_value=True), \
-             patch.object(service, '_call_anthropic_with_retry',
-                         new_callable=AsyncMock, return_value="anthropic response"), \
-             patch.object(service, 'resolve_model', new_callable=AsyncMock,
-                         return_value="claude-sonnet-4-6"):
+        with (
+            patch.object(service, "available", return_value=True),
+            patch.object(
+                service,
+                "_call_anthropic_with_retry",
+                new_callable=AsyncMock,
+                return_value="anthropic response",
+            ),
+            patch.object(
+                service,
+                "resolve_model",
+                new_callable=AsyncMock,
+                return_value="claude-sonnet-4-6",
+            ),
+        ):
 
             result = await service.complete("test prompt")
             assert result == "anthropic response"
@@ -312,6 +365,7 @@ class TestLLMFallbackBehavior:
 # ---------------------------------------------------------------------------
 # Circuit breaker integration with LLM service tests
 # ---------------------------------------------------------------------------
+
 
 class TestCircuitBreakerIntegration:
     """Test circuit breaker integration with LLM service."""
@@ -352,6 +406,7 @@ class TestCircuitBreakerIntegration:
 # Rate limit scenario simulation tests
 # ---------------------------------------------------------------------------
 
+
 class TestRateLimitScenarios:
     """End-to-end rate limit scenario tests."""
 
@@ -363,13 +418,27 @@ class TestRateLimitScenarios:
         service._openai = MagicMock()
 
         # Simulate Anthropic returning None (rate limited, all retries exhausted)
-        with patch.object(service, 'available', return_value=True), \
-             patch.object(service, '_call_anthropic_with_retry',
-                         new_callable=AsyncMock, return_value=None), \
-             patch.object(service, '_call_openai_with_retry',
-                         new_callable=AsyncMock, return_value="fallback success"), \
-             patch.object(service, 'resolve_model', new_callable=AsyncMock,
-                         return_value="mock-model"):
+        with (
+            patch.object(service, "available", return_value=True),
+            patch.object(
+                service,
+                "_call_anthropic_with_retry",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch.object(
+                service,
+                "_call_openai_with_retry",
+                new_callable=AsyncMock,
+                return_value="fallback success",
+            ),
+            patch.object(
+                service,
+                "resolve_model",
+                new_callable=AsyncMock,
+                return_value="mock-model",
+            ),
+        ):
 
             result = await service.complete("generate code")
             assert result == "fallback success"
@@ -381,13 +450,27 @@ class TestRateLimitScenarios:
         service._anthropic = MagicMock()
         service._openai = MagicMock()
 
-        with patch.object(service, 'available', return_value=True), \
-             patch.object(service, '_call_anthropic_with_retry',
-                         new_callable=AsyncMock, return_value=None), \
-             patch.object(service, '_call_openai_with_retry',
-                         new_callable=AsyncMock, return_value=None), \
-             patch.object(service, 'resolve_model', new_callable=AsyncMock,
-                         return_value="mock-model"):
+        with (
+            patch.object(service, "available", return_value=True),
+            patch.object(
+                service,
+                "_call_anthropic_with_retry",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch.object(
+                service,
+                "_call_openai_with_retry",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch.object(
+                service,
+                "resolve_model",
+                new_callable=AsyncMock,
+                return_value="mock-model",
+            ),
+        ):
 
             result = await service.complete("generate code")
             assert result == ""
@@ -406,7 +489,7 @@ class TestRateLimitScenarios:
         )
         service._anthropic = mock_client
 
-        with patch.object(service, '_is_retryable_error', return_value=True):
+        with patch.object(service, "_is_retryable_error", return_value=True):
             result = await service._call_anthropic_with_retry(
                 "prompt", "", "claude-sonnet-4-6", 1000
             )

@@ -20,7 +20,6 @@ from fastapi import APIRouter, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-
 router = APIRouter(tags=["model-gateway"])
 
 Dialect = Literal["openai", "anthropic", "responses"]
@@ -67,7 +66,9 @@ class GatewayRequest(BaseModel):
     temperature: Optional[float] = Field(default=None, ge=0, le=2)
 
 
-def detect_dialect(provider: str, model: str, base_url: str, explicit: Optional[Dialect] = None) -> Dialect:
+def detect_dialect(
+    provider: str, model: str, base_url: str, explicit: Optional[Dialect] = None
+) -> Dialect:
     """Resolve the wire format from explicit config, URL, provider, then model."""
     if explicit:
         return explicit
@@ -92,20 +93,34 @@ def resolve_upstream_url(base_url: str, dialect: Dialect) -> str:
     parsed = urlparse(base_url)
     allow_http = os.environ.get("CASPER_GATEWAY_ALLOW_HTTP") == "1"
     if parsed.scheme not in ({"https", "http"} if allow_http else {"https"}):
-        raise ValueError("Gateway base_url must use HTTPS (or enable CASPER_GATEWAY_ALLOW_HTTP=1).")
+        raise ValueError(
+            "Gateway base_url must use HTTPS (or enable CASPER_GATEWAY_ALLOW_HTTP=1)."
+        )
     if not parsed.netloc or parsed.username or parsed.password:
-        raise ValueError("Gateway base_url must be an absolute URL without embedded credentials.")
+        raise ValueError(
+            "Gateway base_url must be an absolute URL without embedded credentials."
+        )
 
-    allowed_hosts = {h.strip().lower() for h in os.environ.get("CASPER_GATEWAY_ALLOWED_HOSTS", "").split(",") if h.strip()}
+    allowed_hosts = {
+        h.strip().lower()
+        for h in os.environ.get("CASPER_GATEWAY_ALLOWED_HOSTS", "").split(",")
+        if h.strip()
+    }
     if allowed_hosts and (parsed.hostname or "").lower() not in allowed_hosts:
-        raise ValueError("Gateway upstream host is not in CASPER_GATEWAY_ALLOWED_HOSTS.")
+        raise ValueError(
+            "Gateway upstream host is not in CASPER_GATEWAY_ALLOWED_HOSTS."
+        )
 
     clean = base_url.rstrip("/")
     for suffix in _TERMINAL_PATHS:
         if clean.endswith(suffix):
             clean = clean[: -len(suffix)]
             break
-    suffix = {"openai": "/chat/completions", "anthropic": "/messages", "responses": "/responses"}[dialect]
+    suffix = {
+        "openai": "/chat/completions",
+        "anthropic": "/messages",
+        "responses": "/responses",
+    }[dialect]
     return clean + suffix
 
 
@@ -118,12 +133,18 @@ def _system_text(messages: Iterable[Dict[str, Any]]) -> str:
         if isinstance(content, str):
             blocks.append(content)
         elif isinstance(content, list):
-            blocks.extend(str(item.get("text", "")) for item in content if isinstance(item, dict) and item.get("text"))
+            blocks.extend(
+                str(item.get("text", ""))
+                for item in content
+                if isinstance(item, dict) and item.get("text")
+            )
     return "\n\n".join(block for block in blocks if block)
 
 
 def build_upstream_payload(request: GatewayRequest, dialect: Dialect) -> Dict[str, Any]:
-    non_system = [message for message in request.messages if message.get("role") != "system"]
+    non_system = [
+        message for message in request.messages if message.get("role") != "system"
+    ]
     common: Dict[str, Any] = {"model": request.model, "stream": request.stream}
     if request.temperature is not None:
         common["temperature"] = request.temperature
@@ -136,7 +157,11 @@ def build_upstream_payload(request: GatewayRequest, dialect: Dialect) -> Dict[st
         return payload
 
     if dialect == "responses":
-        payload = {**common, "input": non_system, "max_output_tokens": request.max_tokens}
+        payload = {
+            **common,
+            "input": non_system,
+            "max_output_tokens": request.max_tokens,
+        }
         system = _system_text(request.messages)
         if system:
             payload["instructions"] = system
@@ -145,9 +170,15 @@ def build_upstream_payload(request: GatewayRequest, dialect: Dialect) -> Dict[st
     return {**common, "messages": request.messages, "max_tokens": request.max_tokens}
 
 
-def build_upstream_headers(incoming: Request, request: GatewayRequest, dialect: Dialect) -> Dict[str, str]:
+def build_upstream_headers(
+    incoming: Request, request: GatewayRequest, dialect: Dialect
+) -> Dict[str, str]:
     """Copy supported auth headers byte-for-byte unless translation is required."""
-    headers = {name: incoming.headers[name] for name in _FORWARDED_HEADERS if name in incoming.headers}
+    headers = {
+        name: incoming.headers[name]
+        for name in _FORWARDED_HEADERS
+        if name in incoming.headers
+    }
     key = request.api_key
 
     if dialect == "anthropic":
@@ -166,7 +197,9 @@ def build_upstream_headers(incoming: Request, request: GatewayRequest, dialect: 
     return headers
 
 
-def normalize_sse_event(dialect: Dialect, data: str) -> List[Tuple[str, Dict[str, Any]]]:
+def normalize_sse_event(
+    dialect: Dialect, data: str
+) -> List[Tuple[str, Dict[str, Any]]]:
     """Convert provider SSE payloads into stable ``delta``, ``usage``, and ``done`` events."""
     if data == "[DONE]":
         return [("done", {"type": "done"})]
@@ -187,10 +220,16 @@ def normalize_sse_event(dialect: Dialect, data: str) -> List[Tuple[str, Dict[str
         if payload.get("usage"):
             events.append(("usage", {"type": "usage", "usage": payload["usage"]}))
         if choice.get("finish_reason"):
-            events.append(("done", {"type": "done", "finish_reason": choice["finish_reason"]}))
+            events.append(
+                ("done", {"type": "done", "finish_reason": choice["finish_reason"]})
+            )
     elif dialect == "anthropic":
         event_type = payload.get("type")
-        text = (payload.get("delta") or {}).get("text") if event_type == "content_block_delta" else None
+        text = (
+            (payload.get("delta") or {}).get("text")
+            if event_type == "content_block_delta"
+            else None
+        )
         if text:
             events.append(("delta", {"type": "delta", "text": text}))
         if event_type == "message_delta" and payload.get("usage"):
@@ -210,14 +249,20 @@ def normalize_sse_event(dialect: Dialect, data: str) -> List[Tuple[str, Dict[str
 
 
 def _encode_sse(event: str, payload: Dict[str, Any]) -> bytes:
-    return f"event: {event}\ndata: {json.dumps(payload, separators=(',', ':'))}\n\n".encode("utf-8")
+    return f"event: {event}\ndata: {json.dumps(payload, separators=(',', ':'))}\n\n".encode(
+        "utf-8"
+    )
 
 
 def _new_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=15.0), follow_redirects=False)
+    return httpx.AsyncClient(
+        timeout=httpx.Timeout(60.0, connect=15.0), follow_redirects=False
+    )
 
 
-async def _watch_disconnect(request: Request, upstream: httpx.Response, client: httpx.AsyncClient) -> None:
+async def _watch_disconnect(
+    request: Request, upstream: httpx.Response, client: httpx.AsyncClient
+) -> None:
     """Abort the upstream socket promptly when the browser disappears.
 
     This watcher runs independently of upstream reads, so a stalled provider
@@ -237,7 +282,9 @@ async def _stream_response(
     client: httpx.AsyncClient,
     dialect: Dialect,
 ) -> AsyncIterator[bytes]:
-    disconnect_watcher = asyncio.create_task(_watch_disconnect(incoming, upstream, client))
+    disconnect_watcher = asyncio.create_task(
+        _watch_disconnect(incoming, upstream, client)
+    )
     done_sent = False
     try:
         # aiter_lines buffers only the current SSE line.  Each yielded frame is
@@ -270,7 +317,13 @@ async def _stream_response(
 async def gateway(incoming: Request, body: GatewayRequest):
     spec = PROVIDERS.get(body.provider)
     if not spec and not body.base_url:
-        return Response(content=json.dumps({"error": {"message": "Unknown provider and no base_url supplied."}}), status_code=400, media_type="application/json")
+        return Response(
+            content=json.dumps(
+                {"error": {"message": "Unknown provider and no base_url supplied."}}
+            ),
+            status_code=400,
+            media_type="application/json",
+        )
 
     base_url = body.base_url or (spec.base_url if spec else "")
     try:
@@ -279,15 +332,27 @@ async def gateway(incoming: Request, body: GatewayRequest):
         headers = build_upstream_headers(incoming, body, dialect)
         payload = build_upstream_payload(body, dialect)
     except ValueError as error:
-        return Response(content=json.dumps({"error": {"message": str(error)}}), status_code=400, media_type="application/json")
+        return Response(
+            content=json.dumps({"error": {"message": str(error)}}),
+            status_code=400,
+            media_type="application/json",
+        )
 
     client = _new_client()
     try:
-        request = client.build_request("POST", upstream_url, headers=headers, json=payload)
+        request = client.build_request(
+            "POST", upstream_url, headers=headers, json=payload
+        )
         upstream = await client.send(request, stream=True)
     except httpx.HTTPError as error:
         await client.aclose()
-        return Response(content=json.dumps({"error": {"message": str(error), "type": type(error).__name__}}), status_code=502, media_type="application/json")
+        return Response(
+            content=json.dumps(
+                {"error": {"message": str(error), "type": type(error).__name__}}
+            ),
+            status_code=502,
+            media_type="application/json",
+        )
 
     # Preserve vendor failures exactly: status, content type, and response bytes.
     if upstream.status_code < 200 or upstream.status_code >= 300:
@@ -295,14 +360,22 @@ async def gateway(incoming: Request, body: GatewayRequest):
         content_type = upstream.headers.get("content-type", "application/json")
         await upstream.aclose()
         await client.aclose()
-        return Response(content=content, status_code=upstream.status_code, headers={"content-type": content_type})
+        return Response(
+            content=content,
+            status_code=upstream.status_code,
+            headers={"content-type": content_type},
+        )
 
     if not body.stream:
         content = await upstream.aread()
         content_type = upstream.headers.get("content-type", "application/json")
         await upstream.aclose()
         await client.aclose()
-        return Response(content=content, status_code=upstream.status_code, headers={"content-type": content_type})
+        return Response(
+            content=content,
+            status_code=upstream.status_code,
+            headers={"content-type": content_type},
+        )
 
     return StreamingResponse(
         _stream_response(incoming, upstream, client, dialect),

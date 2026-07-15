@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class AgentLayer(Enum):
     """Agent layer hierarchy in CASPER system."""
+
     LAYER_0 = "layer_0"  # Foundation layer - system orchestration
     LAYER_1 = "layer_1"  # Prime agents layer - specialized domains
     LAYER_2 = "layer_2"  # Task execution layer - worker agents
@@ -29,6 +30,7 @@ class AgentLayer(Enum):
 @dataclass
 class LayerConfiguration:
     """Configuration for each agent layer."""
+
     layer: AgentLayer
     agents: List[AgentRole]
     initialization_prompt: str
@@ -125,7 +127,7 @@ class AgentLayerInitializer:
                 initialization_prompt=self.LAYER_0_PROMPT,
                 max_agents=1,
                 parallel_init=False,
-                dependencies=[]
+                dependencies=[],
             ),
             AgentLayer.LAYER_1: LayerConfiguration(
                 layer=AgentLayer.LAYER_1,
@@ -133,12 +135,12 @@ class AgentLayerInitializer:
                     AgentRole.FRONTEND_PRIME,
                     AgentRole.BACKEND_PRIME,
                     AgentRole.TESTING_PRIME,
-                    AgentRole.DEVOPS_PRIME
+                    AgentRole.DEVOPS_PRIME,
                 ],
                 initialization_prompt=self.LAYER_1_PROMPT_TEMPLATE,
                 max_agents=4,
                 parallel_init=True,
-                dependencies=[AgentLayer.LAYER_0]
+                dependencies=[AgentLayer.LAYER_0],
             ),
             AgentLayer.LAYER_2: LayerConfiguration(
                 layer=AgentLayer.LAYER_2,
@@ -146,7 +148,7 @@ class AgentLayerInitializer:
                 initialization_prompt="Layer 2 Worker Agent initialized for task execution.",
                 max_agents=10,
                 parallel_init=True,
-                dependencies=[AgentLayer.LAYER_1]
+                dependencies=[AgentLayer.LAYER_1],
             ),
             AgentLayer.LAYER_3: LayerConfiguration(
                 layer=AgentLayer.LAYER_3,
@@ -154,8 +156,8 @@ class AgentLayerInitializer:
                 initialization_prompt="Layer 3 Integration Agent ready for external services.",
                 max_agents=5,
                 parallel_init=True,
-                dependencies=[AgentLayer.LAYER_1]
-            )
+                dependencies=[AgentLayer.LAYER_1],
+            ),
         }
 
     async def initialize_casper_session(self) -> Dict[str, Any]:
@@ -200,7 +202,7 @@ class AgentLayerInitializer:
                 "status": "initialized",
                 "timestamp": datetime.now().isoformat(),
                 "layers": initialization_results,
-                "health_check": await self._get_system_health()
+                "health_check": await self._get_system_health(),
             }
 
         except Exception as e:
@@ -215,16 +217,15 @@ class AgentLayerInitializer:
         # Check dependencies
         for dep_layer in config.dependencies:
             if not self.initialized_layers[dep_layer]:
-                raise RuntimeError(f"Dependency {dep_layer} not initialized for {layer}")
+                raise RuntimeError(
+                    f"Dependency {dep_layer} not initialized for {layer}"
+                )
 
         agents_initialized = []
 
         if config.parallel_init and len(config.agents) > 1:
             # Initialize agents in parallel
-            tasks = [
-                self._initialize_agent(role, config)
-                for role in config.agents
-            ]
+            tasks = [self._initialize_agent(role, config) for role in config.agents]
             agents = await asyncio.gather(*tasks, return_exceptions=True)
 
             for agent, role in zip(agents, config.agents):
@@ -249,10 +250,12 @@ class AgentLayerInitializer:
             "layer": layer.value,
             "agents_count": len(agents_initialized),
             "agents": [agent.role.value for agent in agents_initialized],
-            "status": "initialized"
+            "status": "initialized",
         }
 
-    async def _initialize_agent(self, role: AgentRole, config: LayerConfiguration) -> BaseAgent:
+    async def _initialize_agent(
+        self, role: AgentRole, config: LayerConfiguration
+    ) -> BaseAgent:
         """Initialize a single agent with proper prompting."""
         # Get agent from pool
         agent = await self.coordinator.agent_pool.get_agent(role)
@@ -262,8 +265,7 @@ class AgentLayerInitializer:
 
         # Create initialization context
         context = ContextBundle(
-            session_id=self.session_id,
-            parent_task="system_initialization"
+            session_id=self.session_id, parent_task="system_initialization"
         )
 
         # Add role-specific prompt
@@ -297,7 +299,7 @@ class AgentLayerInitializer:
                 - UI/UX optimization
                 - Accessibility compliance
                 - Performance optimization
-                """
+                """,
             },
             AgentRole.BACKEND_PRIME: {
                 "specialization": "Backend Development & Architecture",
@@ -308,7 +310,7 @@ class AgentLayerInitializer:
                 - Security implementation
                 - Performance optimization
                 - Scalability planning
-                """
+                """,
             },
             AgentRole.TESTING_PRIME: {
                 "specialization": "Testing & Quality Assurance",
@@ -319,7 +321,7 @@ class AgentLayerInitializer:
                 - E2E test automation
                 - Performance testing
                 - Security testing
-                """
+                """,
             },
             AgentRole.DEVOPS_PRIME: {
                 "specialization": "DevOps & Infrastructure",
@@ -330,19 +332,22 @@ class AgentLayerInitializer:
                 - Monitoring and logging
                 - Security compliance
                 - Deployment automation
-                """
-            }
+                """,
+            },
         }
 
-        config = role_configs.get(role, {
-            "specialization": "General Development",
-            "responsibilities": "General development tasks"
-        })
+        config = role_configs.get(
+            role,
+            {
+                "specialization": "General Development",
+                "responsibilities": "General development tasks",
+            },
+        )
 
         return self.LAYER_1_PROMPT_TEMPLATE.format(
             agent_role=role.value,
             specialization=config["specialization"],
-            responsibilities=config["responsibilities"]
+            responsibilities=config["responsibilities"],
         )
 
     async def _prepare_worker_pool(self) -> Dict[str, Any]:
@@ -363,7 +368,7 @@ class AgentLayerInitializer:
             "layer": "layer_2",
             "pool_size": len(workers_created),
             "max_workers": self.layer_configs[AgentLayer.LAYER_2].max_agents,
-            "status": "ready"
+            "status": "ready",
         }
 
     async def _prepare_integration_layer(self) -> Dict[str, Any]:
@@ -386,7 +391,7 @@ class AgentLayerInitializer:
         return {
             "layer": "layer_3",
             "available_integrations": integrations_available,
-            "status": "ready"
+            "status": "ready",
         }
 
     async def _verify_system_health(self) -> None:
@@ -413,9 +418,9 @@ class AgentLayerInitializer:
             "agent_pool_stats": self.coordinator.agent_pool.get_pool_stats(),
             "context_manager_status": {
                 "active": True,
-                "session_id": str(self.session_id)
+                "session_id": str(self.session_id),
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     async def shutdown(self) -> None:

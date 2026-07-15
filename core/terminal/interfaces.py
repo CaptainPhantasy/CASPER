@@ -12,6 +12,7 @@ from enum import Enum
 
 class CodingAction(Enum):
     """Supported coding actions"""
+
     IMPLEMENT = "implement"
     MODIFY = "modify"
     DEBUG = "debug"
@@ -25,6 +26,7 @@ class CodingAction(Enum):
 @dataclass
 class CodingIntent:
     """Parsed user intent for coding action"""
+
     action: CodingAction
     targets: List[str]  # files, functions, classes, etc
     scope: str  # file, function, class, project
@@ -36,6 +38,7 @@ class CodingIntent:
 @dataclass
 class StreamChunk:
     """Single chunk in streaming response"""
+
     type: str  # thought, action, code, test, result, error
     content: str
     metadata: Dict[str, Any]
@@ -46,6 +49,7 @@ class StreamChunk:
 @dataclass
 class SessionState:
     """Complete session state for persistence"""
+
     session_id: str
     started_at: datetime
     last_activity: datetime
@@ -95,9 +99,7 @@ class IStreaming(ABC):
 
     @abstractmethod
     async def stream_response(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any]
+        self, intent: CodingIntent, session_context: Dict[str, Any]
     ) -> AsyncIterator[StreamChunk]:
         """Stream response chunks for the given intent"""
         pass
@@ -133,9 +135,7 @@ class IParser(ABC):
 
     @abstractmethod
     async def suggest_completion(
-        self,
-        partial: str,
-        context: Dict[str, Any]
+        self, partial: str, context: Dict[str, Any]
     ) -> List[str]:
         """Suggest completions for partial input"""
         pass
@@ -166,9 +166,7 @@ class ITerminalUI(ABC):
 
     @abstractmethod
     async def show_progress(
-        self,
-        message: str,
-        percentage: Optional[float] = None
+        self, message: str, percentage: Optional[float] = None
     ) -> None:
         """Show progress indicator"""
         pass
@@ -215,9 +213,11 @@ STREAMING_CHUNK_SIZE = 100  # characters
 MAX_COMPLETIONS = 10
 DEFAULT_TEMPERATURE = 0.1
 
+
 # WebSocket message types
 class WSMessageType(Enum):
     """WebSocket message types for streaming"""
+
     THOUGHT = "thought"
     ACTION = "action"
     CODE = "code"
@@ -231,19 +231,23 @@ class WSMessageType(Enum):
 # Shared error types
 class TerminalError(Exception):
     """Base exception for terminal errors"""
+
     pass
 
 
 class SessionError(TerminalError):
     """Session-related errors"""
+
     pass
 
 
 class StreamingError(TerminalError):
     """Streaming-related errors"""
+
     pass
 
 
 class ParsingError(TerminalError):
     """Parsing-related errors"""
+
     pass

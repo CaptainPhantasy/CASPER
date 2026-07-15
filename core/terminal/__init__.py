@@ -12,5 +12,5 @@ __all__ = [
     "PTYManager",
     "TerminalWebSocketHandler",
     "CommandProxy",
-    "SecurityMiddleware"
+    "SecurityMiddleware",
 ]

@@ -26,9 +26,11 @@ from core.services.goal_engine import GoalEngine, GoalError
 
 console = Console()
 
+
 @dataclass
 class SlashCommand:
     """Represents a slash command with its metadata and handler."""
+
     name: str
     description: str
     usage: str
@@ -39,6 +41,7 @@ class SlashCommand:
     def __post_init__(self):
         if self.aliases is None:
             self.aliases = []
+
 
 class SlashCommandRegistry:
     """Registry for all available slash commands."""
@@ -63,7 +66,7 @@ class SlashCommandRegistry:
 
     def get_command(self, name: str) -> Optional[SlashCommand]:
         """Get a command by name or alias."""
-        return self.commands.get(name.lstrip('/'))
+        return self.commands.get(name.lstrip("/"))
 
     def list_commands(self, category: Optional[str] = None) -> List[SlashCommand]:
         """List all commands, optionally filtered by category."""
@@ -80,26 +83,30 @@ class SlashCommandRegistry:
 
     async def execute(self, command_line: str) -> bool:
         """Execute a slash command or custom command. Returns True if command was found and executed."""
-        if not command_line.startswith('/') and not command_line.startswith('#'):
+        if not command_line.startswith("/") and not command_line.startswith("#"):
             return False
 
         # Handle custom #commands
-        if command_line.startswith('#'):
-            parts = command_line[1:].split(' ')
+        if command_line.startswith("#"):
+            parts = command_line[1:].split(" ")
             command_name = parts[0].lower()
             args = parts[1:] if len(parts) > 1 else []
 
-            return await personalization_manager.execute_custom_command(command_name, args, self)
+            return await personalization_manager.execute_custom_command(
+                command_name, args, self
+            )
 
         # Handle regular /commands
-        parts = command_line[1:].split(' ', 1)
+        parts = command_line[1:].split(" ", 1)
         command_name = parts[0].lower()
         args = parts[1] if len(parts) > 1 else ""
 
         command = self.get_command(command_name)
         if not command:
             console.print(f"[red]❌ Unknown command: /{command_name}[/red]")
-            console.print("[dim]Type '/help' to see available commands, '/custom' to see custom commands[/dim]")
+            console.print(
+                "[dim]Type '/help' to see available commands, '/custom' to see custom commands[/dim]"
+            )
             return True
 
         try:
@@ -113,461 +120,569 @@ class SlashCommandRegistry:
         """Register all built-in slash commands."""
 
         # === HELP AND SYSTEM ===
-        self.register(SlashCommand(
-            name="help",
-            description="Show available commands and their descriptions",
-            usage="/help [category]",
-            handler=self._cmd_help,
-            category="System",
-            aliases=["h", "?"]
-        ))
+        self.register(
+            SlashCommand(
+                name="help",
+                description="Show available commands and their descriptions",
+                usage="/help [category]",
+                handler=self._cmd_help,
+                category="System",
+                aliases=["h", "?"],
+            )
+        )
 
-        self.register(SlashCommand(
-            name="status",
-            description="Show system status, agent pool, and current tasks",
-            usage="/status",
-            handler=self._cmd_status,
-            category="System"
-        ))
+        self.register(
+            SlashCommand(
+                name="status",
+                description="Show system status, agent pool, and current tasks",
+                usage="/status",
+                handler=self._cmd_status,
+                category="System",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="config",
-            description="View or modify CASPER configuration",
-            usage="/config [show|set <key> <value>]",
-            handler=self._cmd_config,
-            category="System"
-        ))
+        self.register(
+            SlashCommand(
+                name="config",
+                description="View or modify CASPER configuration",
+                usage="/config [show|set <key> <value>]",
+                handler=self._cmd_config,
+                category="System",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="setup",
-            description="Configure AI provider API keys",
-            usage="/setup",
-            handler=self._cmd_setup,
-            category="System"
-        ))
+        self.register(
+            SlashCommand(
+                name="setup",
+                description="Configure AI provider API keys",
+                usage="/setup",
+                handler=self._cmd_setup,
+                category="System",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="clear",
-            description="Clear current chat and start fresh",
-            usage="/clear",
-            handler=self._cmd_clear,
-            category="System"
-        ))
+        self.register(
+            SlashCommand(
+                name="clear",
+                description="Clear current chat and start fresh",
+                usage="/clear",
+                handler=self._cmd_clear,
+                category="System",
+            )
+        )
 
         # === FAMILIAR AGENT COMMANDS (CODEX / CLAUDE CODE STYLE) ===
-        self.register(SlashCommand(
-            name="goal",
-            description="Persist one evidence-gated project goal",
-            usage="/goal [status|prove <evidence>|verify <pass|fail> <result>|complete|block <reason>|clear|<objective>]",
-            handler=self._cmd_goal,
-            category="Agent"
-        ))
+        self.register(
+            SlashCommand(
+                name="goal",
+                description="Persist one evidence-gated project goal",
+                usage="/goal [status|prove <evidence>|verify <pass|fail> <result>|complete|block <reason>|clear|<objective>]",
+                handler=self._cmd_goal,
+                category="Agent",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="model",
-            description="Show, list, or select the active provider and model",
-            usage="/model [list|set <provider> [model]]",
-            handler=self._cmd_model,
-            category="Agent",
-            aliases=["models"]
-        ))
+        self.register(
+            SlashCommand(
+                name="model",
+                description="Show, list, or select the active provider and model",
+                usage="/model [list|set <provider> [model]]",
+                handler=self._cmd_model,
+                category="Agent",
+                aliases=["models"],
+            )
+        )
 
-        self.register(SlashCommand(
-            name="plan",
-            description="Analyze a coding request without executing it",
-            usage="/plan <request>",
-            handler=self._cmd_plan,
-            category="Agent"
-        ))
+        self.register(
+            SlashCommand(
+                name="plan",
+                description="Analyze a coding request without executing it",
+                usage="/plan <request>",
+                handler=self._cmd_plan,
+                category="Agent",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="diff",
-            description="Show the current Git diff",
-            usage="/diff [--stat|--cached]",
-            handler=self._cmd_diff,
-            category="Agent"
-        ))
+        self.register(
+            SlashCommand(
+                name="diff",
+                description="Show the current Git diff",
+                usage="/diff [--stat|--cached]",
+                handler=self._cmd_diff,
+                category="Agent",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="pwd",
-            description="Show the active working directory",
-            usage="/pwd",
-            handler=self._cmd_pwd,
-            category="Agent"
-        ))
+        self.register(
+            SlashCommand(
+                name="pwd",
+                description="Show the active working directory",
+                usage="/pwd",
+                handler=self._cmd_pwd,
+                category="Agent",
+            )
+        )
 
         # === SESSION MANAGEMENT ===
-        self.register(SlashCommand(
-            name="save",
-            description="Save current session with optional name",
-            usage="/save [session_name]",
-            handler=self._cmd_save,
-            category="Session"
-        ))
+        self.register(
+            SlashCommand(
+                name="save",
+                description="Save current session with optional name",
+                usage="/save [session_name]",
+                handler=self._cmd_save,
+                category="Session",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="resume",
-            description="Resume a saved session",
-            usage="/resume [session_id]",
-            handler=self._cmd_resume,
-            category="Session"
-        ))
+        self.register(
+            SlashCommand(
+                name="resume",
+                description="Resume a saved session",
+                usage="/resume [session_id]",
+                handler=self._cmd_resume,
+                category="Session",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="sessions",
-            description="List all saved sessions",
-            usage="/sessions",
-            handler=self._cmd_sessions,
-            category="Session",
-            aliases=["list-sessions"]
-        ))
+        self.register(
+            SlashCommand(
+                name="sessions",
+                description="List all saved sessions",
+                usage="/sessions",
+                handler=self._cmd_sessions,
+                category="Session",
+                aliases=["list-sessions"],
+            )
+        )
 
         # === CODE GENERATION ===
-        self.register(SlashCommand(
-            name="newcomponent",
-            description="Generate a new component with boilerplate, tests, and docs",
-            usage="/newcomponent <name> [--type=react|vue|python]",
-            handler=self._cmd_newcomponent,
-            category="Code Generation"
-        ))
+        self.register(
+            SlashCommand(
+                name="newcomponent",
+                description="Generate a new component with boilerplate, tests, and docs",
+                usage="/newcomponent <name> [--type=react|vue|python]",
+                handler=self._cmd_newcomponent,
+                category="Code Generation",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="gen",
-            description="Generate feature scaffolding (API, DB, frontend)",
-            usage="/gen <feature_name> [--full|--api|--frontend]",
-            handler=self._cmd_gen,
-            category="Code Generation"
-        ))
+        self.register(
+            SlashCommand(
+                name="gen",
+                description="Generate feature scaffolding (API, DB, frontend)",
+                usage="/gen <feature_name> [--full|--api|--frontend]",
+                handler=self._cmd_gen,
+                category="Code Generation",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="addroute",
-            description="Create new frontend route with component",
-            usage="/addroute <path> <component>",
-            handler=self._cmd_addroute,
-            category="Code Generation",
-            aliases=["route"]
-        ))
+        self.register(
+            SlashCommand(
+                name="addroute",
+                description="Create new frontend route with component",
+                usage="/addroute <path> <component>",
+                handler=self._cmd_addroute,
+                category="Code Generation",
+                aliases=["route"],
+            )
+        )
 
-        self.register(SlashCommand(
-            name="docs",
-            description="Generate documentation for function or file",
-            usage="/docs <file_or_function>",
-            handler=self._cmd_docs,
-            category="Code Generation"
-        ))
+        self.register(
+            SlashCommand(
+                name="docs",
+                description="Generate documentation for function or file",
+                usage="/docs <file_or_function>",
+                handler=self._cmd_docs,
+                category="Code Generation",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="refactor",
-            description="AI-powered code refactoring suggestions",
-            usage="/refactor <file> [suggestion]",
-            handler=self._cmd_refactor,
-            category="Code Generation"
-        ))
+        self.register(
+            SlashCommand(
+                name="refactor",
+                description="AI-powered code refactoring suggestions",
+                usage="/refactor <file> [suggestion]",
+                handler=self._cmd_refactor,
+                category="Code Generation",
+            )
+        )
 
         # === GIT AND VERSION CONTROL ===
-        self.register(SlashCommand(
-            name="commit",
-            description="Generate smart commit message from changes",
-            usage="/commit [--message='custom message']",
-            handler=self._cmd_commit,
-            category="Git"
-        ))
+        self.register(
+            SlashCommand(
+                name="commit",
+                description="Generate smart commit message from changes",
+                usage="/commit [--message='custom message']",
+                handler=self._cmd_commit,
+                category="Git",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="pr",
-            description="Create pull request with smart title and description",
-            usage="/pr [--title='PR title']",
-            handler=self._cmd_pr,
-            category="Git"
-        ))
+        self.register(
+            SlashCommand(
+                name="pr",
+                description="Create pull request with smart title and description",
+                usage="/pr [--title='PR title']",
+                handler=self._cmd_pr,
+                category="Git",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="review",
-            description="AI code review of file or current changes",
-            usage="/review [file_path]",
-            handler=self._cmd_review,
-            category="Git"
-        ))
+        self.register(
+            SlashCommand(
+                name="review",
+                description="AI code review of file or current changes",
+                usage="/review [file_path]",
+                handler=self._cmd_review,
+                category="Git",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="fixbug",
-            description="Create bug fix branch and workflow",
-            usage="/fixbug <issue_number>",
-            handler=self._cmd_fixbug,
-            category="Git"
-        ))
+        self.register(
+            SlashCommand(
+                name="fixbug",
+                description="Create bug fix branch and workflow",
+                usage="/fixbug <issue_number>",
+                handler=self._cmd_fixbug,
+                category="Git",
+            )
+        )
 
         # === TESTING AND DEBUGGING ===
-        self.register(SlashCommand(
-            name="test",
-            description="Run tests for specific file or component",
-            usage="/test [file_or_component]",
-            handler=self._cmd_test,
-            category="Testing"
-        ))
+        self.register(
+            SlashCommand(
+                name="test",
+                description="Run tests for specific file or component",
+                usage="/test [file_or_component]",
+                handler=self._cmd_test,
+                category="Testing",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="testfail",
-            description="Rerun only failed tests",
-            usage="/testfail",
-            handler=self._cmd_testfail,
-            category="Testing",
-            aliases=["test-fail"]
-        ))
+        self.register(
+            SlashCommand(
+                name="testfail",
+                description="Rerun only failed tests",
+                usage="/testfail",
+                handler=self._cmd_testfail,
+                category="Testing",
+                aliases=["test-fail"],
+            )
+        )
 
-        self.register(SlashCommand(
-            name="debug",
-            description="Set up debugging session for issue",
-            usage="/debug [issue_number]",
-            handler=self._cmd_debug,
-            category="Testing"
-        ))
+        self.register(
+            SlashCommand(
+                name="debug",
+                description="Set up debugging session for issue",
+                usage="/debug [issue_number]",
+                handler=self._cmd_debug,
+                category="Testing",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="explain",
-            description="Explain error or code concept",
-            usage="/explain [error_message|concept]",
-            handler=self._cmd_explain,
-            category="Testing",
-            aliases=["explain-error"]
-        ))
+        self.register(
+            SlashCommand(
+                name="explain",
+                description="Explain error or code concept",
+                usage="/explain [error_message|concept]",
+                handler=self._cmd_explain,
+                category="Testing",
+                aliases=["explain-error"],
+            )
+        )
 
         # === WORKFLOW ===
-        self.register(SlashCommand(
-            name="todo",
-            description="Add task to project todo list",
-            usage="/todo <task_description>",
-            handler=self._cmd_todo,
-            category="Workflow"
-        ))
+        self.register(
+            SlashCommand(
+                name="todo",
+                description="Add task to project todo list",
+                usage="/todo <task_description>",
+                handler=self._cmd_todo,
+                category="Workflow",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="standup",
-            description="Generate standup summary from recent activity",
-            usage="/standup",
-            handler=self._cmd_standup,
-            category="Workflow"
-        ))
+        self.register(
+            SlashCommand(
+                name="standup",
+                description="Generate standup summary from recent activity",
+                usage="/standup",
+                handler=self._cmd_standup,
+                category="Workflow",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="deploy",
-            description="Deploy to specified environment",
-            usage="/deploy <environment>",
-            handler=self._cmd_deploy,
-            category="Workflow"
-        ))
+        self.register(
+            SlashCommand(
+                name="deploy",
+                description="Deploy to specified environment",
+                usage="/deploy <environment>",
+                handler=self._cmd_deploy,
+                category="Workflow",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="sync",
-            description="Sync with remote repository and update dependencies",
-            usage="/sync",
-            handler=self._cmd_sync,
-            category="Workflow"
-        ))
+        self.register(
+            SlashCommand(
+                name="sync",
+                description="Sync with remote repository and update dependencies",
+                usage="/sync",
+                handler=self._cmd_sync,
+                category="Workflow",
+            )
+        )
 
         # === PERSONALIZATION ===
-        self.register(SlashCommand(
-            name="custom",
-            description="Manage custom commands and personalizations",
-            usage="/custom [list|add|delete|prefs]",
-            handler=self._cmd_custom,
-            category="Personalization",
-            aliases=["c", "personalize"]
-        ))
+        self.register(
+            SlashCommand(
+                name="custom",
+                description="Manage custom commands and personalizations",
+                usage="/custom [list|add|delete|prefs]",
+                handler=self._cmd_custom,
+                category="Personalization",
+                aliases=["c", "personalize"],
+            )
+        )
 
-        self.register(SlashCommand(
-            name="favorite",
-            description="Add/remove commands from favorites",
-            usage="/favorite [add|remove] <command>",
-            handler=self._cmd_favorite,
-            category="Personalization",
-            aliases=["fav", "star"]
-        ))
+        self.register(
+            SlashCommand(
+                name="favorite",
+                description="Add/remove commands from favorites",
+                usage="/favorite [add|remove] <command>",
+                handler=self._cmd_favorite,
+                category="Personalization",
+                aliases=["fav", "star"],
+            )
+        )
 
-        self.register(SlashCommand(
-            name="theme",
-            description="Change CASPER theme and appearance",
-            usage="/theme [list|set <theme_name>|create]",
-            handler=self._cmd_theme,
-            category="Personalization"
-        ))
+        self.register(
+            SlashCommand(
+                name="theme",
+                description="Change CASPER theme and appearance",
+                usage="/theme [list|set <theme_name>|create]",
+                handler=self._cmd_theme,
+                category="Personalization",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="profile",
-            description="Manage project profiles",
-            usage="/profile [list|create|use] <profile_name>",
-            handler=self._cmd_profile,
-            category="Personalization"
-        ))
+        self.register(
+            SlashCommand(
+                name="profile",
+                description="Manage project profiles",
+                usage="/profile [list|create|use] <profile_name>",
+                handler=self._cmd_profile,
+                category="Personalization",
+            )
+        )
 
         # === ENVIRONMENT & INFRASTRUCTURE ===
-        self.register(SlashCommand(
-            name="env",
-            description="Environment variable management with encryption",
-            usage="/env [list|set <key> <value>|get <key>|delete <key>|encrypt|sync]",
-            handler=self._cmd_env,
-            category="Environment"
-        ))
+        self.register(
+            SlashCommand(
+                name="env",
+                description="Environment variable management with encryption",
+                usage="/env [list|set <key> <value>|get <key>|delete <key>|encrypt|sync]",
+                handler=self._cmd_env,
+                category="Environment",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="migrate",
-            description="Database migration generation and execution",
-            usage="/migrate [create <name>|up|down|status|rollback]",
-            handler=self._cmd_migrate,
-            category="Database"
-        ))
+        self.register(
+            SlashCommand(
+                name="migrate",
+                description="Database migration generation and execution",
+                usage="/migrate [create <name>|up|down|status|rollback]",
+                handler=self._cmd_migrate,
+                category="Database",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="seed",
-            description="Database seeding with test/sample data",
-            usage="/seed [run|create <seeder>|rollback]",
-            handler=self._cmd_seed,
-            category="Database"
-        ))
+        self.register(
+            SlashCommand(
+                name="seed",
+                description="Database seeding with test/sample data",
+                usage="/seed [run|create <seeder>|rollback]",
+                handler=self._cmd_seed,
+                category="Database",
+            )
+        )
 
         # === SECURITY & QUALITY ===
-        self.register(SlashCommand(
-            name="scan",
-            description="Security vulnerability scanning",
-            usage="/scan [deps|code|all] [--fix]",
-            handler=self._cmd_scan,
-            category="Security"
-        ))
+        self.register(
+            SlashCommand(
+                name="scan",
+                description="Security vulnerability scanning",
+                usage="/scan [deps|code|all] [--fix]",
+                handler=self._cmd_scan,
+                category="Security",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="lint",
-            description="Multi-language linting with auto-fix",
-            usage="/lint [file_pattern] [--fix] [--all]",
-            handler=self._cmd_lint,
-            category="Quality"
-        ))
+        self.register(
+            SlashCommand(
+                name="lint",
+                description="Multi-language linting with auto-fix",
+                usage="/lint [file_pattern] [--fix] [--all]",
+                handler=self._cmd_lint,
+                category="Quality",
+            )
+        )
 
         # === API & INTEGRATION ===
-        self.register(SlashCommand(
-            name="api",
-            description="Generate REST/GraphQL API scaffolding",
-            usage="/api [rest|graphql] <resource_name> [--crud] [--auth]",
-            handler=self._cmd_api,
-            category="API"
-        ))
+        self.register(
+            SlashCommand(
+                name="api",
+                description="Generate REST/GraphQL API scaffolding",
+                usage="/api [rest|graphql] <resource_name> [--crud] [--auth]",
+                handler=self._cmd_api,
+                category="API",
+            )
+        )
 
         # === PERFORMANCE & MONITORING ===
-        self.register(SlashCommand(
-            name="logs",
-            description="Intelligent log analysis and error detection",
-            usage="/logs [tail|search <pattern>|errors] [--follow]",
-            handler=self._cmd_logs,
-            category="Monitoring"
-        ))
+        self.register(
+            SlashCommand(
+                name="logs",
+                description="Intelligent log analysis and error detection",
+                usage="/logs [tail|search <pattern>|errors] [--follow]",
+                handler=self._cmd_logs,
+                category="Monitoring",
+            )
+        )
 
         # === CONTEXT & PROJECT MANAGEMENT ===
-        self.register(SlashCommand(
-            name="context",
-            description="Save/restore full project context and mental model",
-            usage="/context [save|restore|list] [context_name]",
-            handler=self._cmd_context,
-            category="Context"
-        ))
+        self.register(
+            SlashCommand(
+                name="context",
+                description="Save/restore full project context and mental model",
+                usage="/context [save|restore|list] [context_name]",
+                handler=self._cmd_context,
+                category="Context",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="switch",
-            description="Smart project switching with context preservation",
-            usage="/switch <project_name> [--save-current]",
-            handler=self._cmd_switch,
-            category="Context"
-        ))
+        self.register(
+            SlashCommand(
+                name="switch",
+                description="Smart project switching with context preservation",
+                usage="/switch <project_name> [--save-current]",
+                handler=self._cmd_switch,
+                category="Context",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="notes",
-            description="Contextual note-taking linked to code/commits",
-            usage="/notes [add|list|search] [note_text]",
-            handler=self._cmd_notes,
-            category="Context"
-        ))
+        self.register(
+            SlashCommand(
+                name="notes",
+                description="Contextual note-taking linked to code/commits",
+                usage="/notes [add|list|search] [note_text]",
+                handler=self._cmd_notes,
+                category="Context",
+            )
+        )
 
         # === CLIENT & BUSINESS MANAGEMENT ===
-        self.register(SlashCommand(
-            name="proposal",
-            description="Generate project proposals with AI effort estimation",
-            usage="/proposal <client_name> [--template=<type>] [--hours]",
-            handler=self._cmd_proposal,
-            category="Business"
-        ))
+        self.register(
+            SlashCommand(
+                name="proposal",
+                description="Generate project proposals with AI effort estimation",
+                usage="/proposal <client_name> [--template=<type>] [--hours]",
+                handler=self._cmd_proposal,
+                category="Business",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="estimate",
-            description="AI-powered project estimation with risk factors",
-            usage="/estimate <project_description> [--detailed] [--risks]",
-            handler=self._cmd_estimate,
-            category="Business"
-        ))
+        self.register(
+            SlashCommand(
+                name="estimate",
+                description="AI-powered project estimation with risk factors",
+                usage="/estimate <project_description> [--detailed] [--risks]",
+                handler=self._cmd_estimate,
+                category="Business",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="invoice",
-            description="Generate invoices with time tracking integration",
-            usage="/invoice <client_name> [--hours] [--template]",
-            handler=self._cmd_invoice,
-            category="Business"
-        ))
+        self.register(
+            SlashCommand(
+                name="invoice",
+                description="Generate invoices with time tracking integration",
+                usage="/invoice <client_name> [--hours] [--template]",
+                handler=self._cmd_invoice,
+                category="Business",
+            )
+        )
 
         # === EMERGENCY & RECOVERY ===
-        self.register(SlashCommand(
-            name="panic",
-            description="Emergency troubleshooting and recovery procedures",
-            usage="/panic [--logs] [--rollback] [--backup]",
-            handler=self._cmd_panic,
-            category="Emergency"
-        ))
+        self.register(
+            SlashCommand(
+                name="panic",
+                description="Emergency troubleshooting and recovery procedures",
+                usage="/panic [--logs] [--rollback] [--backup]",
+                handler=self._cmd_panic,
+                category="Emergency",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="hotfix",
-            description="Rapid hotfix deployment with minimal testing",
-            usage="/hotfix <issue_description> [--deploy]",
-            handler=self._cmd_hotfix,
-            category="Emergency"
-        ))
+        self.register(
+            SlashCommand(
+                name="hotfix",
+                description="Rapid hotfix deployment with minimal testing",
+                usage="/hotfix <issue_description> [--deploy]",
+                handler=self._cmd_hotfix,
+                category="Emergency",
+            )
+        )
 
         # === WORKFLOW & PRODUCTIVITY ===
-        self.register(SlashCommand(
-            name="focus",
-            description="Deep work session management with distraction blocking",
-            usage="/focus [start|stop|status] [duration_minutes]",
-            handler=self._cmd_focus,
-            category="Productivity"
-        ))
+        self.register(
+            SlashCommand(
+                name="focus",
+                description="Deep work session management with distraction blocking",
+                usage="/focus [start|stop|status] [duration_minutes]",
+                handler=self._cmd_focus,
+                category="Productivity",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="til",
-            description="Today I Learned - knowledge capture and indexing",
-            usage="/til <learning_text> [--tags] [--project]",
-            handler=self._cmd_til,
-            category="Knowledge"
-        ))
+        self.register(
+            SlashCommand(
+                name="til",
+                description="Today I Learned - knowledge capture and indexing",
+                usage="/til <learning_text> [--tags] [--project]",
+                handler=self._cmd_til,
+                category="Knowledge",
+            )
+        )
 
         # === CASPER SPECIFIC ===
-        self.register(SlashCommand(
-            name="task",
-            description="Execute development task via multi-agent workflow",
-            usage="/task <task_description>",
-            handler=self._cmd_task,
-            category="CASPER"
-        ))
+        self.register(
+            SlashCommand(
+                name="task",
+                description="Execute development task via multi-agent workflow",
+                usage="/task <task_description>",
+                handler=self._cmd_task,
+                category="CASPER",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="analyze",
-            description="Analyze task complexity without execution",
-            usage="/analyze <task_description>",
-            handler=self._cmd_analyze,
-            category="CASPER"
-        ))
+        self.register(
+            SlashCommand(
+                name="analyze",
+                description="Analyze task complexity without execution",
+                usage="/analyze <task_description>",
+                handler=self._cmd_analyze,
+                category="CASPER",
+            )
+        )
 
-        self.register(SlashCommand(
-            name="init",
-            description="Initialize CASPER in current project",
-            usage="/init",
-            handler=self._cmd_init,
-            category="CASPER"
-        ))
+        self.register(
+            SlashCommand(
+                name="init",
+                description="Initialize CASPER in current project",
+                usage="/init",
+                handler=self._cmd_init,
+                category="CASPER",
+            )
+        )
 
     def _load_custom_commands(self):
         """Load custom commands from user config directory."""
@@ -580,7 +695,9 @@ class SlashCommandRegistry:
                         # TODO: Implement custom command loading
                         pass
                 except Exception as e:
-                    console.print(f"[yellow]⚠️  Failed to load custom command {cmd_file.name}: {e}[/yellow]")
+                    console.print(
+                        f"[yellow]⚠️  Failed to load custom command {cmd_file.name}: {e}[/yellow]"
+                    )
 
     # === COMMAND HANDLERS ===
 
@@ -591,9 +708,13 @@ class SlashCommandRegistry:
         commands = self.list_commands(category)
 
         if category:
-            console.print(f"\n[bold bright_cyan]CASPER Commands - {category}[/bold bright_cyan]")
+            console.print(
+                f"\n[bold bright_cyan]CASPER Commands - {category}[/bold bright_cyan]"
+            )
         else:
-            console.print(f"\n[bold bright_cyan]CASPER Slash Commands[/bold bright_cyan]")
+            console.print(
+                f"\n[bold bright_cyan]CASPER Slash Commands[/bold bright_cyan]"
+            )
 
         # Group by category
         by_category = {}
@@ -616,8 +737,12 @@ class SlashCommandRegistry:
             console.print(table)
 
         if not category:
-            console.print(f"\n[dim]Use '/help <category>' for category-specific help[/dim]")
-            console.print(f"[dim]Categories: {', '.join(sorted(by_category.keys()))}[/dim]")
+            console.print(
+                f"\n[dim]Use '/help <category>' for category-specific help[/dim]"
+            )
+            console.print(
+                f"[dim]Categories: {', '.join(sorted(by_category.keys()))}[/dim]"
+            )
 
     async def _cmd_status(self, args: str):
         """Show system status."""
@@ -633,13 +758,17 @@ class SlashCommandRegistry:
             info = user_config.get_user_info()
             config_data = user_config.get_config()
 
-            table = Table(title="CASPER Configuration", show_header=True, header_style="bold cyan")
+            table = Table(
+                title="CASPER Configuration", show_header=True, header_style="bold cyan"
+            )
             table.add_column("Setting", style="bright_white", width=20)
             table.add_column("Value", style="bright_yellow")
 
             table.add_row("Username", info["username"])
             table.add_row("Config Directory", str(info["config_dir"]))
-            table.add_row("Configured Providers", ", ".join(info["configured_providers"]))
+            table.add_row(
+                "Configured Providers", ", ".join(info["configured_providers"])
+            )
             table.add_row("Default Provider", user_config.get_default_provider())
 
             for key, value in config_data.items():
@@ -664,6 +793,7 @@ class SlashCommandRegistry:
             await self.casper_cli.run_setup()
         else:
             from core.services.setup import SetupService
+
             setup = SetupService()
             setup.interactive_setup()
 
@@ -681,15 +811,22 @@ class SlashCommandRegistry:
             if action == "status":
                 goal = self.goal_engine.load()
                 if not goal:
-                    console.print("[yellow]No goal exists. Start one with /goal <objective>.[/yellow]")
+                    console.print(
+                        "[yellow]No goal exists. Start one with /goal <objective>.[/yellow]"
+                    )
                     return
             elif action == "prove":
                 goal = self.goal_engine.add_evidence(value)
             elif action == "verify":
                 verification = value.split(" ", 1)
-                if len(verification) != 2 or verification[0].lower() not in {"pass", "fail"}:
+                if len(verification) != 2 or verification[0].lower() not in {
+                    "pass",
+                    "fail",
+                }:
                     raise GoalError("Usage: /goal verify <pass|fail> <concrete result>")
-                goal = self.goal_engine.verify(verification[0].lower() == "pass", verification[1])
+                goal = self.goal_engine.verify(
+                    verification[0].lower() == "pass", verification[1]
+                )
             elif action == "complete":
                 goal = self.goal_engine.complete()
             elif action == "block":
@@ -705,14 +842,16 @@ class SlashCommandRegistry:
             return
 
         verification = goal.get("verification") or {}
-        console.print(Panel.fit(
-            f"[bold]{goal['objective']}[/bold]\n"
-            f"Status: {goal['status'].upper()}\n"
-            f"Evidence: {len(goal.get('evidence', []))}\n"
-            f"Verification: {verification.get('status', 'NOT RUN')}",
-            title=f"Goal {goal['id'][:8]}",
-            border_style="cyan",
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold]{goal['objective']}[/bold]\n"
+                f"Status: {goal['status'].upper()}\n"
+                f"Evidence: {len(goal.get('evidence', []))}\n"
+                f"Verification: {verification.get('status', 'NOT RUN')}",
+                title=f"Goal {goal['id'][:8]}",
+                border_style="cyan",
+            )
+        )
 
     async def _cmd_model(self, args: str):
         """Show or change the provider/model pair used by CASPER."""
@@ -725,7 +864,11 @@ class SlashCommandRegistry:
             table.add_column("Default model")
             table.add_column("Endpoint")
             for name, provider in AIProviders.PROVIDERS.items():
-                table.add_row(name, provider.default_model or "user supplied", provider.api_endpoint or "user supplied")
+                table.add_row(
+                    name,
+                    provider.default_model or "user supplied",
+                    provider.api_endpoint or "user supplied",
+                )
             console.print(table)
             return
 
@@ -746,8 +889,12 @@ class SlashCommandRegistry:
         provider_name = user_config.get_default_provider()
         provider = AIProviders.get_provider(provider_name)
         fallback = provider.default_model if provider else None
-        model = user_config.get_default_model(fallback, provider_name) or "not configured"
-        console.print(f"[bold cyan]{provider_name}[/bold cyan] / [bright_white]{model}[/bright_white]")
+        model = (
+            user_config.get_default_model(fallback, provider_name) or "not configured"
+        )
+        console.print(
+            f"[bold cyan]{provider_name}[/bold cyan] / [bright_white]{model}[/bright_white]"
+        )
 
     async def _cmd_plan(self, args: str):
         """Reuse CASPER's analyzer without submitting work for execution."""
@@ -780,7 +927,9 @@ class SlashCommandRegistry:
 
     async def _cmd_save(self, args: str):
         """Save current session."""
-        session_name = args.strip() or f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        session_name = (
+            args.strip() or f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        )
         session_id = str(uuid4())
 
         session_data = {
@@ -791,10 +940,12 @@ class SlashCommandRegistry:
         }
 
         session_file = self.sessions_dir / f"{session_id}.json"
-        with open(session_file, 'w') as f:
+        with open(session_file, "w") as f:
             json.dump(session_data, f, indent=2)
 
-        console.print(f"[green]✅ Session saved as '{session_name}' ({session_id[:8]})[/green]")
+        console.print(
+            f"[green]✅ Session saved as '{session_name}' ({session_id[:8]})[/green]"
+        )
 
     async def _cmd_resume(self, args: str):
         """Resume a saved session."""
@@ -809,8 +960,13 @@ class SlashCommandRegistry:
         for session_file in session_files:
             with open(session_file) as f:
                 session_data = json.load(f)
-                if session_data["id"].startswith(session_id) or session_data["name"] == session_id:
-                    console.print(f"[green]✅ Resuming session '{session_data['name']}'[/green]")
+                if (
+                    session_data["id"].startswith(session_id)
+                    or session_data["name"] == session_id
+                ):
+                    console.print(
+                        f"[green]✅ Resuming session '{session_data['name']}'[/green]"
+                    )
                     # TODO: Restore context
                     return
 
@@ -824,19 +980,23 @@ class SlashCommandRegistry:
             console.print("[yellow]No saved sessions found[/yellow]")
             return
 
-        table = Table(title="Saved Sessions", show_header=True, header_style="bold cyan")
+        table = Table(
+            title="Saved Sessions", show_header=True, header_style="bold cyan"
+        )
         table.add_column("ID", style="bright_white", width=10)
         table.add_column("Name", style="bright_yellow", width=25)
         table.add_column("Created", style="dim", width=20)
 
-        for session_file in sorted(session_files, key=lambda x: x.stat().st_mtime, reverse=True):
+        for session_file in sorted(
+            session_files, key=lambda x: x.stat().st_mtime, reverse=True
+        ):
             with open(session_file) as f:
                 session_data = json.load(f)
                 created = datetime.fromisoformat(session_data["created_at"])
                 table.add_row(
                     session_data["id"][:8],
                     session_data["name"],
-                    created.strftime("%Y-%m-%d %H:%M")
+                    created.strftime("%Y-%m-%d %H:%M"),
                 )
 
         console.print(table)
@@ -850,7 +1010,9 @@ class SlashCommandRegistry:
         if self.casper_cli:
             await self.casper_cli.execute_task(args)
         else:
-            console.print("[yellow]⚠️  Task execution requires CASPER CLI context[/yellow]")
+            console.print(
+                "[yellow]⚠️  Task execution requires CASPER CLI context[/yellow]"
+            )
 
     async def _cmd_analyze(self, args: str):
         """Analyze a task without executing."""
@@ -879,7 +1041,9 @@ class SlashCommandRegistry:
         from core.services.codegen import code_generator
 
         if not args.strip():
-            console.print("[red]❌ Usage: /newcomponent <ComponentName> [--type=react|vue|python] [--no-tests] [--stories][/red]")
+            console.print(
+                "[red]❌ Usage: /newcomponent <ComponentName> [--type=react|vue|python] [--no-tests] [--stories][/red]"
+            )
             return
 
         # Parse arguments
@@ -890,7 +1054,7 @@ class SlashCommandRegistry:
         options = {
             "include_tests": True,
             "include_stories": False,
-            "include_types": True
+            "include_types": True,
         }
         component_type = None
 
@@ -904,9 +1068,7 @@ class SlashCommandRegistry:
 
         # Execute component generation
         success = await code_generator.generate_component(
-            name=component_name,
-            component_type=component_type,
-            options=options
+            name=component_name, component_type=component_type, options=options
         )
 
         if not success:
@@ -915,7 +1077,9 @@ class SlashCommandRegistry:
     async def _cmd_gen(self, args: str):
         """Generate feature scaffolding (API, DB, frontend)."""
         if not args.strip():
-            console.print("[red]❌ Usage: /gen <feature_name> [--full|--api|--frontend|--backend][/red]")
+            console.print(
+                "[red]❌ Usage: /gen <feature_name> [--full|--api|--frontend|--backend][/red]"
+            )
             console.print("[dim]Examples:[/dim]")
             console.print("[dim]  /gen user --full (complete CRUD feature)[/dim]")
             console.print("[dim]  /gen product --api (API only)[/dim]")
@@ -928,15 +1092,15 @@ class SlashCommandRegistry:
 
         # Parse options
         options = {
-            'full': '--full' in parts,
-            'api': '--api' in parts,
-            'frontend': '--frontend' in parts,
-            'backend': '--backend' in parts
+            "full": "--full" in parts,
+            "api": "--api" in parts,
+            "frontend": "--frontend" in parts,
+            "backend": "--backend" in parts,
         }
 
         # Default to full if no specific option
         if not any(options.values()):
-            options['full'] = True
+            options["full"] = True
 
         console.print(f"[cyan]⚡ Generating feature: {feature_name}[/cyan]")
 
@@ -960,30 +1124,42 @@ class SlashCommandRegistry:
         results = []
 
         # Generate based on options
-        if options['full'] or options['backend'] or options['api']:
-            backend_results = await self._generate_backend_scaffolding(feature_name, project_info)
+        if options["full"] or options["backend"] or options["api"]:
+            backend_results = await self._generate_backend_scaffolding(
+                feature_name, project_info
+            )
             results.extend(backend_results)
 
-        if options['full'] or options['frontend']:
-            frontend_results = await self._generate_frontend_scaffolding(feature_name, project_info)
+        if options["full"] or options["frontend"]:
+            frontend_results = await self._generate_frontend_scaffolding(
+                feature_name, project_info
+            )
             results.extend(frontend_results)
 
-        if options['full']:
+        if options["full"]:
             # Generate integration files
-            integration_results = await self._generate_integration_files(feature_name, project_info)
+            integration_results = await self._generate_integration_files(
+                feature_name, project_info
+            )
             results.extend(integration_results)
 
         # Display results
         if results:
-            console.print(f"\n[bold green]✅ Generated {len(results)} files for '{feature_name}' feature:[/bold green]")
+            console.print(
+                f"\n[bold green]✅ Generated {len(results)} files for '{feature_name}' feature:[/bold green]"
+            )
 
             for result in results:
-                if result['status'] == 'created':
+                if result["status"] == "created":
                     console.print(f"  [green]✓[/green] {result['file']}")
-                elif result['status'] == 'exists':
-                    console.print(f"  [yellow]≈[/yellow] {result['file']} (already exists)")
+                elif result["status"] == "exists":
+                    console.print(
+                        f"  [yellow]≈[/yellow] {result['file']} (already exists)"
+                    )
                 else:
-                    console.print(f"  [red]✗[/red] {result['file']} ({result['error']})")
+                    console.print(
+                        f"  [red]✗[/red] {result['file']} ({result['error']})"
+                    )
 
             console.print(f"\n[cyan]💡 Next steps:[/cyan]")
             console.print(f"  1. Review generated files for your specific requirements")
@@ -996,24 +1172,21 @@ class SlashCommandRegistry:
 
     async def _detect_project_type(self, current_dir: Path) -> dict:
         """Detect project type and framework."""
-        info = {
-            'type': 'unknown',
-            'backend': None,
-            'frontend': None,
-            'database': None
-        }
+        info = {"type": "unknown", "backend": None, "frontend": None, "database": None}
 
         # Backend detection
-        if (current_dir / "requirements.txt").exists() or (current_dir / "pyproject.toml").exists():
-            info['backend'] = 'python'
+        if (current_dir / "requirements.txt").exists() or (
+            current_dir / "pyproject.toml"
+        ).exists():
+            info["backend"] = "python"
 
             # Framework detection
             if (current_dir / "manage.py").exists():
-                info['type'] = 'django'
+                info["type"] = "django"
             elif any((current_dir / "core").glob("*.py")):
-                info['type'] = 'fastapi'  # Assume FastAPI for this project
+                info["type"] = "fastapi"  # Assume FastAPI for this project
             else:
-                info['type'] = 'python'
+                info["type"] = "python"
 
         elif (current_dir / "package.json").exists():
             with open(current_dir / "package.json") as f:
@@ -1021,31 +1194,35 @@ class SlashCommandRegistry:
                 deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
 
                 if "express" in deps:
-                    info['backend'] = 'nodejs'
-                    info['type'] = 'express'
+                    info["backend"] = "nodejs"
+                    info["type"] = "express"
                 elif "fastify" in deps:
-                    info['backend'] = 'nodejs'
-                    info['type'] = 'fastify'
+                    info["backend"] = "nodejs"
+                    info["type"] = "fastify"
 
         # Frontend detection
         if (current_dir / "dashboard").exists():
-            info['frontend'] = 'react'
+            info["frontend"] = "react"
         elif (current_dir / "frontend").exists():
-            info['frontend'] = 'generic'
+            info["frontend"] = "generic"
 
         # Database detection
-        if (current_dir / "poetry.lock").exists() or (current_dir / "requirements.txt").exists():
+        if (current_dir / "poetry.lock").exists() or (
+            current_dir / "requirements.txt"
+        ).exists():
             # Check for common Python DB libraries
-            info['database'] = 'postgresql'  # Default assumption
+            info["database"] = "postgresql"  # Default assumption
 
         return info
 
-    async def _generate_backend_scaffolding(self, feature_name: str, project_info: dict) -> list:
+    async def _generate_backend_scaffolding(
+        self, feature_name: str, project_info: dict
+    ) -> list:
         """Generate backend API scaffolding."""
         results = []
         current_dir = Path.cwd()
 
-        if project_info['backend'] == 'python' and project_info['type'] == 'fastapi':
+        if project_info["backend"] == "python" and project_info["type"] == "fastapi":
             # Generate FastAPI model
             model_path = current_dir / "core" / "models" / f"{feature_name}.py"
             model_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1076,11 +1253,13 @@ class {feature_name.title()}(Base):
             try:
                 if not model_path.exists():
                     model_path.write_text(model_content)
-                    results.append({'file': str(model_path), 'status': 'created'})
+                    results.append({"file": str(model_path), "status": "created"})
                 else:
-                    results.append({'file': str(model_path), 'status': 'exists'})
+                    results.append({"file": str(model_path), "status": "exists"})
             except Exception as e:
-                results.append({'file': str(model_path), 'status': 'error', 'error': str(e)})
+                results.append(
+                    {"file": str(model_path), "status": "error", "error": str(e)}
+                )
 
             # Generate API endpoints
             api_path = current_dir / "core" / "api" / f"{feature_name}.py"
@@ -1157,11 +1336,13 @@ async def delete_{feature_name}(id: int, db: Session = Depends(get_db)):
             try:
                 if not api_path.exists():
                     api_path.write_text(api_content)
-                    results.append({'file': str(api_path), 'status': 'created'})
+                    results.append({"file": str(api_path), "status": "created"})
                 else:
-                    results.append({'file': str(api_path), 'status': 'exists'})
+                    results.append({"file": str(api_path), "status": "exists"})
             except Exception as e:
-                results.append({'file': str(api_path), 'status': 'error', 'error': str(e)})
+                results.append(
+                    {"file": str(api_path), "status": "error", "error": str(e)}
+                )
 
             # Generate Pydantic schemas
             schema_path = current_dir / "core" / "schemas" / f"{feature_name}.py"
@@ -1198,27 +1379,33 @@ class {feature_name.title()}Response({feature_name.title()}Base):
             try:
                 if not schema_path.exists():
                     schema_path.write_text(schema_content)
-                    results.append({'file': str(schema_path), 'status': 'created'})
+                    results.append({"file": str(schema_path), "status": "created"})
                 else:
-                    results.append({'file': str(schema_path), 'status': 'exists'})
+                    results.append({"file": str(schema_path), "status": "exists"})
             except Exception as e:
-                results.append({'file': str(schema_path), 'status': 'error', 'error': str(e)})
+                results.append(
+                    {"file": str(schema_path), "status": "error", "error": str(e)}
+                )
 
         return results
 
-    async def _generate_frontend_scaffolding(self, feature_name: str, project_info: dict) -> list:
+    async def _generate_frontend_scaffolding(
+        self, feature_name: str, project_info: dict
+    ) -> list:
         """Generate frontend component scaffolding."""
         results = []
         current_dir = Path.cwd()
 
-        if project_info['frontend'] == 'react':
+        if project_info["frontend"] == "react":
             # Generate React component
-            component_dir = current_dir / "dashboard" / "src" / "components" / feature_name.title()
+            component_dir = (
+                current_dir / "dashboard" / "src" / "components" / feature_name.title()
+            )
             component_dir.mkdir(parents=True, exist_ok=True)
 
             component_path = component_dir / f"{feature_name.title()}Component.tsx"
 
-            component_content = f'''import React, {{ useState, useEffect }} from 'react';
+            component_content = f"""import React, {{ useState, useEffect }} from 'react';
 import {{ Card, CardContent, CardHeader, CardTitle }} from '@/components/ui/card';
 import {{ Button }} from '@/components/ui/button';
 import {{ Input }} from '@/components/ui/input';
@@ -1365,20 +1552,24 @@ export const {feature_name.title()}Component: React.FC<{feature_name.title()}Com
 }};
 
 export default {feature_name.title()}Component;
-'''
+"""
 
             try:
                 if not component_path.exists():
                     component_path.write_text(component_content)
-                    results.append({'file': str(component_path), 'status': 'created'})
+                    results.append({"file": str(component_path), "status": "created"})
                 else:
-                    results.append({'file': str(component_path), 'status': 'exists'})
+                    results.append({"file": str(component_path), "status": "exists"})
             except Exception as e:
-                results.append({'file': str(component_path), 'status': 'error', 'error': str(e)})
+                results.append(
+                    {"file": str(component_path), "status": "error", "error": str(e)}
+                )
 
         return results
 
-    async def _generate_integration_files(self, feature_name: str, project_info: dict) -> list:
+    async def _generate_integration_files(
+        self, feature_name: str, project_info: dict
+    ) -> list:
         """Generate integration files like tests, docs, etc."""
         results = []
         current_dir = Path.cwd()
@@ -1493,11 +1684,11 @@ def test_delete_{feature_name}():
         try:
             if not test_path.exists():
                 test_path.write_text(test_content)
-                results.append({'file': str(test_path), 'status': 'created'})
+                results.append({"file": str(test_path), "status": "created"})
             else:
-                results.append({'file': str(test_path), 'status': 'exists'})
+                results.append({"file": str(test_path), "status": "exists"})
         except Exception as e:
-            results.append({'file': str(test_path), 'status': 'error', 'error': str(e)})
+            results.append({"file": str(test_path), "status": "error", "error": str(e)})
 
         return results
 
@@ -1519,12 +1710,14 @@ def test_delete_{feature_name}():
         from pathlib import Path
         import json
 
-        console.print(f"[cyan]→ Adding route {route_path} with component {component_name}...[/cyan]")
+        console.print(
+            f"[cyan]→ Adding route {route_path} with component {component_name}...[/cyan]"
+        )
 
         # React Router implementation
         if Path("src/App.tsx").exists() or Path("src/App.jsx").exists():
             # Generate React component
-            component_code = f'''import React from 'react';
+            component_code = f"""import React from 'react';
 
 export const {component_name}: React.FC = () => {{
   return (
@@ -1535,7 +1728,7 @@ export const {component_name}: React.FC = () => {{
   );
 }};
 
-export default {component_name};'''
+export default {component_name};"""
 
             # Create component file
             component_dir = Path(f"src/components")
@@ -1547,23 +1740,37 @@ export default {component_name};'''
                 console.print(f"[green]✅ Created component: {component_file}[/green]")
 
                 # Add route instruction
-                console.print("\n[yellow]📝 Add this to your router configuration:[/yellow]")
-                console.print(f"[dim]import {component_name} from './components/{component_name}';[/dim]")
-                console.print(f"[dim]<Route path=\"{route_path}\" component={{{component_name}}} />[/dim]")
+                console.print(
+                    "\n[yellow]📝 Add this to your router configuration:[/yellow]"
+                )
+                console.print(
+                    f"[dim]import {component_name} from './components/{component_name}';[/dim]"
+                )
+                console.print(
+                    f'[dim]<Route path="{route_path}" component={{{component_name}}} />[/dim]'
+                )
             else:
-                console.print(f"[yellow]⚠️ Component already exists: {component_file}[/yellow]")
+                console.print(
+                    f"[yellow]⚠️ Component already exists: {component_file}[/yellow]"
+                )
 
         # Vue Router implementation
-        elif Path("src/router/index.js").exists() or Path("src/router/index.ts").exists():
+        elif (
+            Path("src/router/index.js").exists() or Path("src/router/index.ts").exists()
+        ):
             console.print("[green]✅ Vue project detected[/green]")
-            console.print(f"[dim]Add to router: {{ path: '{route_path}', component: {component_name} }}[/dim]")
+            console.print(
+                f"[dim]Add to router: {{ path: '{route_path}', component: {component_name} }}[/dim]"
+            )
 
         # Generic instruction
         else:
             console.print(f"[green]✅ Route configuration:[/green]")
             console.print(f"[dim]Path: {route_path}[/dim]")
             console.print(f"[dim]Component: {component_name}[/dim]")
-            console.print("[dim]Add this route to your application's router configuration[/dim]")
+            console.print(
+                "[dim]Add this route to your application's router configuration[/dim]"
+            )
 
     async def _cmd_docs(self, args: str):
         """Generate documentation for function or file."""
@@ -1581,7 +1788,9 @@ export default {component_name};'''
         function_name = parts[1] if len(parts) > 1 else None
 
         if function_name:
-            success = await doc_generator.generate_function_docs(file_path, function_name)
+            success = await doc_generator.generate_function_docs(
+                file_path, function_name
+            )
         else:
             success = await doc_generator.generate_file_docs(file_path)
 
@@ -1591,7 +1800,9 @@ export default {component_name};'''
     async def _cmd_refactor(self, args: str):
         """AI-powered code refactoring suggestions."""
         if not args:
-            console.print("[red]❌ Usage: /refactor <file_path> [specific_function][/red]")
+            console.print(
+                "[red]❌ Usage: /refactor <file_path> [specific_function][/red]"
+            )
             console.print("[dim]Example: /refactor src/utils.py calculate_total[/dim]")
             return
 
@@ -1606,31 +1817,38 @@ export default {component_name};'''
             console.print(f"[red]❌ File not found: {file_path}[/red]")
             return
 
-        console.print(f"[cyan]→ Analyzing {file_path} for refactoring opportunities...[/cyan]")
+        console.print(
+            f"[cyan]→ Analyzing {file_path} for refactoring opportunities...[/cyan]"
+        )
 
         # Read the file
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 code = f.read()
 
             # Focus on specific function if requested
             if function_name:
                 import re
+
                 pattern = rf"(def |function |const |class ){function_name}.*?"
                 match = re.search(pattern, code)
                 if match:
                     # Extract function (simplified)
-                    lines = code.split('\n')
-                    start_idx = code[:match.start()].count('\n')
-                    code_section = '\n'.join(lines[start_idx:start_idx+50])  # Get 50 lines
+                    lines = code.split("\n")
+                    start_idx = code[: match.start()].count("\n")
+                    code_section = "\n".join(
+                        lines[start_idx : start_idx + 50]
+                    )  # Get 50 lines
                 else:
-                    console.print(f"[yellow]⚠️ Function '{function_name}' not found[/yellow]")
+                    console.print(
+                        f"[yellow]⚠️ Function '{function_name}' not found[/yellow]"
+                    )
                     code_section = code[:2000]  # Use first 2000 chars
             else:
                 code_section = code[:2000]  # Analyze first portion
 
             # Generate refactoring suggestions
-            if llm_service and hasattr(llm_service, 'complete'):
+            if llm_service and hasattr(llm_service, "complete"):
                 prompt = f"""Analyze this code and provide specific refactoring suggestions:
 
 {code_section}
@@ -1653,13 +1871,15 @@ Be specific and actionable."""
 
                 # Basic static analysis
                 issues = []
-                if len(code.split('\n')) > 100:
+                if len(code.split("\n")) > 100:
                     issues.append("• Consider breaking large files into modules")
-                if 'TODO' in code or 'FIXME' in code:
+                if "TODO" in code or "FIXME" in code:
                     issues.append("• Unresolved TODO/FIXME comments found")
-                if code.count('if ') > 10:
-                    issues.append("• High cyclomatic complexity - consider extracting methods")
-                if 'except:' in code or 'except Exception' in code:
+                if code.count("if ") > 10:
+                    issues.append(
+                        "• High cyclomatic complexity - consider extracting methods"
+                    )
+                if "except:" in code or "except Exception" in code:
                     issues.append("• Broad exception handling - be more specific")
 
                 if issues:
@@ -1668,7 +1888,9 @@ Be specific and actionable."""
                 else:
                     console.print("[green]✅ No obvious issues found[/green]")
 
-                console.print("\n[cyan]💡 Run with AI service for detailed suggestions[/cyan]")
+                console.print(
+                    "\n[cyan]💡 Run with AI service for detailed suggestions[/cyan]"
+                )
 
         except Exception as e:
             console.print(f"[red]❌ Error analyzing file: {str(e)}[/red]")
@@ -1682,27 +1904,32 @@ Be specific and actionable."""
         try:
             # Parse custom message option
             custom_message = None
-            if args.strip() and args.strip().startswith('--message='):
-                custom_message = args.strip().replace('--message=', '').strip('\'"')
+            if args.strip() and args.strip().startswith("--message="):
+                custom_message = args.strip().replace("--message=", "").strip("'\"")
 
             # Check if we're in a git repository
             try:
-                subprocess.run(['git', 'status'], check=True, capture_output=True)
+                subprocess.run(["git", "status"], check=True, capture_output=True)
             except subprocess.CalledProcessError:
                 console.print("[red]❌ Not in a git repository[/red]")
                 return
 
             # Get git status and diff
-            status_result = subprocess.run(['git', 'status', '--porcelain'],
-                                        capture_output=True, text=True, check=True)
+            status_result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
 
             if not status_result.stdout.strip():
                 console.print("[yellow]⚠️ No changes to commit[/yellow]")
                 return
 
             # Get diff for staged and unstaged changes
-            diff_result = subprocess.run(['git', 'diff', 'HEAD'],
-                                       capture_output=True, text=True)
+            diff_result = subprocess.run(
+                ["git", "diff", "HEAD"], capture_output=True, text=True
+            )
 
             changes = status_result.stdout
             diff_content = diff_result.stdout[:2000]  # Limit diff size
@@ -1712,7 +1939,9 @@ Be specific and actionable."""
                 console.print(f"[dim]→ Using custom message: {commit_message}[/dim]")
             else:
                 # Generate smart commit message with AI
-                console.print("[dim]→ Analyzing changes to generate commit message...[/dim]")
+                console.print(
+                    "[dim]→ Analyzing changes to generate commit message...[/dim]"
+                )
 
                 llm = llm_service
                 if llm:
@@ -1735,56 +1964,62 @@ Respond with only the commit message, no explanations.
 """
 
                     commit_message = await llm.complete(prompt)
-                    commit_message = commit_message.strip().strip('`"\'')
+                    commit_message = commit_message.strip().strip("`\"'")
                 else:
                     # Fallback to basic message generation
                     modified_files = []
                     added_files = []
                     deleted_files = []
 
-                    for line in changes.strip().split('\n'):
-                        if line.startswith('M '):
+                    for line in changes.strip().split("\n"):
+                        if line.startswith("M "):
                             modified_files.append(line[3:])
-                        elif line.startswith('A '):
+                        elif line.startswith("A "):
                             added_files.append(line[3:])
-                        elif line.startswith('D '):
+                        elif line.startswith("D "):
                             deleted_files.append(line[3:])
 
                     if added_files:
                         commit_message = f"feat: add {', '.join(added_files[:2])}"
                     elif modified_files:
-                        commit_message = f"update: modify {', '.join(modified_files[:2])}"
+                        commit_message = (
+                            f"update: modify {', '.join(modified_files[:2])}"
+                        )
                     elif deleted_files:
-                        commit_message = f"remove: delete {', '.join(deleted_files[:2])}"
+                        commit_message = (
+                            f"remove: delete {', '.join(deleted_files[:2])}"
+                        )
                     else:
                         commit_message = "chore: update project files"
 
             # Show the generated message and ask for confirmation
-            console.print(Panel(
-                f"[bold white]{commit_message}[/bold white]",
-                title="🎯 Generated Commit Message",
-                border_style="green"
-            ))
+            console.print(
+                Panel(
+                    f"[bold white]{commit_message}[/bold white]",
+                    title="🎯 Generated Commit Message",
+                    border_style="green",
+                )
+            )
 
             # Show changed files
             console.print("[dim]Changed files:[/dim]")
-            for line in changes.strip().split('\n'):
+            for line in changes.strip().split("\n"):
                 status_char = line[:2]
                 file_path = line[3:] if len(line) > 3 else ""
-                if status_char == 'M ':
+                if status_char == "M ":
                     console.print(f"[yellow]  Modified:[/yellow] {file_path}")
-                elif status_char == 'A ':
+                elif status_char == "A ":
                     console.print(f"[green]  Added:[/green] {file_path}")
-                elif status_char == 'D ':
+                elif status_char == "D ":
                     console.print(f"[red]  Deleted:[/red] {file_path}")
-                elif status_char == '??':
+                elif status_char == "??":
                     console.print(f"[blue]  Untracked:[/blue] {file_path}")
 
             # Ask for confirmation
             if Confirm.ask("\n[bold]Commit with this message?[/bold]", default=True):
                 # Add all changes and commit
-                subprocess.run(['git', 'add', '.'], check=True)
-                subprocess.run(['git', 'commit', '-m', commit_message], check=True)
+                subprocess.run(["git", "add", "."], check=True)
+                subprocess.run(["git", "commit", "-m", commit_message], check=True)
                 console.print(f"[green]✅ Committed successfully![/green]")
             else:
                 console.print("[dim]→ Commit cancelled[/dim]")
@@ -1801,38 +2036,47 @@ Respond with only the commit message, no explanations.
 
         # Check if gh CLI is installed
         try:
-            subprocess.run(['gh', '--version'], capture_output=True, check=True)
+            subprocess.run(["gh", "--version"], capture_output=True, check=True)
         except:
-            console.print("[yellow]⚠️ GitHub CLI not installed. Installing instructions:[/yellow]")
+            console.print(
+                "[yellow]⚠️ GitHub CLI not installed. Installing instructions:[/yellow]"
+            )
             console.print("[dim]• macOS: brew install gh[/dim]")
-            console.print("[dim]• Linux: See https://github.com/cli/cli/blob/trunk/docs/install_linux.md[/dim]")
+            console.print(
+                "[dim]• Linux: See https://github.com/cli/cli/blob/trunk/docs/install_linux.md[/dim]"
+            )
             console.print("[dim]• Windows: winget install GitHub.cli[/dim]")
             return
 
         console.print("[cyan]→ Preparing pull request...[/cyan]")
 
         # Get current branch
-        result = subprocess.run(['git', 'branch', '--show-current'],
-                              capture_output=True, text=True)
+        result = subprocess.run(
+            ["git", "branch", "--show-current"], capture_output=True, text=True
+        )
         current_branch = result.stdout.strip()
 
-        if current_branch == 'main' or current_branch == 'master':
+        if current_branch == "main" or current_branch == "master":
             console.print("[red]❌ Cannot create PR from main/master branch[/red]")
-            console.print("[dim]Create a feature branch first: git checkout -b feature-name[/dim]")
+            console.print(
+                "[dim]Create a feature branch first: git checkout -b feature-name[/dim]"
+            )
             return
 
         # Get diff for PR description
-        diff_result = subprocess.run(['git', 'diff', 'main...HEAD', '--stat'],
-                                    capture_output=True, text=True)
+        diff_result = subprocess.run(
+            ["git", "diff", "main...HEAD", "--stat"], capture_output=True, text=True
+        )
         changes_summary = diff_result.stdout
 
         # Get commits
-        log_result = subprocess.run(['git', 'log', 'main..HEAD', '--oneline'],
-                                   capture_output=True, text=True)
+        log_result = subprocess.run(
+            ["git", "log", "main..HEAD", "--oneline"], capture_output=True, text=True
+        )
         commits = log_result.stdout
 
         # Generate title and description
-        if llm_service and hasattr(llm_service, 'complete'):
+        if llm_service and hasattr(llm_service, "complete"):
             prompt = f"""Generate a concise PR title and description based on these changes:
 
 Branch: {current_branch}
@@ -1851,10 +2095,10 @@ Provide:
             console.print(response)
 
             # Extract title (first line)
-            title = response.split('\n')[0].replace('Title:', '').strip()
+            title = response.split("\n")[0].replace("Title:", "").strip()
         else:
             # Fallback: use branch name as title
-            title = current_branch.replace('-', ' ').replace('_', ' ').title()
+            title = current_branch.replace("-", " ").replace("_", " ").title()
 
         # Create the PR
         console.print("\n[cyan]→ Creating pull request...[/cyan]")
@@ -1863,7 +2107,7 @@ Provide:
             # Use provided title
             title = args
 
-        pr_cmd = ['gh', 'pr', 'create', '--title', title, '--body', commits]
+        pr_cmd = ["gh", "pr", "create", "--title", title, "--body", commits]
 
         try:
             result = subprocess.run(pr_cmd, capture_output=True, text=True)
@@ -1872,7 +2116,9 @@ Provide:
                 console.print(result.stdout)
             else:
                 console.print("[yellow]⚠️ Could not create PR automatically[/yellow]")
-                console.print(f"[dim]Run manually: gh pr create --title \"{title}\"[/dim]")
+                console.print(
+                    f'[dim]Run manually: gh pr create --title "{title}"[/dim]'
+                )
         except Exception as e:
             console.print(f"[red]❌ Error creating PR: {str(e)}[/red]")
 
@@ -1885,12 +2131,14 @@ Provide:
         if not args:
             # Review unstaged changes
             console.print("[cyan]→ Reviewing current changes...[/cyan]")
-            result = subprocess.run(['git', 'diff'], capture_output=True, text=True)
+            result = subprocess.run(["git", "diff"], capture_output=True, text=True)
             diff = result.stdout
 
             if not diff:
                 console.print("[yellow]⚠️ No unstaged changes to review[/yellow]")
-                console.print("[dim]Tip: Use /review <file> to review a specific file[/dim]")
+                console.print(
+                    "[dim]Tip: Use /review <file> to review a specific file[/dim]"
+                )
                 return
 
             target = "current changes"
@@ -1903,12 +2151,12 @@ Provide:
                 return
 
             console.print(f"[cyan]→ Reviewing {file_path}...[/cyan]")
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 content = f.read()[:3000]  # Limit size
             target = file_path
 
         # Perform code review
-        if llm_service and hasattr(llm_service, 'complete'):
+        if llm_service and hasattr(llm_service, "complete"):
             prompt = f"""Perform a thorough code review of {target}:
 
 {content}
@@ -1930,15 +2178,17 @@ Provide specific, actionable feedback with line references where possible."""
             console.print("\n[bold]🔍 Basic Code Review:[/bold]")
 
             issues = []
-            if 'password' in content.lower() or 'secret' in content.lower():
+            if "password" in content.lower() or "secret" in content.lower():
                 issues.append("⚠️ Potential hardcoded secrets detected")
-            if 'eval(' in content or 'exec(' in content:
+            if "eval(" in content or "exec(" in content:
                 issues.append("⚠️ Dynamic code execution detected (security risk)")
-            if 'TODO' in content or 'FIXME' in content:
+            if "TODO" in content or "FIXME" in content:
                 issues.append("📝 Unresolved TODO/FIXME comments")
-            if content.count('\n') > 100 and 'def ' in content:
-                if content.count('def ') < 3:
-                    issues.append("📏 Large functions detected - consider breaking down")
+            if content.count("\n") > 100 and "def " in content:
+                if content.count("def ") < 3:
+                    issues.append(
+                        "📏 Large functions detected - consider breaking down"
+                    )
 
             if issues:
                 for issue in issues:
@@ -1946,7 +2196,9 @@ Provide specific, actionable feedback with line references where possible."""
             else:
                 console.print("[green]✅ No obvious issues found[/green]")
 
-            console.print("\n[cyan]💡 Enable AI service for comprehensive review[/cyan]")
+            console.print(
+                "\n[cyan]💡 Enable AI service for comprehensive review[/cyan]"
+            )
 
     async def _cmd_fixbug(self, args: str):
         """Create bug fix branch and workflow."""
@@ -1955,7 +2207,9 @@ Provide specific, actionable feedback with line references where possible."""
 
         if not args:
             console.print("[red]❌ Usage: /fixbug <issue_number_or_description>[/red]")
-            console.print("[dim]Example: /fixbug 123 or /fixbug 'login validation error'[/dim]")
+            console.print(
+                "[dim]Example: /fixbug 123 or /fixbug 'login validation error'[/dim]"
+            )
             return
 
         # Parse issue number or description
@@ -1965,7 +2219,7 @@ Provide specific, actionable feedback with line references where possible."""
             issue_desc = f"issue #{issue_ref}"
         else:
             # Create branch from description
-            branch_name = "fix/" + issue_ref.lower().replace(' ', '-')[:30]
+            branch_name = "fix/" + issue_ref.lower().replace(" ", "-")[:30]
             issue_desc = issue_ref
 
         console.print(f"[cyan]→ Creating bug fix workflow for {issue_desc}...[/cyan]")
@@ -1973,13 +2227,15 @@ Provide specific, actionable feedback with line references where possible."""
         # Create and checkout branch
         try:
             # Check current branch
-            result = subprocess.run(['git', 'branch', '--show-current'],
-                                  capture_output=True, text=True)
+            result = subprocess.run(
+                ["git", "branch", "--show-current"], capture_output=True, text=True
+            )
             current_branch = result.stdout.strip()
 
             # Create new branch
-            subprocess.run(['git', 'checkout', '-b', branch_name],
-                          capture_output=True, check=True)
+            subprocess.run(
+                ["git", "checkout", "-b", branch_name], capture_output=True, check=True
+            )
             console.print(f"[green]✅ Created branch: {branch_name}[/green]")
 
             # Set up debugging checklist
@@ -1991,14 +2247,18 @@ Provide specific, actionable feedback with line references where possible."""
                 "4. Implement fix",
                 "5. Verify test passes",
                 "6. Check for regressions",
-                "7. Update documentation"
+                "7. Update documentation",
             ]
 
             for item in checklist:
                 console.print(f"[dim]□ {item}[/dim]")
 
             # Generate fix suggestions if AI available
-            if llm_service and hasattr(llm_service, 'complete') and not issue_ref.isdigit():
+            if (
+                llm_service
+                and hasattr(llm_service, "complete")
+                and not issue_ref.isdigit()
+            ):
                 prompt = f"""Suggest debugging approach for: {issue_desc}
 
 Provide:
@@ -2012,17 +2272,22 @@ Provide:
                 console.print(response)
             else:
                 console.print("\n[bold]💡 Next Steps:[/bold]")
-                console.print("[dim]1. Search for related code: grep -r 'error_keyword' .[/dim]")
-                console.print("[dim]2. Check recent changes: git log --oneline -10[/dim]")
+                console.print(
+                    "[dim]1. Search for related code: grep -r 'error_keyword' .[/dim]"
+                )
+                console.print(
+                    "[dim]2. Check recent changes: git log --oneline -10[/dim]"
+                )
                 console.print("[dim]3. Run tests: /test[/dim]")
                 console.print("[dim]4. Use /explain for error analysis[/dim]")
 
             # Create bug fix template file
             bug_file = f".casper/bugs/{branch_name}.md"
             from pathlib import Path
+
             Path(".casper/bugs").mkdir(exist_ok=True, parents=True)
 
-            with open(bug_file, 'w') as f:
+            with open(bug_file, "w") as f:
                 f.write(f"""# Bug Fix: {issue_desc}
 
 ## Problem
@@ -2068,7 +2333,11 @@ Provide:
                 for part in parts:
                     if part == "--verbose" or part == "-v":
                         verbose = True
-                    elif part.endswith('.py') or part.endswith('.js') or part.endswith('.ts'):
+                    elif (
+                        part.endswith(".py")
+                        or part.endswith(".js")
+                        or part.endswith(".ts")
+                    ):
                         test_file = part
                     else:
                         test_filter = part
@@ -2080,7 +2349,9 @@ Provide:
             test_type = None
 
             # Check for Python testing
-            if (current_dir / "pytest.ini").exists() or (current_dir / "pyproject.toml").exists():
+            if (current_dir / "pytest.ini").exists() or (
+                current_dir / "pyproject.toml"
+            ).exists():
                 test_type = "pytest"
                 cmd_parts = ["python", "-m", "pytest"]
 
@@ -2099,6 +2370,7 @@ Provide:
             elif (current_dir / "package.json").exists():
                 try:
                     import json
+
                     with open(current_dir / "package.json") as f:
                         pkg = json.load(f)
                         scripts = pkg.get("scripts", {})
@@ -2109,7 +2381,9 @@ Provide:
 
                             # Add arguments if supported
                             if test_filter and "jest" in scripts.get("test", ""):
-                                cmd_parts.extend(["--", "--testNamePattern", test_filter])
+                                cmd_parts.extend(
+                                    ["--", "--testNamePattern", test_filter]
+                                )
                             elif test_file:
                                 cmd_parts.append(test_file)
 
@@ -2141,11 +2415,18 @@ Provide:
                         python_tests = list((current_dir / test_dir).glob("**/*.py"))
                         if python_tests:
                             test_type = "pytest"
-                            test_command = ["python", "-m", "pytest", str(current_dir / test_dir)]
+                            test_command = [
+                                "python",
+                                "-m",
+                                "pytest",
+                                str(current_dir / test_dir),
+                            ]
                             break
 
                         # Try jest for JS/TS files
-                        js_tests = list((current_dir / test_dir).glob("**/*.js")) + list((current_dir / test_dir).glob("**/*.ts"))
+                        js_tests = list(
+                            (current_dir / test_dir).glob("**/*.js")
+                        ) + list((current_dir / test_dir).glob("**/*.ts"))
                         if js_tests:
                             test_type = "jest"
                             test_command = ["npx", "jest", str(current_dir / test_dir)]
@@ -2154,7 +2435,9 @@ Provide:
             if not test_command:
                 console.print("[red]❌ No test framework detected[/red]")
                 console.print("[dim]Supported: pytest, jest, npm test[/dim]")
-                console.print("[dim]Create tests in: tests/, test/, or __tests__ directories[/dim]")
+                console.print(
+                    "[dim]Create tests in: tests/, test/, or __tests__ directories[/dim]"
+                )
                 return
 
             console.print(f"[green]✓[/green] Detected {test_type} testing")
@@ -2162,10 +2445,7 @@ Provide:
 
             # Run the tests
             result = subprocess.run(
-                test_command,
-                capture_output=True,
-                text=True,
-                cwd=current_dir
+                test_command, capture_output=True, text=True, cwd=current_dir
             )
 
             # Display results
@@ -2181,20 +2461,27 @@ Provide:
             if result.returncode == 0:
                 console.print("[green]✅ All tests passed![/green]")
             else:
-                console.print(f"[red]❌ Tests failed (exit code: {result.returncode})[/red]")
+                console.print(
+                    f"[red]❌ Tests failed (exit code: {result.returncode})[/red]"
+                )
 
                 # Offer to run failed tests only for pytest
                 if test_type == "pytest" and not test_filter:
                     from rich.prompt import Confirm
-                    if Confirm.ask("\n[bold]Run only failed tests?[/bold]", default=False):
+
+                    if Confirm.ask(
+                        "\n[bold]Run only failed tests?[/bold]", default=False
+                    ):
                         retry_command = test_command + ["--lf"]  # --lf = last failed
-                        console.print(f"[dim]→ Running: {' '.join(retry_command)}[/dim]")
+                        console.print(
+                            f"[dim]→ Running: {' '.join(retry_command)}[/dim]"
+                        )
 
                         retry_result = subprocess.run(
                             retry_command,
                             capture_output=True,
                             text=True,
-                            cwd=current_dir
+                            cwd=current_dir,
                         )
 
                         if retry_result.stdout:
@@ -2224,7 +2511,9 @@ Provide:
             test_type = None
 
             # Check for Python testing (pytest)
-            if (current_dir / "pytest.ini").exists() or (current_dir / "pyproject.toml").exists():
+            if (current_dir / "pytest.ini").exists() or (
+                current_dir / "pyproject.toml"
+            ).exists():
                 test_type = "pytest"
                 cmd_parts = ["python", "-m", "pytest", "--lf"]  # --lf = last failed
 
@@ -2238,6 +2527,7 @@ Provide:
             elif (current_dir / "package.json").exists():
                 try:
                     import json
+
                     with open(current_dir / "package.json") as f:
                         pkg = json.load(f)
                         scripts = pkg.get("scripts", {})
@@ -2257,7 +2547,9 @@ Provide:
 
                             else:
                                 # Generic npm test - may not support failed tests only
-                                console.print("[yellow]⚠️ Generic npm test detected - may not support running failed tests only[/yellow]")
+                                console.print(
+                                    "[yellow]⚠️ Generic npm test detected - may not support running failed tests only[/yellow]"
+                                )
                                 test_type = "npm"
                                 test_command = ["npm", "test"]
 
@@ -2283,21 +2575,38 @@ Provide:
                         python_tests = list((current_dir / test_dir).glob("**/*.py"))
                         if python_tests:
                             test_type = "pytest"
-                            test_command = ["python", "-m", "pytest", "--lf", str(current_dir / test_dir)]
+                            test_command = [
+                                "python",
+                                "-m",
+                                "pytest",
+                                "--lf",
+                                str(current_dir / test_dir),
+                            ]
                             break
 
                         # Try jest for JS/TS files
-                        js_tests = list((current_dir / test_dir).glob("**/*.js")) + list((current_dir / test_dir).glob("**/*.ts"))
+                        js_tests = list(
+                            (current_dir / test_dir).glob("**/*.js")
+                        ) + list((current_dir / test_dir).glob("**/*.ts"))
                         if js_tests:
                             test_type = "jest"
-                            test_command = ["npx", "jest", "--onlyFailures", str(current_dir / test_dir)]
+                            test_command = [
+                                "npx",
+                                "jest",
+                                "--onlyFailures",
+                                str(current_dir / test_dir),
+                            ]
                             break
 
             if not test_command:
                 console.print("[red]❌ No supported test framework detected[/red]")
                 console.print("[dim]Supported frameworks:[/dim]")
-                console.print("[dim]  • pytest (Python) - detects pytest.ini or pyproject.toml[/dim]")
-                console.print("[dim]  • Jest (JavaScript/TypeScript) - detects jest.config.js or package.json[/dim]")
+                console.print(
+                    "[dim]  • pytest (Python) - detects pytest.ini or pyproject.toml[/dim]"
+                )
+                console.print(
+                    "[dim]  • Jest (JavaScript/TypeScript) - detects jest.config.js or package.json[/dim]"
+                )
                 console.print("\n[cyan]💡 Alternatives:[/cyan]")
                 console.print("[cyan]  • pytest --lf (manually)[/cyan]")
                 console.print("[cyan]  • npx jest --onlyFailures (manually)[/cyan]")
@@ -2308,10 +2617,7 @@ Provide:
 
             # Run the failed tests
             result = subprocess.run(
-                test_command,
-                capture_output=True,
-                text=True,
-                cwd=current_dir
+                test_command, capture_output=True, text=True, cwd=current_dir
             )
 
             # Display results
@@ -2325,17 +2631,24 @@ Provide:
 
             # Show summary
             if result.returncode == 0:
-                if "no tests ran" in result.stdout.lower() or "no failures" in result.stdout.lower():
+                if (
+                    "no tests ran" in result.stdout.lower()
+                    or "no failures" in result.stdout.lower()
+                ):
                     console.print("[green]✅ No failed tests to rerun![/green]")
                     console.print("[dim]All tests passed in the last run[/dim]")
                 else:
                     console.print("[green]✅ Failed tests now passing![/green]")
             else:
-                console.print(f"[red]❌ Some tests still failing (exit code: {result.returncode})[/red]")
+                console.print(
+                    f"[red]❌ Some tests still failing (exit code: {result.returncode})[/red]"
+                )
 
                 # Offer to explain errors if there are any
                 if "FAILED" in result.stdout or "Error" in result.stderr:
-                    console.print("\n[dim]💡 Use '/explain <error_message>' to get help with specific test failures[/dim]")
+                    console.print(
+                        "\n[dim]💡 Use '/explain <error_message>' to get help with specific test failures[/dim]"
+                    )
 
         except subprocess.CalledProcessError as e:
             console.print(f"[red]❌ Command failed: {e}[/red]")
@@ -2358,6 +2671,7 @@ Provide:
         try:
             # Check if this is a file path
             from pathlib import Path
+
             potential_file = Path(query)
 
             if potential_file.exists() and potential_file.is_file():
@@ -2374,19 +2688,21 @@ Provide:
 
         try:
             # Read file content
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             # Determine file type and suggest debugging approach
             file_ext = file_path.suffix.lower()
 
-            console.print(f"\n[bold green]🔍 Debug Setup for {file_path.name}[/bold green]")
+            console.print(
+                f"\n[bold green]🔍 Debug Setup for {file_path.name}[/bold green]"
+            )
 
-            if file_ext == '.py':
+            if file_ext == ".py":
                 await self._debug_python_file(file_path, content)
-            elif file_ext in ['.js', '.ts', '.jsx', '.tsx']:
+            elif file_ext in [".js", ".ts", ".jsx", ".tsx"]:
                 await self._debug_javascript_file(file_path, content)
-            elif file_ext in ['.java']:
+            elif file_ext in [".java"]:
                 await self._debug_java_file(file_path, content)
             else:
                 await self._debug_generic_file(file_path, content)
@@ -2399,26 +2715,46 @@ Provide:
         console.print("[bold cyan]Python Debugging Strategy:[/bold cyan]")
 
         # Analyze for common patterns
-        lines = content.split('\n')
-        functions = [i+1 for i, line in enumerate(lines) if line.strip().startswith('def ') and not line.strip().startswith('def _')]
-        classes = [i+1 for i, line in enumerate(lines) if line.strip().startswith('class ')]
+        lines = content.split("\n")
+        functions = [
+            i + 1
+            for i, line in enumerate(lines)
+            if line.strip().startswith("def ") and not line.strip().startswith("def _")
+        ]
+        classes = [
+            i + 1 for i, line in enumerate(lines) if line.strip().startswith("class ")
+        ]
 
         # Suggest breakpoint locations
         if functions:
-            console.print(f"[bright_white]📍 Suggested breakpoints (functions):[/bright_white]")
+            console.print(
+                f"[bright_white]📍 Suggested breakpoints (functions):[/bright_white]"
+            )
             for line_num in functions[:5]:  # Show first 5
-                func_name = lines[line_num-1].strip().split('(')[0].replace('def ', '')
+                func_name = (
+                    lines[line_num - 1].strip().split("(")[0].replace("def ", "")
+                )
                 console.print(f"  • Line {line_num}: {func_name}")
 
         if classes:
             console.print(f"[bright_white]📍 Class definitions:[/bright_white]")
             for line_num in classes[:3]:  # Show first 3
-                class_name = lines[line_num-1].strip().split('(')[0].replace('class ', '').rstrip(':')
+                class_name = (
+                    lines[line_num - 1]
+                    .strip()
+                    .split("(")[0]
+                    .replace("class ", "")
+                    .rstrip(":")
+                )
                 console.print(f"  • Line {line_num}: {class_name}")
 
         console.print(f"\n[bright_white]🛠️ Debug Commands:[/bright_white]")
-        console.print(f"  • [green]python -m pdb {file_path}[/green] (Built-in debugger)")
-        console.print(f"  • [green]python -c \"import pdb; pdb.set_trace(); exec(open('{file_path}').read())\"[/green]")
+        console.print(
+            f"  • [green]python -m pdb {file_path}[/green] (Built-in debugger)"
+        )
+        console.print(
+            f"  • [green]python -c \"import pdb; pdb.set_trace(); exec(open('{file_path}').read())\"[/green]"
+        )
 
         # VSCode/IDE specific
         console.print(f"\n[bright_white]🎯 IDE Integration:[/bright_white]")
@@ -2427,7 +2763,7 @@ Provide:
         console.print(f"  • Set up launch.json for complex debugging")
 
         # Error patterns
-        if 'import' in content:
+        if "import" in content:
             console.print(f"\n[bright_white]🔍 Check for:[/bright_white]")
             console.print(f"  • Import errors (missing modules)")
             console.print(f"  • Circular imports")
@@ -2437,17 +2773,26 @@ Provide:
         """JavaScript/TypeScript-specific debugging setup."""
         console.print("[bold cyan]JavaScript/Node.js Debugging Strategy:[/bold cyan]")
 
-        lines = content.split('\n')
-        functions = [i+1 for i, line in enumerate(lines)
-                    if ('function ' in line or '=>' in line) and line.strip() and not line.strip().startswith('//')]
+        lines = content.split("\n")
+        functions = [
+            i + 1
+            for i, line in enumerate(lines)
+            if ("function " in line or "=>" in line)
+            and line.strip()
+            and not line.strip().startswith("//")
+        ]
 
         if functions:
             console.print(f"[bright_white]📍 Suggested breakpoints:[/bright_white]")
             for line_num in functions[:5]:
-                console.print(f"  • Line {line_num}: {lines[line_num-1].strip()[:50]}...")
+                console.print(
+                    f"  • Line {line_num}: {lines[line_num-1].strip()[:50]}..."
+                )
 
         console.print(f"\n[bright_white]🛠️ Debug Commands:[/bright_white]")
-        console.print(f"  • [green]node --inspect-brk {file_path}[/green] (Node.js debugger)")
+        console.print(
+            f"  • [green]node --inspect-brk {file_path}[/green] (Node.js debugger)"
+        )
         console.print(f"  • [green]chrome://inspect[/green] (Chrome DevTools)")
 
         console.print(f"\n[bright_white]💡 Debug Tips:[/bright_white]")
@@ -2461,7 +2806,9 @@ Provide:
 
         console.print(f"[bright_white]🛠️ Debug Commands:[/bright_white]")
         console.print(f"  • Compile: [green]javac {file_path}[/green]")
-        console.print(f"  • Debug: [green]java -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005 ClassName[/green]")
+        console.print(
+            f"  • Debug: [green]java -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005 ClassName[/green]"
+        )
 
         console.print(f"\n[bright_white]🎯 IDE Integration:[/bright_white]")
         console.print(f"  • Use IntelliJ IDEA or Eclipse debugger")
@@ -2475,7 +2822,7 @@ Provide:
         console.print(f"[bright_white]🔍 Analysis:[/bright_white]")
         console.print(f"  • File type: {file_path.suffix}")
         console.print(f"  • Size: {len(content)} characters")
-        lines_count = len(content.split('\n'))
+        lines_count = len(content.split("\n"))
         console.print(f"  • Lines: {lines_count}")
 
         console.print(f"\n[bright_white]💡 Suggestions:[/bright_white]")
@@ -2491,17 +2838,26 @@ Provide:
         # Categorize the issue
         issue_lower = issue_description.lower()
 
-        console.print(f"\n[bold green]🎯 Debug Strategy for: {issue_description}[/bold green]")
+        console.print(
+            f"\n[bold green]🎯 Debug Strategy for: {issue_description}[/bold green]"
+        )
 
-        if any(word in issue_lower for word in ['login', 'auth', 'authentication', 'password']):
-            console.print("[bright_white]🔐 Authentication Issue Debug Plan:[/bright_white]")
+        if any(
+            word in issue_lower
+            for word in ["login", "auth", "authentication", "password"]
+        ):
+            console.print(
+                "[bright_white]🔐 Authentication Issue Debug Plan:[/bright_white]"
+            )
             console.print("  1. Check user credentials and validation")
             console.print("  2. Verify session management")
             console.print("  3. Test API endpoints with tools like Postman")
             console.print("  4. Review authentication middleware")
             console.print("  5. Check database user records")
 
-        elif any(word in issue_lower for word in ['database', 'sql', 'query', 'connection']):
+        elif any(
+            word in issue_lower for word in ["database", "sql", "query", "connection"]
+        ):
             console.print("[bright_white]🗄️ Database Issue Debug Plan:[/bright_white]")
             console.print("  1. Test database connection")
             console.print("  2. Review SQL queries and syntax")
@@ -2509,7 +2865,9 @@ Provide:
             console.print("  4. Verify table schema and relationships")
             console.print("  5. Test with simple queries first")
 
-        elif any(word in issue_lower for word in ['api', 'request', 'response', 'http']):
+        elif any(
+            word in issue_lower for word in ["api", "request", "response", "http"]
+        ):
             console.print("[bright_white]🌐 API Issue Debug Plan:[/bright_white]")
             console.print("  1. Test API endpoints manually")
             console.print("  2. Check request/response formats")
@@ -2517,7 +2875,9 @@ Provide:
             console.print("  4. Review API documentation")
             console.print("  5. Check CORS and headers")
 
-        elif any(word in issue_lower for word in ['ui', 'interface', 'frontend', 'display']):
+        elif any(
+            word in issue_lower for word in ["ui", "interface", "frontend", "display"]
+        ):
             console.print("[bright_white]🎨 UI Issue Debug Plan:[/bright_white]")
             console.print("  1. Inspect element in browser dev tools")
             console.print("  2. Check CSS styles and conflicts")
@@ -2551,9 +2911,13 @@ Provide:
     async def _cmd_explain(self, args: str):
         """Explain error or code concept."""
         if not args.strip():
-            console.print("[red]❌ Usage: /explain <error_message_or_code_concept>[/red]")
+            console.print(
+                "[red]❌ Usage: /explain <error_message_or_code_concept>[/red]"
+            )
             console.print("[dim]Examples:[/dim]")
-            console.print("[dim]  /explain ImportError: No module named 'requests'[/dim]")
+            console.print(
+                "[dim]  /explain ImportError: No module named 'requests'[/dim]"
+            )
             console.print("[dim]  /explain async/await in Python[/dim]")
             console.print("[dim]  /explain 404 error[/dim]")
             return
@@ -2561,12 +2925,27 @@ Provide:
         query = args.strip()
 
         # Check if this is an error message or code concept
-        is_error = any(error_type in query.lower() for error_type in [
-            'error', 'exception', 'traceback', 'failed', 'cannot', 'unable',
-            '404', '500', '403', '401', 'timeout', 'refused'
-        ])
+        is_error = any(
+            error_type in query.lower()
+            for error_type in [
+                "error",
+                "exception",
+                "traceback",
+                "failed",
+                "cannot",
+                "unable",
+                "404",
+                "500",
+                "403",
+                "401",
+                "timeout",
+                "refused",
+            ]
+        )
 
-        console.print(f"[dim]→ {'Analyzing error' if is_error else 'Explaining concept'}: {query[:60]}{'...' if len(query) > 60 else ''}[/dim]")
+        console.print(
+            f"[dim]→ {'Analyzing error' if is_error else 'Explaining concept'}: {query[:60]}{'...' if len(query) > 60 else ''}[/dim]"
+        )
 
         try:
             from core.services.llm import llm_service
@@ -2611,7 +2990,9 @@ Format your response clearly with sections and examples.
 
             explanation = await llm_service.complete(prompt)
 
-            console.print(f"\n[bold cyan]{'🔍 Error Analysis' if is_error else '📚 Concept Explanation'}[/bold cyan]")
+            console.print(
+                f"\n[bold cyan]{'🔍 Error Analysis' if is_error else '📚 Concept Explanation'}[/bold cyan]"
+            )
             console.print(Panel(explanation, border_style="cyan", padding=(1, 2)))
 
         except Exception as e:
@@ -2626,29 +3007,33 @@ Format your response clearly with sections and examples.
             console.print(f"\n[bold red]🔍 Error Analysis[/bold red]")
 
             # Common error patterns
-            if 'importerror' in query_lower or 'no module named' in query_lower:
-                console.print("[bright_white]Issue:[/bright_white] Missing Python package")
+            if "importerror" in query_lower or "no module named" in query_lower:
+                console.print(
+                    "[bright_white]Issue:[/bright_white] Missing Python package"
+                )
                 console.print("[bright_white]Solutions:[/bright_white]")
                 console.print("  • [green]pip install <package_name>[/green]")
                 console.print("  • [green]conda install <package_name>[/green]")
                 console.print("  • Check if package name is spelled correctly")
                 console.print("  • Ensure you're in the right virtual environment")
 
-            elif 'syntaxerror' in query_lower:
-                console.print("[bright_white]Issue:[/bright_white] Code syntax is incorrect")
+            elif "syntaxerror" in query_lower:
+                console.print(
+                    "[bright_white]Issue:[/bright_white] Code syntax is incorrect"
+                )
                 console.print("[bright_white]Solutions:[/bright_white]")
                 console.print("  • Check for missing colons, parentheses, or brackets")
                 console.print("  • Verify proper indentation")
                 console.print("  • Look for unclosed quotes or strings")
 
-            elif '404' in query_lower:
+            elif "404" in query_lower:
                 console.print("[bright_white]Issue:[/bright_white] Resource not found")
                 console.print("[bright_white]Solutions:[/bright_white]")
                 console.print("  • Check URL spelling and path")
                 console.print("  • Verify the resource exists")
                 console.print("  • Check server configuration")
 
-            elif 'permission' in query_lower or '403' in query_lower:
+            elif "permission" in query_lower or "403" in query_lower:
                 console.print("[bright_white]Issue:[/bright_white] Access denied")
                 console.print("[bright_white]Solutions:[/bright_white]")
                 console.print("  • Check file/directory permissions")
@@ -2667,15 +3052,19 @@ Format your response clearly with sections and examples.
             console.print(f"\n[bold cyan]📚 Concept: {query}[/bold cyan]")
 
             # Common concept explanations
-            if 'async' in query_lower or 'await' in query_lower:
-                console.print("[bright_white]Async/Await:[/bright_white] Asynchronous programming pattern")
+            if "async" in query_lower or "await" in query_lower:
+                console.print(
+                    "[bright_white]Async/Await:[/bright_white] Asynchronous programming pattern"
+                )
                 console.print("  • Allows non-blocking operations")
                 console.print("  • Use 'async def' to define async functions")
                 console.print("  • Use 'await' to wait for async operations")
                 console.print("  • Improves performance for I/O operations")
 
-            elif 'git' in query_lower:
-                console.print("[bright_white]Git:[/bright_white] Version control system")
+            elif "git" in query_lower:
+                console.print(
+                    "[bright_white]Git:[/bright_white] Version control system"
+                )
                 console.print("  • Tracks changes in files over time")
                 console.print("  • Enables collaboration between developers")
                 console.print("  • Key commands: add, commit, push, pull, merge")
@@ -2686,7 +3075,9 @@ Format your response clearly with sections and examples.
                 console.print(f"  • Official tutorials")
                 console.print(f"  • Community forums")
 
-        console.print(f"\n[dim]💡 For more detailed AI-powered explanations, ensure LLM service is configured[/dim]")
+        console.print(
+            f"\n[dim]💡 For more detailed AI-powered explanations, ensure LLM service is configured[/dim]"
+        )
 
     async def _cmd_todo(self, args: str):
         """Add task to project todo list."""
@@ -2718,7 +3109,9 @@ Format your response clearly with sections and examples.
 
         todo_file = Path.cwd() / ".casper" / "todos.json"
         if not todo_file.exists():
-            console.print("[yellow]📝 No todos yet. Add one with: /todo <description>[/yellow]")
+            console.print(
+                "[yellow]📝 No todos yet. Add one with: /todo <description>[/yellow]"
+            )
             return
 
         try:
@@ -2741,16 +3134,20 @@ Format your response clearly with sections and examples.
                 status = "✅ Done" if todo.get("completed", False) else "📝 Todo"
                 status_style = "green" if todo.get("completed", False) else "yellow"
 
-                created = datetime.fromisoformat(todo["created_at"]).strftime("%m/%d %H:%M")
+                created = datetime.fromisoformat(todo["created_at"]).strftime(
+                    "%m/%d %H:%M"
+                )
                 table.add_row(
                     str(i),
                     f"[{status_style}]{status}[/{status_style}]",
                     todo["description"],
-                    created
+                    created,
                 )
 
             console.print(table)
-            console.print("\n[dim]Commands: /todo <new_task> | /todo done <#> | /todo remove <#>[/dim]")
+            console.print(
+                "\n[dim]Commands: /todo <new_task> | /todo done <#> | /todo remove <#>[/dim]"
+            )
 
         except Exception as e:
             console.print(f"[red]❌ Error reading todos: {str(e)}[/red]")
@@ -2778,12 +3175,12 @@ Format your response clearly with sections and examples.
             "description": description,
             "created_at": datetime.now().isoformat(),
             "completed": False,
-            "completed_at": None
+            "completed_at": None,
         }
         todos.append(new_todo)
 
         # Save
-        with open(todo_file, 'w') as f:
+        with open(todo_file, "w") as f:
             json.dump(todos, f, indent=2)
 
         console.print(f"[green]✅ Added todo: {description}[/green]")
@@ -2811,7 +3208,7 @@ Format your response clearly with sections and examples.
             todo["completed"] = True
             todo["completed_at"] = datetime.now().isoformat()
 
-            with open(todo_file, 'w') as f:
+            with open(todo_file, "w") as f:
                 json.dump(todos, f, indent=2)
 
             console.print(f"[green]✅ Completed: {todo['description']}[/green]")
@@ -2839,7 +3236,7 @@ Format your response clearly with sections and examples.
 
             removed_todo = todos.pop(todo_number - 1)
 
-            with open(todo_file, 'w') as f:
+            with open(todo_file, "w") as f:
                 json.dump(todos, f, indent=2)
 
             console.print(f"[green]✅ Removed: {removed_todo['description']}[/green]")
@@ -2860,37 +3257,48 @@ Format your response clearly with sections and examples.
 
         # Get recent commits
         commit_result = subprocess.run(
-            ['git', 'log', f'--since={since}', '--oneline', '--author-date-order'],
-            capture_output=True, text=True
+            ["git", "log", f"--since={since}", "--oneline", "--author-date-order"],
+            capture_output=True,
+            text=True,
         )
-        commits = commit_result.stdout.strip().split('\n') if commit_result.stdout else []
+        commits = (
+            commit_result.stdout.strip().split("\n") if commit_result.stdout else []
+        )
 
         # Get current branch
         branch_result = subprocess.run(
-            ['git', 'branch', '--show-current'],
-            capture_output=True, text=True
+            ["git", "branch", "--show-current"], capture_output=True, text=True
         )
         current_branch = branch_result.stdout.strip()
 
         # Get modified files
         status_result = subprocess.run(
-            ['git', 'status', '--porcelain'],
-            capture_output=True, text=True
+            ["git", "status", "--porcelain"], capture_output=True, text=True
         )
-        modified_files = len(status_result.stdout.strip().split('\n')) if status_result.stdout.strip() else 0
+        modified_files = (
+            len(status_result.stdout.strip().split("\n"))
+            if status_result.stdout.strip()
+            else 0
+        )
 
         # Check for todos
         todo_file = Path(".casper/todos.json")
         todos_summary = "No todos"
         if todo_file.exists():
             import json
+
             try:
                 with open(todo_file) as f:
                     todos = json.load(f)
-                    pending = [t for t in todos if t['status'] == 'pending']
-                    completed_today = [t for t in todos if t['status'] == 'completed'
-                                      and 'completed_at' in t
-                                      and datetime.fromisoformat(t['completed_at']).date() == datetime.now().date()]
+                    pending = [t for t in todos if t["status"] == "pending"]
+                    completed_today = [
+                        t
+                        for t in todos
+                        if t["status"] == "completed"
+                        and "completed_at" in t
+                        and datetime.fromisoformat(t["completed_at"]).date()
+                        == datetime.now().date()
+                    ]
                     todos_summary = f"{len(pending)} pending, {len(completed_today)} completed today"
             except:
                 pass
@@ -2915,8 +3323,7 @@ Format your response clearly with sections and examples.
 
         # Check for merge conflicts
         conflict_check = subprocess.run(
-            ['git', 'diff', '--check'],
-            capture_output=True, text=True
+            ["git", "diff", "--check"], capture_output=True, text=True
         )
         if conflict_check.returncode != 0:
             console.print("  • [red]Merge conflicts detected[/red]")
@@ -2928,11 +3335,10 @@ Format your response clearly with sections and examples.
 
         # Lines changed
         diff_stat = subprocess.run(
-            ['git', 'diff', '--stat'],
-            capture_output=True, text=True
+            ["git", "diff", "--stat"], capture_output=True, text=True
         )
         if diff_stat.stdout:
-            lines = diff_stat.stdout.strip().split('\n')[-1]
+            lines = diff_stat.stdout.strip().split("\n")[-1]
             console.print(f"  • Uncommitted changes: {lines}")
 
         # Test status hint
@@ -2961,8 +3367,7 @@ Format your response clearly with sections and examples.
 
         # Check for uncommitted changes
         status_result = subprocess.run(
-            ['git', 'status', '--porcelain'],
-            capture_output=True, text=True
+            ["git", "status", "--porcelain"], capture_output=True, text=True
         )
         if status_result.stdout.strip():
             console.print("[red]❌ Uncommitted changes detected[/red]")
@@ -2972,13 +3377,14 @@ Format your response clearly with sections and examples.
 
         # Check current branch
         branch_result = subprocess.run(
-            ['git', 'branch', '--show-current'],
-            capture_output=True, text=True
+            ["git", "branch", "--show-current"], capture_output=True, text=True
         )
         current_branch = branch_result.stdout.strip()
 
-        if environment == 'production' and current_branch != 'main':
-            console.print(f"[yellow]⚠️ Not on main branch (current: {current_branch})[/yellow]")
+        if environment == "production" and current_branch != "main":
+            console.print(
+                f"[yellow]⚠️ Not on main branch (current: {current_branch})[/yellow]"
+            )
             checks_passed = False
         else:
             console.print(f"[green]✅ On branch: {current_branch}[/green]")
@@ -2989,11 +3395,11 @@ Format your response clearly with sections and examples.
 
         if Path("package.json").exists():
             # Node.js project
-            result = subprocess.run(['npm', 'test'], capture_output=True)
+            result = subprocess.run(["npm", "test"], capture_output=True)
             test_passed = result.returncode == 0
         elif Path("pytest.ini").exists() or Path("pyproject.toml").exists():
             # Python project
-            result = subprocess.run(['python', '-m', 'pytest'], capture_output=True)
+            result = subprocess.run(["python", "-m", "pytest"], capture_output=True)
             test_passed = result.returncode == 0
 
         if test_passed:
@@ -3024,18 +3430,24 @@ Format your response clearly with sections and examples.
         # Heroku deployment
         elif Path("Procfile").exists():
             console.print("[cyan]Heroku deployment detected[/cyan]")
-            console.print(f"[dim]Deploy: git push heroku-{environment} {current_branch}:main[/dim]")
+            console.print(
+                f"[dim]Deploy: git push heroku-{environment} {current_branch}:main[/dim]"
+            )
             deployed = True
 
         # Vercel/Netlify deployment
         elif Path("vercel.json").exists() or Path("netlify.toml").exists():
             console.print("[cyan]Serverless deployment detected[/cyan]")
-            console.print(f"[dim]Deploy: vercel --prod (or netlify deploy --prod)[/dim]")
+            console.print(
+                f"[dim]Deploy: vercel --prod (or netlify deploy --prod)[/dim]"
+            )
             deployed = True
 
         # Generic deployment
         if not deployed:
-            console.print("[yellow]⚠️ No standard deployment configuration found[/yellow]")
+            console.print(
+                "[yellow]⚠️ No standard deployment configuration found[/yellow]"
+            )
             console.print("\n[bold]Generic Deployment Steps:[/bold]")
             console.print("1. Build the application")
             console.print("2. Run integration tests")
@@ -3048,7 +3460,7 @@ Format your response clearly with sections and examples.
         deploy_log = f".casper/deployments/{environment}-{datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
         Path(".casper/deployments").mkdir(exist_ok=True, parents=True)
 
-        with open(deploy_log, 'w') as f:
+        with open(deploy_log, "w") as f:
             f.write(f"""Deployment Log
 Environment: {environment}
 Branch: {current_branch}
@@ -3057,7 +3469,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
 """)
 
         console.print(f"\n[green]✅ Deployment log: {deploy_log}[/green]")
-        console.print("[dim]Complete deployment using your platform's commands above[/dim]")
+        console.print(
+            "[dim]Complete deployment using your platform's commands above[/dim]"
+        )
 
     async def _cmd_sync(self, args: str):
         """Sync with remote repository and update dependencies."""
@@ -3076,25 +3490,33 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         try:
             # 1. Check if we're in a git repository
             try:
-                subprocess.run(['git', 'status'], check=True, capture_output=True)
+                subprocess.run(["git", "status"], check=True, capture_output=True)
             except subprocess.CalledProcessError:
                 console.print("[red]❌ Not in a git repository[/red]")
                 return
 
             # 2. Check for uncommitted changes
-            status_result = subprocess.run(['git', 'status', '--porcelain'],
-                                        capture_output=True, text=True, check=True)
+            status_result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
 
             if status_result.stdout.strip() and not force:
                 console.print("[yellow]⚠️ You have uncommitted changes:[/yellow]")
-                for line in status_result.stdout.strip().split('\n'):
+                for line in status_result.stdout.strip().split("\n"):
                     console.print(f"  {line}")
-                console.print("[dim]Use '--force' to sync anyway, or commit changes first[/dim]")
+                console.print(
+                    "[dim]Use '--force' to sync anyway, or commit changes first[/dim]"
+                )
                 return
 
             # 3. Fetch latest changes
             console.print("[dim]→ Fetching latest changes...[/dim]")
-            fetch_result = subprocess.run(['git', 'fetch'], capture_output=True, text=True)
+            fetch_result = subprocess.run(
+                ["git", "fetch"], capture_output=True, text=True
+            )
 
             if fetch_result.returncode != 0:
                 console.print(f"[red]❌ Git fetch failed: {fetch_result.stderr}[/red]")
@@ -3102,19 +3524,26 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
 
             # 4. Check if we're behind
             behind_result = subprocess.run(
-                ['git', 'rev-list', '--count', 'HEAD..@{u}'],
-                capture_output=True, text=True
+                ["git", "rev-list", "--count", "HEAD..@{u}"],
+                capture_output=True,
+                text=True,
             )
 
             if behind_result.returncode == 0 and behind_result.stdout.strip():
                 commits_behind = int(behind_result.stdout.strip())
                 if commits_behind > 0:
-                    console.print(f"[dim]→ {commits_behind} commits behind. Pulling changes...[/dim]")
+                    console.print(
+                        f"[dim]→ {commits_behind} commits behind. Pulling changes...[/dim]"
+                    )
 
-                    pull_result = subprocess.run(['git', 'pull'], capture_output=True, text=True)
+                    pull_result = subprocess.run(
+                        ["git", "pull"], capture_output=True, text=True
+                    )
 
                     if pull_result.returncode != 0:
-                        console.print(f"[red]❌ Git pull failed: {pull_result.stderr}[/red]")
+                        console.print(
+                            f"[red]❌ Git pull failed: {pull_result.stderr}[/red]"
+                        )
                         return
 
                     if verbose and pull_result.stdout:
@@ -3132,21 +3561,28 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
                 if (current_dir / "requirements.txt").exists():
                     console.print("[dim]→ Updating Python dependencies...[/dim]")
                     pip_result = subprocess.run(
-                        ['pip', 'install', '-r', 'requirements.txt', '--upgrade'],
-                        capture_output=True, text=True
+                        ["pip", "install", "-r", "requirements.txt", "--upgrade"],
+                        capture_output=True,
+                        text=True,
                     )
                     if pip_result.returncode == 0:
                         console.print("[green]✅ Python dependencies updated[/green]")
                     else:
-                        console.print(f"[yellow]⚠️ Python deps warning: {pip_result.stderr[:100]}[/yellow]")
+                        console.print(
+                            f"[yellow]⚠️ Python deps warning: {pip_result.stderr[:100]}[/yellow]"
+                        )
 
                 elif (current_dir / "pyproject.toml").exists():
                     console.print("[dim]→ Updating Poetry dependencies...[/dim]")
-                    poetry_result = subprocess.run(['poetry', 'install'], capture_output=True, text=True)
+                    poetry_result = subprocess.run(
+                        ["poetry", "install"], capture_output=True, text=True
+                    )
                     if poetry_result.returncode == 0:
                         console.print("[green]✅ Poetry dependencies updated[/green]")
                     else:
-                        console.print(f"[yellow]⚠️ Poetry warning: {poetry_result.stderr[:100]}[/yellow]")
+                        console.print(
+                            f"[yellow]⚠️ Poetry warning: {poetry_result.stderr[:100]}[/yellow]"
+                        )
 
                 # Node.js dependencies
                 if (current_dir / "package.json").exists():
@@ -3154,24 +3590,35 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
 
                     # Try yarn first, then npm
                     if (current_dir / "yarn.lock").exists():
-                        npm_result = subprocess.run(['yarn', 'install'], capture_output=True, text=True)
+                        npm_result = subprocess.run(
+                            ["yarn", "install"], capture_output=True, text=True
+                        )
                         pkg_manager = "Yarn"
                     else:
-                        npm_result = subprocess.run(['npm', 'install'], capture_output=True, text=True)
+                        npm_result = subprocess.run(
+                            ["npm", "install"], capture_output=True, text=True
+                        )
                         pkg_manager = "npm"
 
                     if npm_result.returncode == 0:
-                        console.print(f"[green]✅ {pkg_manager} dependencies updated[/green]")
+                        console.print(
+                            f"[green]✅ {pkg_manager} dependencies updated[/green]"
+                        )
                     else:
-                        console.print(f"[yellow]⚠️ {pkg_manager} warning: {npm_result.stderr[:100]}[/yellow]")
+                        console.print(
+                            f"[yellow]⚠️ {pkg_manager} warning: {npm_result.stderr[:100]}[/yellow]"
+                        )
 
                 # 6. Check for migrations (if applicable)
-                migration_files = list(current_dir.glob("**/migrations/*.py")) + \
-                                list(current_dir.glob("**/migrate/*.sql"))
+                migration_files = list(current_dir.glob("**/migrations/*.py")) + list(
+                    current_dir.glob("**/migrate/*.sql")
+                )
 
                 if migration_files:
                     console.print("[dim]→ Migration files detected[/dim]")
-                    console.print("[yellow]💡 You may want to run database migrations[/yellow]")
+                    console.print(
+                        "[yellow]💡 You may want to run database migrations[/yellow]"
+                    )
 
                     # Try to detect migration command
                     if (current_dir / "manage.py").exists():
@@ -3202,7 +3649,7 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
             personalization_manager.show_custom_commands()
             return
 
-        parts = args.split(' ', 1)
+        parts = args.split(" ", 1)
         action = parts[0].lower()
 
         if action == "list":
@@ -3213,7 +3660,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
             name = Prompt.ask("Custom command name (without #)")
             description = Prompt.ask("Description")
 
-            console.print("\n[dim]Enter slash commands to execute (one per line, empty line to finish):[/dim]")
+            console.print(
+                "\n[dim]Enter slash commands to execute (one per line, empty line to finish):[/dim]"
+            )
             commands = []
             while True:
                 cmd = Prompt.ask(f"Command {len(commands) + 1}", default="")
@@ -3228,14 +3677,18 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
             # Ask for parameters
             params = []
             if Confirm.ask("Does this command need parameters?"):
-                console.print("[dim]Enter parameter names (like NAME, TYPE, PATH):[/dim]")
+                console.print(
+                    "[dim]Enter parameter names (like NAME, TYPE, PATH):[/dim]"
+                )
                 while True:
                     param = Prompt.ask(f"Parameter {len(params) + 1}", default="")
                     if not param:
                         break
                     params.append(param.upper())
 
-            personalization_manager.create_custom_command(name, description, commands, params)
+            personalization_manager.create_custom_command(
+                name, description, commands, params
+            )
 
         elif action == "delete":
             if len(parts) < 2:
@@ -3264,7 +3717,7 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
                 console.print("[dim]Add with: /favorite add <command>[/dim]")
             return
 
-        parts = args.split(' ', 1)
+        parts = args.split(" ", 1)
         if len(parts) < 2:
             console.print("[red]❌ Usage: /favorite [add|remove] <command>[/red]")
             return
@@ -3284,20 +3737,26 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         if not args:
             # Show current theme info
             console.print("[yellow]🚧 Theme system - Coming soon![/yellow]")
-            console.print("[dim]Available themes: default, dark, minimal, hacker, corporate[/dim]")
+            console.print(
+                "[dim]Available themes: default, dark, minimal, hacker, corporate[/dim]"
+            )
             return
 
-        parts = args.split(' ', 1)
+        parts = args.split(" ", 1)
         action = parts[0].lower()
 
         if action == "list":
             console.print("\n[bold cyan]Available Themes:[/bold cyan]")
             for theme_name, theme in personalization_manager.themes.items():
-                console.print(f"  • [bold]{theme_name}[/bold] - {theme.primary_color}/{theme.secondary_color}")
+                console.print(
+                    f"  • [bold]{theme_name}[/bold] - {theme.primary_color}/{theme.secondary_color}"
+                )
 
         elif action == "set" and len(parts) > 1:
             theme_name = parts[1].strip()
-            console.print(f"[yellow]🚧 Setting theme to '{theme_name}' - Coming soon![/yellow]")
+            console.print(
+                f"[yellow]🚧 Setting theme to '{theme_name}' - Coming soon![/yellow]"
+            )
 
         else:
             console.print("[red]❌ Usage: /theme [list|set <theme_name>][/red]")
@@ -3310,13 +3769,17 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
             if profiles:
                 console.print("\n[bold cyan]Project Profiles:[/bold cyan]")
                 for name, profile in profiles.items():
-                    console.print(f"  • [bold]{name}[/bold] ({profile.type}) - {profile.ai_provider}")
+                    console.print(
+                        f"  • [bold]{name}[/bold] ({profile.type}) - {profile.ai_provider}"
+                    )
             else:
                 console.print("[yellow]No project profiles defined[/yellow]")
-                console.print("[dim]Create one with: /profile create <name> <type>[/dim]")
+                console.print(
+                    "[dim]Create one with: /profile create <name> <type>[/dim]"
+                )
             return
 
-        parts = args.split(' ')
+        parts = args.split(" ")
         action = parts[0].lower()
 
         if action == "list":
@@ -3329,11 +3792,14 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
 
         elif action == "use" and len(parts) >= 2:
             profile_name = parts[1]
-            console.print(f"[yellow]🚧 Using profile '{profile_name}' - Coming soon![/yellow]")
+            console.print(
+                f"[yellow]🚧 Using profile '{profile_name}' - Coming soon![/yellow]"
+            )
 
         else:
-            console.print("[red]❌ Usage: /profile [list|create <name> <type>|use <name>][/red]")
-
+            console.print(
+                "[red]❌ Usage: /profile [list|create <name> <type>|use <name>][/red]"
+            )
 
     # === CONTEXT & PROJECT MANAGEMENT IMPLEMENTATIONS ===
 
@@ -3362,7 +3828,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
             await context_manager.list_contexts()
 
         else:
-            console.print("[red]❌ Usage: /context [save|restore|list] [context_name][/red]")
+            console.print(
+                "[red]❌ Usage: /context [save|restore|list] [context_name][/red]"
+            )
 
     async def _cmd_switch(self, args: str):
         """Smart project switching with context preservation."""
@@ -3370,7 +3838,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         from pathlib import Path
 
         if not args.strip():
-            console.print("[red]❌ Usage: /switch <project_name> [--save-current][/red]")
+            console.print(
+                "[red]❌ Usage: /switch <project_name> [--save-current][/red]"
+            )
             return
 
         parts = args.strip().split()
@@ -3448,7 +3918,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
             await env_manager.sync_environments()
 
         else:
-            console.print("[red]❌ Usage: /env [list|set <key> <value>|get <key>|delete <key>|encrypt|sync][/red]")
+            console.print(
+                "[red]❌ Usage: /env [list|set <key> <value>|get <key>|delete <key>|encrypt|sync][/red]"
+            )
 
     # Placeholder implementations for other new commands
     async def _cmd_proposal(self, args: str):
@@ -3456,7 +3928,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         from core.services.business import business_service
 
         if not args.strip():
-            console.print("[red]❌ Usage: /proposal <client_name> [--template=<type>] [--hours][/red]")
+            console.print(
+                "[red]❌ Usage: /proposal <client_name> [--template=<type>] [--hours][/red]"
+            )
             console.print("[dim]Templates: standard, detailed, agile[/dim]")
             return
 
@@ -3481,9 +3955,7 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         client_name = " ".join(client_name)
 
         success = await business_service.generate_proposal(
-            client_name=client_name,
-            template_type=template,
-            include_hours=include_hours
+            client_name=client_name, template_type=template, include_hours=include_hours
         )
 
         if not success:
@@ -3494,7 +3966,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         from core.services.business import business_service
 
         if not args.strip():
-            console.print("[red]❌ Usage: /estimate <project_description> [--detailed] [--risks][/red]")
+            console.print(
+                "[red]❌ Usage: /estimate <project_description> [--detailed] [--risks][/red]"
+            )
             return
 
         # Parse arguments
@@ -3502,7 +3976,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         include_risks = "--risks" in args or True  # Default to including risks
 
         # Remove flags from project description
-        project_description = args.replace("--detailed", "").replace("--risks", "").strip()
+        project_description = (
+            args.replace("--detailed", "").replace("--risks", "").strip()
+        )
 
         if not project_description:
             console.print("[red]❌ Project description is required[/red]")
@@ -3511,7 +3987,7 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         estimate = await business_service.estimate_project(
             project_description=project_description,
             detailed=detailed,
-            include_risks=include_risks
+            include_risks=include_risks,
         )
 
         if not estimate:
@@ -3522,7 +3998,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         from core.services.business import business_service
 
         if not args.strip():
-            console.print("[red]❌ Usage: /invoice <client_name> [--hours=<number>] [--template][/red]")
+            console.print(
+                "[red]❌ Usage: /invoice <client_name> [--hours=<number>] [--template][/red]"
+            )
             return
 
         # Parse arguments
@@ -3555,9 +4033,7 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         client_name = " ".join(client_name)
 
         success = await business_service.generate_invoice(
-            client_name=client_name,
-            hours=hours,
-            template=template
+            client_name=client_name, hours=hours, template=template
         )
 
         if not success:
@@ -3569,13 +4045,15 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
 
         # Parse arguments
         show_logs = "--logs" in args or True  # Default show logs
-        create_backup = "--backup" not in args  # Default create backup unless --no-backup
+        create_backup = (
+            "--backup" not in args
+        )  # Default create backup unless --no-backup
         auto_rollback = "--rollback" in args
 
         resolved = await emergency_service.panic_mode(
             show_logs=show_logs,
             create_backup=create_backup,
-            auto_rollback=auto_rollback
+            auto_rollback=auto_rollback,
         )
 
         if not resolved:
@@ -3599,8 +4077,7 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
             return
 
         success = await emergency_service.create_hotfix(
-            issue_description=issue_description,
-            deploy=deploy
+            issue_description=issue_description, deploy=deploy
         )
 
         if not success:
@@ -3635,7 +4112,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         from core.services.productivity import productivity_service
 
         if not args.strip():
-            console.print("[red]❌ Usage: /til <learning_text> [--tags tag1,tag2] [--project name][/red]")
+            console.print(
+                "[red]❌ Usage: /til <learning_text> [--tags tag1,tag2] [--project name][/red]"
+            )
             return
 
         # Parse arguments
@@ -3646,18 +4125,20 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         # Extract tags
         if "--tags" in args:
             import re
-            tag_match = re.search(r'--tags\s+([\w,]+)', args)
+
+            tag_match = re.search(r"--tags\s+([\w,]+)", args)
             if tag_match:
-                tags = tag_match.group(1).split(',')
-                learning_text = args.replace(tag_match.group(0), '').strip()
+                tags = tag_match.group(1).split(",")
+                learning_text = args.replace(tag_match.group(0), "").strip()
 
         # Extract project
         if "--project" in args:
             import re
-            proj_match = re.search(r'--project\s+(\S+)', args)
+
+            proj_match = re.search(r"--project\s+(\S+)", args)
             if proj_match:
                 project = proj_match.group(1)
-                learning_text = learning_text.replace(proj_match.group(0), '').strip()
+                learning_text = learning_text.replace(proj_match.group(0), "").strip()
 
         success = await productivity_service.capture_til(learning_text, tags, project)
 
@@ -3669,7 +4150,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         from core.services.development import development_service
 
         if not args.strip():
-            console.print("[red]❌ Usage: /migrate [create <name>|up|down|status|rollback][/red]")
+            console.print(
+                "[red]❌ Usage: /migrate [create <name>|up|down|status|rollback][/red]"
+            )
             return
 
         parts = args.strip().split()
@@ -3732,7 +4215,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         if args_clean:
             file_pattern = args_clean
 
-        results = await development_service.run_linting(file_pattern, auto_fix, scan_all)
+        results = await development_service.run_linting(
+            file_pattern, auto_fix, scan_all
+        )
 
         if not results:
             console.print("[green]✅ Code is clean![/green]")
@@ -3742,7 +4227,9 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
         from core.services.development import development_service
 
         if not args.strip():
-            console.print("[red]❌ Usage: /api [rest|graphql] <resource_name> [--crud] [--auth][/red]")
+            console.print(
+                "[red]❌ Usage: /api [rest|graphql] <resource_name> [--crud] [--auth][/red]"
+            )
             return
 
         parts = args.strip().split()
@@ -3790,10 +4277,14 @@ Tests: {'PASSED' if test_passed else 'FAILED'}
             console.print("[red]❌ Log analysis failed[/red]")
 
     async def _cmd_performance_profile(self, args: str):
-        console.print(f"[yellow]🚧 /profile (performance) - Coming soon! Args: {args}[/yellow]")
+        console.print(
+            f"[yellow]🚧 /profile (performance) - Coming soon! Args: {args}[/yellow]"
+        )
+
 
 # Global instance for easy access
 slash_commands = None
+
 
 def get_slash_commands(casper_cli=None) -> SlashCommandRegistry:
     """Get the global slash command registry."""

@@ -17,8 +17,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -59,6 +59,11 @@ yarn-error.log*
 .casper/skills
 .casper/mcp/
 .casper/transformation/test_results/
+.casper/transformation/state_management/checkpoints/
+.casper/transformation/state_management/simple_state.db
+.casper/test_output/
+.casper/todos.json
+.casper/workspace.json
 .casper/chromadb/
 /core/terminal/.casper/
 *.ctx
@@ -84,6 +89,9 @@ dashboard/test-results/
 dashboard/playwright-report/
 dashboard/screenshots/
 dashboard/verification/
+casper-prime/e2e/test-results/
+casper-prime/e2e/playwright-report/
+casper-prime/test_screenshots/
 
 # Build outputs
 dist/

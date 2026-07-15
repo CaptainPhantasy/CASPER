@@ -95,13 +95,19 @@ class WorkerAgent(BaseAgent):
 
             # Check if this is a simple file or folder creation task
             if operation == "file_creation":
-                await self._update_progress(AgentStatus.BUILDING, 45, "Creating file...")
+                await self._update_progress(
+                    AgentStatus.BUILDING, 45, "Creating file..."
+                )
                 created_files = await self._create_files_directly(task, operation, plan)
 
-                await self._update_progress(AgentStatus.REVIEWING, 90, "Verifying created files...")
+                await self._update_progress(
+                    AgentStatus.REVIEWING, 90, "Verifying created files..."
+                )
                 verification = self._verify_work(operation, plan)
 
-                await self._update_progress(AgentStatus.COMPLETED, 100, "File creation complete")
+                await self._update_progress(
+                    AgentStatus.COMPLETED, 100, "File creation complete"
+                )
 
                 return AgentResult(
                     agent_id=self.agent_id,
@@ -113,13 +119,21 @@ class WorkerAgent(BaseAgent):
                     token_usage=self.token_usage,
                 )
             elif operation == "folder_creation":
-                await self._update_progress(AgentStatus.BUILDING, 45, "Creating folder...")
-                created_folders = await self._create_folders_directly(task, operation, plan)
+                await self._update_progress(
+                    AgentStatus.BUILDING, 45, "Creating folder..."
+                )
+                created_folders = await self._create_folders_directly(
+                    task, operation, plan
+                )
 
-                await self._update_progress(AgentStatus.REVIEWING, 90, "Verifying created folders...")
+                await self._update_progress(
+                    AgentStatus.REVIEWING, 90, "Verifying created folders..."
+                )
                 verification = self._verify_work(operation, plan)
 
-                await self._update_progress(AgentStatus.COMPLETED, 100, "Folder creation complete")
+                await self._update_progress(
+                    AgentStatus.COMPLETED, 100, "Folder creation complete"
+                )
 
                 return AgentResult(
                     agent_id=self.agent_id,
@@ -131,13 +145,19 @@ class WorkerAgent(BaseAgent):
                     token_usage=self.token_usage,
                 )
             else:
-                await self._update_progress(AgentStatus.BUILDING, 45, f"Drafting {operation} patch...")
+                await self._update_progress(
+                    AgentStatus.BUILDING, 45, f"Drafting {operation} patch..."
+                )
                 patch_path, summary = await self._generate_patch(task, operation, plan)
 
-                await self._update_progress(AgentStatus.REVIEWING, 90, "Reviewing patch output...")
+                await self._update_progress(
+                    AgentStatus.REVIEWING, 90, "Reviewing patch output..."
+                )
                 verification = self._verify_work(operation, plan)
 
-                await self._update_progress(AgentStatus.COMPLETED, 100, "Worker task complete")
+                await self._update_progress(
+                    AgentStatus.COMPLETED, 100, "Worker task complete"
+                )
 
                 return AgentResult(
                     agent_id=self.agent_id,
@@ -163,17 +183,24 @@ class WorkerAgent(BaseAgent):
         task_lower = task.lower()
 
         # Check for creation operations (files or folders)
-        if any(word in task_lower for word in ["create", "make", "new", "add", "generate"]):
+        if any(
+            word in task_lower for word in ["create", "make", "new", "add", "generate"]
+        ):
             # Check if it's explicitly a folder/directory
-            if "folder" in task_lower or "directory" in task_lower or "dir" in task_lower:
+            if (
+                "folder" in task_lower
+                or "directory" in task_lower
+                or "dir" in task_lower
+            ):
                 # But if there's also a file with extension mentioned, it's file creation in a folder
                 import re
-                if re.search(r'\.\w{1,4}\b', task):  # Has file extension
+
+                if re.search(r"\.\w{1,4}\b", task):  # Has file extension
                     return "file_creation"
                 return "folder_creation"
 
             # Check if it has a file extension (likely a file)
-            if re.search(r'\.\w{1,4}\b', task):
+            if re.search(r"\.\w{1,4}\b", task):
                 return "file_creation"
 
             # Check for file keywords
@@ -184,11 +211,13 @@ class WorkerAgent(BaseAgent):
             # If it has "called" followed by a name without extension, likely a folder
             if "called" in task_lower or "named" in task_lower:
                 # Extract what comes after called/named
-                match = re.search(r'(?:called|named)\s+([a-zA-Z0-9_\-\.]+)', task, re.IGNORECASE)
+                match = re.search(
+                    r"(?:called|named)\s+([a-zA-Z0-9_\-\.]+)", task, re.IGNORECASE
+                )
                 if match:
                     name = match.group(1)
                     # If the name has an extension, it's a file
-                    if '.' in name and not name.endswith('.'):
+                    if "." in name and not name.endswith("."):
                         return "file_creation"
                     # Otherwise assume folder
                     return "folder_creation"
@@ -237,14 +266,12 @@ class WorkerAgent(BaseAgent):
         else:
             plan["approach"] = "Apply direct file edits"
 
-        self._log_decision(
-            f"Worker executing {operation}",
-            plan["approach"],
-            []
-        )
+        self._log_decision(f"Worker executing {operation}", plan["approach"], [])
         return plan
 
-    async def _generate_patch(self, task: str, operation: str, plan: Dict) -> Tuple[str, str]:
+    async def _generate_patch(
+        self, task: str, operation: str, plan: Dict
+    ) -> Tuple[str, str]:
         base_dir = os.environ.get("CASPER_OUTPUT_DIR", ".casper/output")
         session_id = str(self.current_context.session_id)
         patch_dir = f"patches/{operation}"
@@ -253,13 +280,17 @@ class WorkerAgent(BaseAgent):
         prompt = self._build_prompt(task, operation, plan)
         diff = await self._call_llm(prompt, task, operation, plan)
 
-        path = write_artifact(base_dir, session_id, f"{patch_dir}/{patch_name}", diff.rstrip() + "\n")
+        path = write_artifact(
+            base_dir, session_id, f"{patch_dir}/{patch_name}", diff.rstrip() + "\n"
+        )
         self._add_artifact(path)
         self._add_pointer(f"patch_{operation}", path)
         self._track_tokens(40, max(len(diff) // 4, 60))
         return path, "Review and apply with `git apply`"
 
-    async def _create_files_directly(self, task: str, operation: str, plan: Dict) -> List[str]:
+    async def _create_files_directly(
+        self, task: str, operation: str, plan: Dict
+    ) -> List[str]:
         """Create files directly in the project workspace for simple file creation tasks."""
         created_files = []
         files_to_create = plan.get("files_to_create", [])
@@ -278,20 +309,27 @@ class WorkerAgent(BaseAgent):
 
             # Ensure we don't overwrite existing files without explicit intent
             if file_path.exists():
-                self._log_decision(f"File {filename} already exists", "Skipping creation", ["overwrite", "rename"])
+                self._log_decision(
+                    f"File {filename} already exists",
+                    "Skipping creation",
+                    ["overwrite", "rename"],
+                )
                 continue
 
             try:
                 # Request approval for file creation
                 from core.services.approval import approval_service
+
                 approval_result = await approval_service.request_file_write_approval(
-                    path=filename,
-                    content=content,
-                    agent_id=self.agent_id
+                    path=filename, content=content, agent_id=self.agent_id
                 )
 
                 if approval_result != "approved":
-                    self._log_decision(f"File creation rejected for {filename}", f"Approval status: {approval_result}", ["retry_later", "modify_approach"])
+                    self._log_decision(
+                        f"File creation rejected for {filename}",
+                        f"Approval status: {approval_result}",
+                        ["retry_later", "modify_approach"],
+                    )
                     continue
 
                 file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -300,10 +338,16 @@ class WorkerAgent(BaseAgent):
 
                 # Record in context
                 self._add_artifact(str(file_path))
-                self._log_decision(f"Created file {filename}", f"Written {len(content)} characters after approval", [])
+                self._log_decision(
+                    f"Created file {filename}",
+                    f"Written {len(content)} characters after approval",
+                    [],
+                )
 
             except Exception as e:
-                self._log_decision(f"Failed to create {filename}", str(e), ["retry", "patch_instead"])
+                self._log_decision(
+                    f"Failed to create {filename}", str(e), ["retry", "patch_instead"]
+                )
 
         self._track_tokens(20, 30)  # Track tokens for file creation work
         return created_files
@@ -321,7 +365,7 @@ class WorkerAgent(BaseAgent):
         in_folder_patterns = [
             r"in\s+(?:the\s+)?([a-zA-Z0-9_\-\.]+)\s+(?:folder|directory)",
             r"inside\s+(?:the\s+)?([a-zA-Z0-9_\-\.]+)\s+(?:folder|directory)",
-            r"(?:folder|directory)\s+([a-zA-Z0-9_\-\.]+)"
+            r"(?:folder|directory)\s+([a-zA-Z0-9_\-\.]+)",
         ]
 
         for pattern in in_folder_patterns:
@@ -334,7 +378,7 @@ class WorkerAgent(BaseAgent):
         file_patterns = [
             r"(?:file\s+)?(?:called|named)\s+([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)",
             r"(?:create|make|new)\s+(?:a\s+)?(?:file\s+)?(?:called\s+)?([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)",
-            r"([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)\s+(?:file|in)"
+            r"([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)\s+(?:file|in)",
         ]
 
         filename = None
@@ -369,10 +413,9 @@ class WorkerAgent(BaseAgent):
                 content = quoted_content.group(1)
 
         if filename:
-            files_info.append({
-                "filename": filename,
-                "content": content or "# TODO: Add content here"
-            })
+            files_info.append(
+                {"filename": filename, "content": content or "# TODO: Add content here"}
+            )
 
         return files_info
 
@@ -385,7 +428,9 @@ class WorkerAgent(BaseAgent):
             " Keep the patch minimal, include helpful comments, and assume a Python/TypeScript project unless specified."
         )
 
-    async def _call_llm(self, prompt: str, task: str, operation: str, plan: Dict) -> str:
+    async def _call_llm(
+        self, prompt: str, task: str, operation: str, plan: Dict
+    ) -> str:
         if llm_service.available():
             try:
                 output = await llm_service.complete(prompt, max_tokens=400)
@@ -417,7 +462,7 @@ class WorkerAgent(BaseAgent):
             f"**Operation Strategy:** {plan.get('approach', 'Document pending changes')}\n\n"
         )
 
-        files_to_modify = plan.get('files_to_modify') or []
+        files_to_modify = plan.get("files_to_modify") or []
         if not files_to_modify and pointers:
             files_to_modify = list(pointers.values())[:3]
 
@@ -427,16 +472,25 @@ class WorkerAgent(BaseAgent):
             "Add verification notes once change is applied",
         ]
 
-        pointer_lines = "\n".join(
-            f"- **{key}:** {value}" for key, value in list(pointers.items())[:5]
-        ) or "- No structural pointers captured"
+        pointer_lines = (
+            "\n".join(
+                f"- **{key}:** {value}" for key, value in list(pointers.items())[:5]
+            )
+            or "- No structural pointers captured"
+        )
 
-        next_steps = "\n".join(f"- {step}" for step in next_actions[:5]) or "- No delegated follow-up actions"
+        next_steps = (
+            "\n".join(f"- {step}" for step in next_actions[:5])
+            or "- No delegated follow-up actions"
+        )
 
-        decision_notes = "\n".join(
-            f"- {_decision_attr(decision, 'decision')}: {_decision_attr(decision, 'rationale')}"
-            for decision in decisions[-3:]
-        ) or "- No recorded decisions"
+        decision_notes = (
+            "\n".join(
+                f"- {_decision_attr(decision, 'decision')}: {_decision_attr(decision, 'rationale')}"
+                for decision in decisions[-3:]
+            )
+            or "- No recorded decisions"
+        )
 
         document = (
             header
@@ -458,7 +512,8 @@ class WorkerAgent(BaseAgent):
             "--- /dev/null\n"
             f"+++ b/{filename}\n"
             f"@@ -0,0 +1,{len(lines)} @@\n"
-            + "\n".join(f"+{line}" for line in lines) + "\n"
+            + "\n".join(f"+{line}" for line in lines)
+            + "\n"
         )
         return patch
 
@@ -480,7 +535,9 @@ class WorkerAgent(BaseAgent):
         }
         return verifications.get(operation, "Changes prepared")
 
-    async def _create_folders_directly(self, task: str, operation: str, plan: Dict) -> List[str]:
+    async def _create_folders_directly(
+        self, task: str, operation: str, plan: Dict
+    ) -> List[str]:
         """Create folders directly in the project workspace."""
         created_folders = []
         folders_to_create = plan.get("folders_to_create", [])
@@ -497,7 +554,10 @@ class WorkerAgent(BaseAgent):
             try:
                 # Request approval for folder creation with enhanced context
                 try:
-                    from core.services.enhanced_approval import enhanced_approval_service
+                    from core.services.enhanced_approval import (
+                        enhanced_approval_service,
+                    )
+
                     approval_result = await enhanced_approval_service.request_approval(
                         operation_type="create",
                         resource_type="folder",
@@ -505,19 +565,26 @@ class WorkerAgent(BaseAgent):
                         content="",
                         agent_id=self.agent_id,
                         agent_name="Worker Agent",
-                        task_context=f"Creating folder '{folder_name}' as part of task: {task}"
+                        task_context=f"Creating folder '{folder_name}' as part of task: {task}",
                     )
                 except ImportError:
                     # Fallback to old approval service
                     from core.services.approval import approval_service
-                    approval_result = await approval_service.request_file_write_approval(
-                        path=folder_name,
-                        content="[FOLDER CREATION]",
-                        agent_id=self.agent_id
+
+                    approval_result = (
+                        await approval_service.request_file_write_approval(
+                            path=folder_name,
+                            content="[FOLDER CREATION]",
+                            agent_id=self.agent_id,
+                        )
                     )
 
                 if approval_result != "approved":
-                    self._log_decision(f"Folder creation rejected for {folder_name}", f"Approval status: {approval_result}", ["retry_later"])
+                    self._log_decision(
+                        f"Folder creation rejected for {folder_name}",
+                        f"Approval status: {approval_result}",
+                        ["retry_later"],
+                    )
                     continue
 
                 # Create the folder
@@ -526,10 +593,16 @@ class WorkerAgent(BaseAgent):
 
                 # Record in context
                 self._add_artifact(str(folder_path))
-                self._log_decision(f"Created folder {folder_name}", f"Folder created at {folder_path}", [])
+                self._log_decision(
+                    f"Created folder {folder_name}",
+                    f"Folder created at {folder_path}",
+                    [],
+                )
 
             except Exception as e:
-                self._log_decision(f"Failed to create folder {folder_name}", str(e), ["retry"])
+                self._log_decision(
+                    f"Failed to create folder {folder_name}", str(e), ["retry"]
+                )
 
         self._track_tokens(10, 20)  # Track tokens for folder creation work
         return created_folders
@@ -553,11 +626,11 @@ class WorkerAgent(BaseAgent):
             if match:
                 path = match.group(1).strip()
                 # If it's an absolute path, take just the last component
-                if '/' in path:
-                    folder_name = path.rstrip('/').split('/')[-1]
+                if "/" in path:
+                    folder_name = path.rstrip("/").split("/")[-1]
                 else:
                     folder_name = path
-                if folder_name and folder_name not in ['a', 'the', 'new']:
+                if folder_name and folder_name not in ["a", "the", "new"]:
                     folders.append(folder_name)
                     break
 
@@ -578,7 +651,12 @@ class WorkerAgent(BaseAgent):
         seen = set()
         unique_folders = []
         for folder in folders:
-            if folder not in seen and folder not in ['called', 'named', 'folder', 'directory']:
+            if folder not in seen and folder not in [
+                "called",
+                "named",
+                "folder",
+                "directory",
+            ]:
                 seen.add(folder)
                 unique_folders.append(folder)
 
@@ -588,6 +666,7 @@ class WorkerAgent(BaseAgent):
         """Use AI to interpret the task into structured format."""
         try:
             from core.agents.task_interpreter import task_interpreter
+
             return await task_interpreter.interpret_task(task)
         except Exception as e:
             print(f"AI interpretation failed: {e}")
@@ -620,15 +699,20 @@ class WorkerAgent(BaseAgent):
             plan["files_to_create"] = []
             for target in targets:
                 if target.get("type") == "file":
-                    plan["files_to_create"].append({
-                        "filename": target.get("path", target.get("name", "")),
-                        "content": target.get("content") or "# TODO: Add content here"
-                    })
+                    plan["files_to_create"].append(
+                        {
+                            "filename": target.get("path", target.get("name", "")),
+                            "content": target.get("content")
+                            or "# TODO: Add content here",
+                        }
+                    )
         elif operation == "folder_creation":
             plan["folders_to_create"] = []
             for target in targets:
                 if target.get("type") == "folder":
-                    plan["folders_to_create"].append(target.get("path", target.get("name", "")))
+                    plan["folders_to_create"].append(
+                        target.get("path", target.get("name", ""))
+                    )
 
         return plan
 

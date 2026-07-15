@@ -21,6 +21,7 @@ from core.services.llm import llm_service
 
 console = Console()
 
+
 class ProjectContext:
     """Represents a complete project mental model."""
 
@@ -62,11 +63,11 @@ class ProjectContext:
             "next_steps": self.next_steps,
             "code_patterns": self.code_patterns,
             "environment_state": self.environment_state,
-            "git_state": self.git_state
+            "git_state": self.git_state,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'ProjectContext':
+    def from_dict(cls, data: Dict) -> "ProjectContext":
         """Create context from dictionary."""
         context = cls(data["name"], Path(data["path"]))
         context.created_at = datetime.fromisoformat(data["created_at"])
@@ -85,6 +86,7 @@ class ProjectContext:
         context.git_state = data.get("git_state", {})
         return context
 
+
 class ContextManager:
     """Manages project contexts and mental models."""
 
@@ -99,13 +101,13 @@ class ContextManager:
     def _load_contexts_index(self) -> Dict[str, Dict]:
         """Load the contexts index."""
         if self.contexts_index_file.exists():
-            with open(self.contexts_index_file, 'r') as f:
+            with open(self.contexts_index_file, "r") as f:
                 return json.load(f)
         return {}
 
     def _save_contexts_index(self, index: Dict[str, Dict]):
         """Save the contexts index."""
-        with open(self.contexts_index_file, 'w') as f:
+        with open(self.contexts_index_file, "w") as f:
             json.dump(index, f, indent=2, default=str)
 
     def _get_context_file(self, name: str) -> Path:
@@ -120,7 +122,7 @@ class ContextManager:
                 "structure": self._analyze_project_structure(project_path),
                 "tech_stack": self._detect_tech_stack(project_path),
                 "git_info": self._get_git_info(project_path),
-                "recent_commits": self._get_recent_commits(project_path)
+                "recent_commits": self._get_recent_commits(project_path),
             }
 
             # Try to generate AI-powered mental model
@@ -150,14 +152,18 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
                 mental_model = await llm_service.complete(prompt)
 
             except Exception as llm_error:
-                console.print(f"[yellow]⚠️ AI analysis failed: {str(llm_error)}[/yellow]")
-                mental_model = self._generate_basic_mental_model(project_info, project_path)
+                console.print(
+                    f"[yellow]⚠️ AI analysis failed: {str(llm_error)}[/yellow]"
+                )
+                mental_model = self._generate_basic_mental_model(
+                    project_info, project_path
+                )
 
             return {
                 "mental_model": mental_model,
                 "tech_stack": project_info["tech_stack"],
                 "git_state": project_info["git_info"],
-                "analysis_timestamp": datetime.now().isoformat()
+                "analysis_timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -165,7 +171,7 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
             return {
                 "mental_model": f"Project at {project_path}\nManual analysis required.",
                 "tech_stack": self._detect_tech_stack(project_path),
-                "git_state": self._get_git_info(project_path)
+                "git_state": self._get_git_info(project_path),
             }
 
     def _analyze_project_structure(self, project_path: Path) -> str:
@@ -174,18 +180,33 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
         try:
             # Get key directories and files
             important_patterns = [
-                "src", "lib", "app", "components", "services", "tests", "docs",
-                "package.json", "requirements.txt", "Dockerfile", "README.md",
-                "tsconfig.json", "pyproject.toml", "Cargo.toml"
+                "src",
+                "lib",
+                "app",
+                "components",
+                "services",
+                "tests",
+                "docs",
+                "package.json",
+                "requirements.txt",
+                "Dockerfile",
+                "README.md",
+                "tsconfig.json",
+                "pyproject.toml",
+                "Cargo.toml",
             ]
 
             for item in project_path.iterdir():
-                if item.name.startswith('.'):
+                if item.name.startswith("."):
                     continue
 
-                if item.is_dir() and any(pattern in item.name for pattern in important_patterns):
+                if item.is_dir() and any(
+                    pattern in item.name for pattern in important_patterns
+                ):
                     structure.append(f"📁 {item.name}/")
-                elif item.is_file() and any(pattern in item.name for pattern in important_patterns):
+                elif item.is_file() and any(
+                    pattern in item.name for pattern in important_patterns
+                ):
                     structure.append(f"📄 {item.name}")
 
             return "\n".join(structure[:20])  # Limit to first 20 items
@@ -195,20 +216,18 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
 
     def _detect_tech_stack(self, project_path: Path) -> Dict[str, Any]:
         """Detect technology stack from project files."""
-        tech_stack = {
-            "languages": [],
-            "frameworks": [],
-            "databases": [],
-            "tools": []
-        }
+        tech_stack = {"languages": [], "frameworks": [], "databases": [], "tools": []}
 
         try:
             # Check for common files and patterns
             if (project_path / "package.json").exists():
                 tech_stack["languages"].append("JavaScript/TypeScript")
-                with open(project_path / "package.json", 'r') as f:
+                with open(project_path / "package.json", "r") as f:
                     pkg_data = json.load(f)
-                    deps = {**pkg_data.get("dependencies", {}), **pkg_data.get("devDependencies", {})}
+                    deps = {
+                        **pkg_data.get("dependencies", {}),
+                        **pkg_data.get("devDependencies", {}),
+                    }
 
                     if "react" in deps:
                         tech_stack["frameworks"].append("React")
@@ -219,7 +238,9 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
                     if "next" in deps:
                         tech_stack["frameworks"].append("Next.js")
 
-            if (project_path / "requirements.txt").exists() or (project_path / "pyproject.toml").exists():
+            if (project_path / "requirements.txt").exists() or (
+                project_path / "pyproject.toml"
+            ).exists():
                 tech_stack["languages"].append("Python")
                 # Could parse requirements for frameworks like Django, Flask, FastAPI
 
@@ -230,7 +251,10 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
                 tech_stack["languages"].append("Go")
 
             # Check for databases
-            if any((project_path / f).exists() for f in ["docker-compose.yml", "docker-compose.yaml"]):
+            if any(
+                (project_path / f).exists()
+                for f in ["docker-compose.yml", "docker-compose.yaml"]
+            ):
                 tech_stack["tools"].append("Docker")
 
             return tech_stack
@@ -245,24 +269,34 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
                 ["git", "status", "--porcelain"],
                 cwd=project_path,
                 capture_output=True,
-                text=True
+                text=True,
             )
 
             branch_result = subprocess.run(
                 ["git", "branch", "--show-current"],
                 cwd=project_path,
                 capture_output=True,
-                text=True
+                text=True,
             )
 
             return {
-                "current_branch": branch_result.stdout.strip() if branch_result.returncode == 0 else "unknown",
-                "has_changes": bool(result.stdout.strip()) if result.returncode == 0 else False,
-                "is_git_repo": result.returncode == 0
+                "current_branch": (
+                    branch_result.stdout.strip()
+                    if branch_result.returncode == 0
+                    else "unknown"
+                ),
+                "has_changes": (
+                    bool(result.stdout.strip()) if result.returncode == 0 else False
+                ),
+                "is_git_repo": result.returncode == 0,
             }
 
         except Exception:
-            return {"current_branch": "unknown", "has_changes": False, "is_git_repo": False}
+            return {
+                "current_branch": "unknown",
+                "has_changes": False,
+                "is_git_repo": False,
+            }
 
     def _get_recent_commits(self, project_path: Path, count: int = 5) -> str:
         """Get recent commit messages."""
@@ -271,15 +305,19 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
                 ["git", "log", f"-{count}", "--oneline"],
                 cwd=project_path,
                 capture_output=True,
-                text=True
+                text=True,
             )
 
-            return result.stdout.strip() if result.returncode == 0 else "No recent commits"
+            return (
+                result.stdout.strip() if result.returncode == 0 else "No recent commits"
+            )
 
         except Exception:
             return "Git history unavailable"
 
-    async def save_context(self, name: Optional[str] = None, project_path: Optional[Path] = None) -> bool:
+    async def save_context(
+        self, name: Optional[str] = None, project_path: Optional[Path] = None
+    ) -> bool:
         """Save current project context."""
         try:
             project_path = project_path or Path.cwd()
@@ -296,14 +334,16 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
             context.tech_stack = analysis["tech_stack"]
             context.git_state = analysis["git_state"]
             context.metadata = {
-                "analysis_timestamp": analysis.get("analysis_timestamp", datetime.now().isoformat()),
+                "analysis_timestamp": analysis.get(
+                    "analysis_timestamp", datetime.now().isoformat()
+                ),
                 "project_size": self._estimate_project_size(project_path),
-                "last_modified": self._get_last_modified(project_path)
+                "last_modified": self._get_last_modified(project_path),
             }
 
             # Save context
             context_file = self._get_context_file(name)
-            with open(context_file, 'w') as f:
+            with open(context_file, "w") as f:
                 json.dump(context.to_dict(), f, indent=2, default=str)
 
             # Update index
@@ -311,16 +351,22 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
             index[name] = {
                 "path": str(project_path),
                 "last_saved": datetime.now().isoformat(),
-                "size": context.metadata.get("project_size", "unknown")
+                "size": context.metadata.get("project_size", "unknown"),
             }
             self._save_contexts_index(index)
 
             console.print(f"[green]✅ Context saved: {name}[/green]")
-            console.print(Panel(
-                analysis["mental_model"][:300] + "..." if len(analysis["mental_model"]) > 300 else analysis["mental_model"],
-                title="🧠 Mental Model Preview",
-                border_style="green"
-            ))
+            console.print(
+                Panel(
+                    (
+                        analysis["mental_model"][:300] + "..."
+                        if len(analysis["mental_model"]) > 300
+                        else analysis["mental_model"]
+                    ),
+                    title="🧠 Mental Model Preview",
+                    border_style="green",
+                )
+            )
 
             return True
 
@@ -336,7 +382,7 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
                 console.print(f"[red]❌ Context '{name}' not found[/red]")
                 return False
 
-            with open(context_file, 'r') as f:
+            with open(context_file, "r") as f:
                 context_data = json.load(f)
 
             context = ProjectContext.from_dict(context_data)
@@ -346,11 +392,13 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
             console.print(f"[green]✅ Restored context: {name}[/green]")
 
             # Show mental model
-            console.print(Panel(
-                context.mental_model,
-                title="🧠 Project Mental Model",
-                border_style="cyan"
-            ))
+            console.print(
+                Panel(
+                    context.mental_model,
+                    title="🧠 Project Mental Model",
+                    border_style="cyan",
+                )
+            )
 
             # Show tech stack
             if context.tech_stack:
@@ -360,11 +408,13 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
                         tech_info.append(f"**{category.title()}:** {', '.join(items)}")
 
                 if tech_info:
-                    console.print(Panel(
-                        "\n".join(tech_info),
-                        title="🔧 Technology Stack",
-                        border_style="blue"
-                    ))
+                    console.print(
+                        Panel(
+                            "\n".join(tech_info),
+                            title="🔧 Technology Stack",
+                            border_style="blue",
+                        )
+                    )
 
             # Show git state
             if context.git_state.get("is_git_repo"):
@@ -382,7 +432,7 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
             self.active_context = context
 
             # Update access time
-            with open(context_file, 'w') as f:
+            with open(context_file, "w") as f:
                 json.dump(context.to_dict(), f, indent=2, default=str)
 
             return True
@@ -398,10 +448,16 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
 
             if not index:
                 console.print("[yellow]⚠️ No saved contexts found[/yellow]")
-                console.print("[dim]Use '/context save' to create your first context[/dim]")
+                console.print(
+                    "[dim]Use '/context save' to create your first context[/dim]"
+                )
                 return True
 
-            table = Table(title="💾 Saved Project Contexts", show_header=True, header_style="bold cyan")
+            table = Table(
+                title="💾 Saved Project Contexts",
+                show_header=True,
+                header_style="bold cyan",
+            )
             table.add_column("Name", style="yellow")
             table.add_column("Path", style="white")
             table.add_column("Last Saved", style="dim")
@@ -414,11 +470,13 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
                     name,
                     str(Path(info["path"]).name),
                     time_ago,
-                    info.get("size", "unknown")
+                    info.get("size", "unknown"),
                 )
 
             console.print(table)
-            console.print(f"\n[dim]Use '/context restore <name>' to restore a context[/dim]")
+            console.print(
+                f"\n[dim]Use '/context restore <name>' to restore a context[/dim]"
+            )
 
             return True
 
@@ -429,7 +487,11 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
     def _estimate_project_size(self, project_path: Path) -> str:
         """Estimate project size."""
         try:
-            total_files = sum(1 for _ in project_path.rglob("*") if _.is_file() and not _.name.startswith('.'))
+            total_files = sum(
+                1
+                for _ in project_path.rglob("*")
+                if _.is_file() and not _.name.startswith(".")
+            )
 
             if total_files < 10:
                 return "Small"
@@ -448,11 +510,15 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
         try:
             latest_time = 0
             for file_path in project_path.rglob("*"):
-                if file_path.is_file() and not file_path.name.startswith('.'):
+                if file_path.is_file() and not file_path.name.startswith("."):
                     mtime = file_path.stat().st_mtime
                     latest_time = max(latest_time, mtime)
 
-            return datetime.fromtimestamp(latest_time).isoformat() if latest_time > 0 else "unknown"
+            return (
+                datetime.fromtimestamp(latest_time).isoformat()
+                if latest_time > 0
+                else "unknown"
+            )
 
         except Exception:
             return "unknown"
@@ -471,7 +537,9 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
         else:
             return "just now"
 
-    def _generate_basic_mental_model(self, project_info: Dict, project_path: Path) -> str:
+    def _generate_basic_mental_model(
+        self, project_info: Dict, project_path: Path
+    ) -> str:
         """Generate a basic mental model when AI analysis fails."""
         tech_stack = project_info.get("tech_stack", "Unknown")
         structure = project_info.get("structure", "Standard project")
@@ -491,6 +559,7 @@ Be concise but comprehensive. Focus on what a consultant needs to quickly unders
 This is a basic fallback analysis. For detailed insights, ensure LLM service is properly configured.
 
 **Note:** AI-powered analysis temporarily unavailable."""
+
 
 # Global instance
 context_manager = ContextManager()

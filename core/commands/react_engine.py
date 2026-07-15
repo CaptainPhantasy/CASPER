@@ -12,6 +12,7 @@ from enum import Enum
 
 class ReasoningStep(Enum):
     """ReAct reasoning step types"""
+
     REASON = "REASON"
     ACT = "ACT"
     OBSERVE = "OBSERVE"
@@ -20,6 +21,7 @@ class ReasoningStep(Enum):
 @dataclass
 class ReActStep:
     """Individual step in ReAct reasoning chain"""
+
     step_type: ReasoningStep
     content: str
     timestamp: str
@@ -57,7 +59,9 @@ class ReActEngine:
 
         # Add task-specific reasoning
         if "task" in question.lower():
-            reasoning += " - This is a task execution request requiring agent coordination"
+            reasoning += (
+                " - This is a task execution request requiring agent coordination"
+            )
         elif "analyze" in question.lower():
             reasoning += " - This requires analysis of existing code or data"
         elif "commit" in question.lower():
@@ -69,12 +73,14 @@ class ReActEngine:
             step_type=ReasoningStep.REASON,
             content=reasoning,
             timestamp=datetime.utcnow().isoformat() + "Z",
-            metadata={"context_keys": list(context.keys()) if context else []}
+            metadata={"context_keys": list(context.keys()) if context else []},
         )
         self.reasoning_chain.append(step)
         return reasoning
 
-    def act(self, action_description: str, action_data: Dict[str, Any] = None) -> Dict[str, Any]:
+    def act(
+        self, action_description: str, action_data: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """
         ACT phase: Perform the action
         Returns action results
@@ -86,19 +92,21 @@ class ReActEngine:
             "action": action_description,
             "executed_at": datetime.utcnow().isoformat() + "Z",
             "input_data": action_data,
-            "status": "executed"
+            "status": "executed",
         }
 
         step = ReActStep(
             step_type=ReasoningStep.ACT,
             content=action_description,
             timestamp=datetime.utcnow().isoformat() + "Z",
-            metadata=action_result
+            metadata=action_result,
         )
         self.reasoning_chain.append(step)
         return action_result
 
-    def observe(self, observation: str, results: Dict[str, Any] = None) -> Dict[str, Any]:
+    def observe(
+        self, observation: str, results: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """
         OBSERVE phase: Capture and analyze results
         Returns observation analysis
@@ -110,21 +118,24 @@ class ReActEngine:
             "observation": observation,
             "results": results,
             "observed_at": datetime.utcnow().isoformat() + "Z",
-            "success": "error" not in observation.lower() and "failed" not in observation.lower()
+            "success": "error" not in observation.lower()
+            and "failed" not in observation.lower(),
         }
 
         step = ReActStep(
             step_type=ReasoningStep.OBSERVE,
             content=observation,
             timestamp=datetime.utcnow().isoformat() + "Z",
-            metadata=observation_data
+            metadata=observation_data,
         )
         self.reasoning_chain.append(step)
         return observation_data
 
     def get_reasoning_chain(self) -> List[str]:
         """Return the complete reasoning chain as strings"""
-        return [f"{step.step_type.value}: {step.content}" for step in self.reasoning_chain]
+        return [
+            f"{step.step_type.value}: {step.content}" for step in self.reasoning_chain
+        ]
 
     def clear_reasoning_chain(self):
         """Clear the reasoning chain for new execution"""
@@ -132,9 +143,15 @@ class ReActEngine:
 
     def summarize_reasoning(self) -> Dict[str, Any]:
         """Summarize the complete reasoning process"""
-        reasoning_steps = [s for s in self.reasoning_chain if s.step_type == ReasoningStep.REASON]
-        action_steps = [s for s in self.reasoning_chain if s.step_type == ReasoningStep.ACT]
-        observation_steps = [s for s in self.reasoning_chain if s.step_type == ReasoningStep.OBSERVE]
+        reasoning_steps = [
+            s for s in self.reasoning_chain if s.step_type == ReasoningStep.REASON
+        ]
+        action_steps = [
+            s for s in self.reasoning_chain if s.step_type == ReasoningStep.ACT
+        ]
+        observation_steps = [
+            s for s in self.reasoning_chain if s.step_type == ReasoningStep.OBSERVE
+        ]
 
         return {
             "total_steps": len(self.reasoning_chain),
@@ -142,8 +159,9 @@ class ReActEngine:
             "action_steps": len(action_steps),
             "observation_steps": len(observation_steps),
             "chain": self.get_reasoning_chain(),
-            "successful": all(
-                step.metadata.get("success", True)
-                for step in observation_steps
-            ) if observation_steps else True
+            "successful": (
+                all(step.metadata.get("success", True) for step in observation_steps)
+                if observation_steps
+                else True
+            ),
         }

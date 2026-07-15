@@ -30,6 +30,7 @@ class TestCodingSession(unittest.TestCase):
         """Clean up test environment"""
         # Clean up temp directory
         import shutil
+
         shutil.rmtree(self.test_dir)
         self.loop.close()
 
@@ -53,9 +54,9 @@ class TestCodingSession(unittest.TestCase):
                 WHERE type='table' AND name IN ('sessions', 'interactions', 'session_snapshots')
             """)
             tables = [row[0] for row in cursor.fetchall()]
-            self.assertIn('sessions', tables)
-            self.assertIn('interactions', tables)
-            self.assertIn('session_snapshots', tables)
+            self.assertIn("sessions", tables)
+            self.assertIn("interactions", tables)
+            self.assertIn("session_snapshots", tables)
 
     def test_start_session(self):
         """Test session creation"""
@@ -71,7 +72,10 @@ class TestCodingSession(unittest.TestCase):
         # Verify in database
         with sqlite3.connect(self.session_manager.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM sessions WHERE session_id = ?", (session_state.session_id,))
+            cursor.execute(
+                "SELECT * FROM sessions WHERE session_id = ?",
+                (session_state.session_id,),
+            )
             row = cursor.fetchone()
             self.assertIsNotNone(row)
 
@@ -97,7 +101,9 @@ class TestCodingSession(unittest.TestCase):
         user_input = "Write a Python function to calculate fibonacci numbers"
         response = "Here's a Python function that calculates fibonacci numbers:\n\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)"
 
-        self.run_async(self.session_manager.add_interaction(session_id, user_input, response))
+        self.run_async(
+            self.session_manager.add_interaction(session_id, user_input, response)
+        )
 
         # Verify in session state
         updated_state = self.session_manager._active_sessions[session_id]
@@ -107,16 +113,22 @@ class TestCodingSession(unittest.TestCase):
         # Verify in database
         with sqlite3.connect(self.session_manager.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM interactions WHERE session_id = ?", (session_id,))
+            cursor.execute(
+                "SELECT * FROM interactions WHERE session_id = ?", (session_id,)
+            )
             row = cursor.fetchone()
             self.assertIsNotNone(row)
             self.assertEqual(row[3], user_input)  # user_input column
-            self.assertEqual(row[4], response)    # response column
+            self.assertEqual(row[4], response)  # response column
 
     def test_add_interaction_invalid_session(self):
         """Test error when adding interaction to invalid session"""
         with self.assertRaises(SessionError):
-            self.run_async(self.session_manager.add_interaction("invalid-session", "test", "response"))
+            self.run_async(
+                self.session_manager.add_interaction(
+                    "invalid-session", "test", "response"
+                )
+            )
 
     def test_token_limit_management(self):
         """Test token limit management and reduction"""
@@ -133,7 +145,9 @@ class TestCodingSession(unittest.TestCase):
         for i in range(interactions_needed):
             user_input = f"Request {i}: {long_text}"
             response = f"Response {i}: {long_text}"
-            self.run_async(self.session_manager.add_interaction(session_id, user_input, response))
+            self.run_async(
+                self.session_manager.add_interaction(session_id, user_input, response)
+            )
 
         # Verify token count is managed
         final_state = self.session_manager._active_sessions[session_id]
@@ -142,7 +156,9 @@ class TestCodingSession(unittest.TestCase):
         # Verify some interactions were removed from database
         with sqlite3.connect(self.session_manager.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM interactions WHERE session_id = ?", (session_id,))
+            cursor.execute(
+                "SELECT COUNT(*) FROM interactions WHERE session_id = ?", (session_id,)
+            )
             remaining_count = cursor.fetchone()[0]
             self.assertLess(remaining_count, interactions_needed)
 
@@ -154,7 +170,9 @@ class TestCodingSession(unittest.TestCase):
 
         user_input = "Test input"
         response = "Test response"
-        self.run_async(self.session_manager.add_interaction(session_id, user_input, response))
+        self.run_async(
+            self.session_manager.add_interaction(session_id, user_input, response)
+        )
 
         # Get context
         context = self.run_async(self.session_manager.get_context(session_id))
@@ -183,7 +201,9 @@ class TestCodingSession(unittest.TestCase):
         session_state = self.run_async(self.session_manager.start_session())
         session_id = session_state.session_id
 
-        self.run_async(self.session_manager.add_interaction(session_id, "test", "response"))
+        self.run_async(
+            self.session_manager.add_interaction(session_id, "test", "response")
+        )
 
         # Persist session
         self.run_async(self.session_manager.persist(session_id))
@@ -191,7 +211,9 @@ class TestCodingSession(unittest.TestCase):
         # Verify snapshot created
         with sqlite3.connect(self.session_manager.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM session_snapshots WHERE session_id = ?", (session_id,))
+            cursor.execute(
+                "SELECT * FROM session_snapshots WHERE session_id = ?", (session_id,)
+            )
             row = cursor.fetchone()
             self.assertIsNotNone(row)
 
@@ -214,8 +236,12 @@ class TestCodingSession(unittest.TestCase):
 
         user_input = "Recovery test input"
         response = "Recovery test response"
-        self.run_async(self.session_manager.add_interaction(session_id, user_input, response))
-        self.run_async(self.session_manager.add_file_modification(session_id, "/test/file.py"))
+        self.run_async(
+            self.session_manager.add_interaction(session_id, user_input, response)
+        )
+        self.run_async(
+            self.session_manager.add_file_modification(session_id, "/test/file.py")
+        )
 
         # Close session (remove from memory)
         self.run_async(self.session_manager.close_session(session_id))
@@ -250,12 +276,15 @@ class TestCodingSession(unittest.TestCase):
 
         with sqlite3.connect(self.session_manager.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO sessions
                 (session_id, started_at, last_activity, context_tokens,
                  files_modified, knowledge_base_id, active)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (old_session_id, old_date, old_date, 100, "[]", "kb_old", 1))
+            """,
+                (old_session_id, old_date, old_date, 100, "[]", "kb_old", 1),
+            )
             conn.commit()
 
         # Add old session to active sessions to test removal
@@ -267,7 +296,7 @@ class TestCodingSession(unittest.TestCase):
             files_modified=[],
             conversation_history=[],
             knowledge_base_id="kb_old",
-            active=True
+            active=True,
         )
         self.session_manager._active_sessions[old_session_id] = old_session_state
 
@@ -282,7 +311,9 @@ class TestCodingSession(unittest.TestCase):
         # Verify in database
         with sqlite3.connect(self.session_manager.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT active FROM sessions WHERE session_id = ?", (old_session_id,))
+            cursor.execute(
+                "SELECT active FROM sessions WHERE session_id = ?", (old_session_id,)
+            )
             row = cursor.fetchone()
             self.assertEqual(row[0], 0)  # Should be inactive
 
@@ -294,7 +325,9 @@ class TestCodingSession(unittest.TestCase):
         # Add file modifications
         files = ["/test/file1.py", "/test/file2.js", "/test/file3.md"]
         for file_path in files:
-            self.run_async(self.session_manager.add_file_modification(session_id, file_path))
+            self.run_async(
+                self.session_manager.add_file_modification(session_id, file_path)
+            )
 
         # Verify tracking
         updated_state = self.session_manager._active_sessions[session_id]
@@ -314,9 +347,11 @@ class TestCodingSession(unittest.TestCase):
         for i in range(3):
             session = self.run_async(self.session_manager.start_session())
             sessions.append(session)
-            self.run_async(self.session_manager.add_interaction(
-                session.session_id, f"Input {i}", f"Response {i}"
-            ))
+            self.run_async(
+                self.session_manager.add_interaction(
+                    session.session_id, f"Input {i}", f"Response {i}"
+                )
+            )
 
         # Get stats
         stats = self.run_async(self.session_manager.get_session_stats())
@@ -347,12 +382,16 @@ class TestCodingSession(unittest.TestCase):
 
         # Add multiple interactions
         for i in range(5):
-            self.run_async(self.session_manager.add_interaction(
-                session_id, f"Input {i}", f"Response {i}"
-            ))
+            self.run_async(
+                self.session_manager.add_interaction(
+                    session_id, f"Input {i}", f"Response {i}"
+                )
+            )
 
         # Calculate metrics
-        metrics = self.run_async(self.session_manager._calculate_session_metrics(session_id))
+        metrics = self.run_async(
+            self.session_manager._calculate_session_metrics(session_id)
+        )
 
         # Verify metrics
         self.assertEqual(metrics["total_interactions"], 5)
@@ -376,9 +415,7 @@ class TestCodingSession(unittest.TestCase):
         # Run concurrent operations
         async def run_concurrent():
             await asyncio.gather(
-                add_interactions(0),
-                add_interactions(10),
-                add_interactions(20)
+                add_interactions(0), add_interactions(10), add_interactions(20)
             )
 
         self.run_async(run_concurrent())
@@ -393,9 +430,11 @@ class TestCodingSession(unittest.TestCase):
         session_id = session_state.session_id
 
         # Add interaction to create context
-        self.run_async(self.session_manager.add_interaction(
-            session_id, "Test context integration", "Context integration response"
-        ))
+        self.run_async(
+            self.session_manager.add_interaction(
+                session_id, "Test context integration", "Context integration response"
+            )
+        )
 
         # Get context and verify context manager integration
         context = self.run_async(self.session_manager.get_context(session_id))
@@ -403,6 +442,7 @@ class TestCodingSession(unittest.TestCase):
 
         # Verify context manager has data
         from uuid import UUID
+
         session_uuid = UUID(session_id)
         stored_context = self.session_manager.context_manager.load_context(session_uuid)
         self.assertIsNotNone(stored_context)
@@ -427,7 +467,9 @@ def run_comprehensive_tests():
     print(f"  Tests Run: {result.testsRun}")
     print(f"  Failures: {len(result.failures)}")
     print(f"  Errors: {len(result.errors)}")
-    print(f"  Success Rate: {((result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100):.1f}%")
+    print(
+        f"  Success Rate: {((result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100):.1f}%"
+    )
 
     if result.failures:
         print("\n❌ Failures:")

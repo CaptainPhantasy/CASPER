@@ -27,6 +27,7 @@ console = Console()
 @dataclass
 class SystemDiagnostic:
     """System diagnostic results."""
+
     timestamp: datetime
     system_health: Dict[str, Any]
     errors_found: List[str]
@@ -38,6 +39,7 @@ class SystemDiagnostic:
 @dataclass
 class HotfixPlan:
     """Emergency hotfix deployment plan."""
+
     issue_description: str
     affected_components: List[str]
     fix_steps: List[str]
@@ -67,7 +69,7 @@ class EmergencyService:
     def _load_incident_history(self) -> List[Dict]:
         """Load incident history."""
         if self.incident_log.exists():
-            with open(self.incident_log, 'r') as f:
+            with open(self.incident_log, "r") as f:
                 return json.load(f)
         return []
 
@@ -80,26 +82,33 @@ class EmergencyService:
         if len(incidents) > 100:
             incidents = incidents[-100:]
 
-        with open(self.incident_log, 'w') as f:
+        with open(self.incident_log, "w") as f:
             json.dump(incidents, f, indent=2)
 
-    async def panic_mode(self, show_logs: bool = True, create_backup: bool = True, auto_rollback: bool = False) -> bool:
+    async def panic_mode(
+        self,
+        show_logs: bool = True,
+        create_backup: bool = True,
+        auto_rollback: bool = False,
+    ) -> bool:
         """
         Emergency troubleshooting and recovery procedures.
         Activates comprehensive system diagnostics and recovery options.
         """
-        console.print(Panel(
-            "[bold red]🚨 PANIC MODE ACTIVATED 🚨[/bold red]\n\n"
-            "Initiating emergency diagnostics and recovery procedures...",
-            border_style="red"
-        ))
+        console.print(
+            Panel(
+                "[bold red]🚨 PANIC MODE ACTIVATED 🚨[/bold red]\n\n"
+                "Initiating emergency diagnostics and recovery procedures...",
+                border_style="red",
+            )
+        )
 
         incident_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         incident_data = {
             "id": incident_id,
             "timestamp": datetime.now().isoformat(),
             "type": "panic",
-            "resolved": False
+            "resolved": False,
         }
 
         # Step 1: System Diagnostics
@@ -108,7 +117,9 @@ class EmergencyService:
 
         # Step 2: Create Emergency Backup
         if create_backup:
-            console.print("\n[bold yellow]Step 2: Creating Emergency Backup[/bold yellow]")
+            console.print(
+                "\n[bold yellow]Step 2: Creating Emergency Backup[/bold yellow]"
+            )
             backup_path = await self._create_emergency_backup(incident_id)
             incident_data["backup_path"] = str(backup_path)
 
@@ -142,7 +153,7 @@ class EmergencyService:
             ("4", "Restore from backup"),
             ("5", "Manual intervention required"),
             ("6", "Generate detailed report"),
-            ("0", "Exit panic mode")
+            ("0", "Exit panic mode"),
         ]
 
         for opt, desc in options:
@@ -152,10 +163,14 @@ class EmergencyService:
 
         # Handle user choice
         while True:
-            choice = Prompt.ask("\nSelect recovery option", choices=["0", "1", "2", "3", "4", "5", "6"])
+            choice = Prompt.ask(
+                "\nSelect recovery option", choices=["0", "1", "2", "3", "4", "5", "6"]
+            )
 
             if choice == "0":
-                console.print("[yellow]Exiting panic mode. Issue may not be resolved.[/yellow]")
+                console.print(
+                    "[yellow]Exiting panic mode. Issue may not be resolved.[/yellow]"
+                )
                 break
 
             elif choice == "1":
@@ -163,7 +178,9 @@ class EmergencyService:
                 if auto_rollback or Confirm.ask("Rollback to last known good state?"):
                     success = await self._perform_rollback()
                     if success:
-                        console.print("[green]✅ Successfully rolled back to previous state[/green]")
+                        console.print(
+                            "[green]✅ Successfully rolled back to previous state[/green]"
+                        )
                         incident_data["resolved"] = True
                         incident_data["resolution"] = "rollback"
                         break
@@ -173,7 +190,9 @@ class EmergencyService:
                 console.print("[dim]Applying automated fixes...[/dim]")
                 fixes_applied = await self._apply_automated_fixes(diagnostic)
                 if fixes_applied:
-                    console.print(f"[green]✅ Applied {len(fixes_applied)} automated fixes[/green]")
+                    console.print(
+                        f"[green]✅ Applied {len(fixes_applied)} automated fixes[/green]"
+                    )
                     for fix in fixes_applied:
                         console.print(f"  • {fix}")
                     incident_data["fixes_applied"] = fixes_applied
@@ -192,13 +211,18 @@ class EmergencyService:
                     for i, backup in enumerate(backups[-5:], 1):
                         console.print(f"  {i}. {backup.name}")
 
-                    backup_choice = Prompt.ask("Select backup number", choices=[str(i) for i in range(1, min(6, len(backups)+1))])
+                    backup_choice = Prompt.ask(
+                        "Select backup number",
+                        choices=[str(i) for i in range(1, min(6, len(backups) + 1))],
+                    )
                     selected_backup = backups[-int(backup_choice)]
 
                     if Confirm.ask(f"Restore from {selected_backup.name}?"):
                         success = await self._restore_from_backup(selected_backup)
                         if success:
-                            console.print("[green]✅ Successfully restored from backup[/green]")
+                            console.print(
+                                "[green]✅ Successfully restored from backup[/green]"
+                            )
                             incident_data["resolved"] = True
                             incident_data["resolution"] = "backup_restore"
                             break
@@ -211,11 +235,15 @@ class EmergencyService:
                 for i, step in enumerate(recovery_plan, 1):
                     console.print(f"  {i}. {step}")
 
-                console.print("\n[dim]Complete these steps manually, then return to verify resolution.[/dim]")
+                console.print(
+                    "\n[dim]Complete these steps manually, then return to verify resolution.[/dim]"
+                )
 
             elif choice == "6":
                 # Generate report
-                report_path = await self._generate_incident_report(incident_id, diagnostic, recovery_plan)
+                report_path = await self._generate_incident_report(
+                    incident_id, diagnostic, recovery_plan
+                )
                 console.print(f"[green]✅ Report saved to: {report_path}[/green]")
                 incident_data["report_path"] = str(report_path)
 
@@ -223,18 +251,22 @@ class EmergencyService:
         self._save_incident(incident_data)
 
         if incident_data.get("resolved"):
-            console.print(Panel(
-                "[green]✅ Emergency resolved successfully![/green]\n"
-                f"Incident ID: {incident_id}",
-                border_style="green"
-            ))
+            console.print(
+                Panel(
+                    "[green]✅ Emergency resolved successfully![/green]\n"
+                    f"Incident ID: {incident_id}",
+                    border_style="green",
+                )
+            )
         else:
-            console.print(Panel(
-                "[yellow]⚠️ Emergency procedures completed[/yellow]\n"
-                f"Incident ID: {incident_id}\n"
-                "Manual verification recommended",
-                border_style="yellow"
-            ))
+            console.print(
+                Panel(
+                    "[yellow]⚠️ Emergency procedures completed[/yellow]\n"
+                    f"Incident ID: {incident_id}\n"
+                    "Manual verification recommended",
+                    border_style="yellow",
+                )
+            )
 
         return incident_data.get("resolved", False)
 
@@ -243,7 +275,7 @@ class EmergencyService:
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
-            console=console
+            console=console,
         ) as progress:
             task = progress.add_task("Running diagnostics...", total=None)
 
@@ -253,23 +285,34 @@ class EmergencyService:
 
             # Check Git status
             try:
-                result = subprocess.run(['git', 'status', '--porcelain'],
-                                      capture_output=True, text=True, check=True)
-                uncommitted = len(result.stdout.strip().split('\n')) if result.stdout.strip() else 0
-                system_health['uncommitted_changes'] = uncommitted
+                result = subprocess.run(
+                    ["git", "status", "--porcelain"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                uncommitted = (
+                    len(result.stdout.strip().split("\n"))
+                    if result.stdout.strip()
+                    else 0
+                )
+                system_health["uncommitted_changes"] = uncommitted
                 if uncommitted > 10:
-                    warnings.append(f"Large number of uncommitted changes: {uncommitted}")
+                    warnings.append(
+                        f"Large number of uncommitted changes: {uncommitted}"
+                    )
             except subprocess.CalledProcessError:
                 errors.append("Git repository issues detected")
 
             # Check disk space
             try:
-                result = subprocess.run(['df', '-h', '.'],
-                                      capture_output=True, text=True, check=True)
-                lines = result.stdout.strip().split('\n')
+                result = subprocess.run(
+                    ["df", "-h", "."], capture_output=True, text=True, check=True
+                )
+                lines = result.stdout.strip().split("\n")
                 if len(lines) > 1:
-                    usage = lines[1].split()[4].rstrip('%')
-                    system_health['disk_usage'] = f"{usage}%"
+                    usage = lines[1].split()[4].rstrip("%")
+                    system_health["disk_usage"] = f"{usage}%"
                     if int(usage) > 90:
                         errors.append(f"Critical disk space: {usage}% used")
                     elif int(usage) > 75:
@@ -279,18 +322,28 @@ class EmergencyService:
 
             # Check for common error patterns in recent files
             try:
-                recent_files = subprocess.run(
-                    ['find', '.', '-type', 'f', '-name', '*.py', '-mtime', '-1'],
-                    capture_output=True, text=True
-                ).stdout.strip().split('\n')[:10]
+                recent_files = (
+                    subprocess.run(
+                        ["find", ".", "-type", "f", "-name", "*.py", "-mtime", "-1"],
+                        capture_output=True,
+                        text=True,
+                    )
+                    .stdout.strip()
+                    .split("\n")[:10]
+                )
 
                 for file in recent_files:
                     if file and Path(file).exists():
                         try:
-                            with open(file, 'r') as f:
+                            with open(file, "r") as f:
                                 content = f.read()
-                                if 'raise Exception' in content or 'sys.exit' in content:
-                                    warnings.append(f"Exception handling in recently modified: {file}")
+                                if (
+                                    "raise Exception" in content
+                                    or "sys.exit" in content
+                                ):
+                                    warnings.append(
+                                        f"Exception handling in recently modified: {file}"
+                                    )
                         except:
                             pass
             except:
@@ -312,11 +365,11 @@ Focus on immediate fixes that can restore system stability.
                 ai_recommendations = await llm_service.complete(
                     prompt,
                     system="You are a DevOps expert providing emergency recovery recommendations.",
-                    max_tokens=500
+                    max_tokens=500,
                 )
 
-                for line in ai_recommendations.split('\n'):
-                    if line.strip() and not line.startswith('#'):
+                for line in ai_recommendations.split("\n"):
+                    if line.strip() and not line.startswith("#"):
                         recommendations.append(line.strip())
 
         # Determine severity
@@ -333,7 +386,7 @@ Focus on immediate fixes that can restore system stability.
             errors_found=errors,
             warnings=warnings,
             recommendations=recommendations[:5],
-            severity=severity
+            severity=severity,
         )
 
     async def _create_emergency_backup(self, incident_id: str) -> Path:
@@ -345,19 +398,21 @@ Focus on immediate fixes that can restore system stability.
 
         try:
             # Create backup excluding common directories
-            exclude_dirs = ['node_modules', '.git', '__pycache__', 'venv', '.env']
+            exclude_dirs = ["node_modules", ".git", "__pycache__", "venv", ".env"]
             exclude_args = []
             for dir in exclude_dirs:
-                exclude_args.extend(['--exclude', dir])
+                exclude_args.extend(["--exclude", dir])
 
             subprocess.run(
-                ['tar', 'czf', str(backup_path)] + exclude_args + ['.'],
+                ["tar", "czf", str(backup_path)] + exclude_args + ["."],
                 check=True,
-                capture_output=True
+                capture_output=True,
             )
 
             size = backup_path.stat().st_size / (1024 * 1024)  # MB
-            console.print(f"[green]✓[/green] Backup created: {backup_name} ({size:.1f} MB)")
+            console.print(
+                f"[green]✓[/green] Backup created: {backup_name} ({size:.1f} MB)"
+            )
             return backup_path
 
         except subprocess.CalledProcessError as e:
@@ -371,16 +426,20 @@ Focus on immediate fixes that can restore system stability.
         try:
             # Get recent commits
             result = subprocess.run(
-                ['git', 'log', '--oneline', '-n', '5'],
-                capture_output=True, text=True, check=True
+                ["git", "log", "--oneline", "-n", "5"],
+                capture_output=True,
+                text=True,
+                check=True,
             )
             if result.stdout:
                 changes.append(f"Recent commits:\n{result.stdout}")
 
             # Get modified files
             result = subprocess.run(
-                ['git', 'diff', '--name-only'],
-                capture_output=True, text=True, check=True
+                ["git", "diff", "--name-only"],
+                capture_output=True,
+                text=True,
+                check=True,
             )
             if result.stdout:
                 changes.append(f"Modified files:\n{result.stdout}")
@@ -395,12 +454,7 @@ Focus on immediate fixes that can restore system stability.
         log_errors = []
 
         # Check common log locations
-        log_patterns = [
-            "*.log",
-            "logs/*.log",
-            "*.err",
-            "error.log"
-        ]
+        log_patterns = ["*.log", "logs/*.log", "*.err", "error.log"]
 
         for pattern in log_patterns:
             for log_file in Path.cwd().glob(pattern):
@@ -408,12 +462,16 @@ Focus on immediate fixes that can restore system stability.
                     try:
                         # Get last 50 lines
                         result = subprocess.run(
-                            ['tail', '-n', '50', str(log_file)],
-                            capture_output=True, text=True
+                            ["tail", "-n", "50", str(log_file)],
+                            capture_output=True,
+                            text=True,
                         )
 
-                        for line in result.stdout.split('\n'):
-                            if any(word in line.lower() for word in ['error', 'exception', 'fatal', 'critical']):
+                        for line in result.stdout.split("\n"):
+                            if any(
+                                word in line.lower()
+                                for word in ["error", "exception", "fatal", "critical"]
+                            ):
                                 log_errors.append(f"{log_file.name}: {line[:100]}")
 
                     except:
@@ -421,7 +479,9 @@ Focus on immediate fixes that can restore system stability.
 
         return log_errors[:10]  # Limit to 10 most recent errors
 
-    async def _generate_recovery_plan(self, diagnostic: SystemDiagnostic, recent_changes: List[str]) -> List[str]:
+    async def _generate_recovery_plan(
+        self, diagnostic: SystemDiagnostic, recent_changes: List[str]
+    ) -> List[str]:
         """Generate AI-powered recovery plan."""
         prompt = f"""
 Based on this emergency situation:
@@ -447,12 +507,12 @@ Provide concrete steps that can be executed immediately.
         recovery_response = await llm_service.complete(
             prompt,
             system="You are an SRE expert handling production emergencies.",
-            max_tokens=800
+            max_tokens=800,
         )
 
         steps = []
-        for line in recovery_response.split('\n'):
-            if line.strip() and (line[0].isdigit() or line.startswith('-')):
+        for line in recovery_response.split("\n"):
+            if line.strip() and (line[0].isdigit() or line.startswith("-")):
                 steps.append(line.strip())
 
         return steps[:10]
@@ -464,13 +524,15 @@ Provide concrete steps that can be executed immediately.
             "critical": "red",
             "high": "yellow",
             "medium": "cyan",
-            "low": "green"
+            "low": "green",
         }
 
-        console.print(Panel(
-            f"[bold {severity_colors[diagnostic.severity]}]Severity: {diagnostic.severity.upper()}[/bold {severity_colors[diagnostic.severity]}]",
-            border_style=severity_colors[diagnostic.severity]
-        ))
+        console.print(
+            Panel(
+                f"[bold {severity_colors[diagnostic.severity]}]Severity: {diagnostic.severity.upper()}[/bold {severity_colors[diagnostic.severity]}]",
+                border_style=severity_colors[diagnostic.severity],
+            )
+        )
 
         # System health
         if diagnostic.system_health:
@@ -499,10 +561,10 @@ Provide concrete steps that can be executed immediately.
         """Perform git rollback to last known good state."""
         try:
             # First, stash current changes
-            subprocess.run(['git', 'stash'], check=True)
+            subprocess.run(["git", "stash"], check=True)
 
             # Reset to previous commit
-            subprocess.run(['git', 'reset', '--hard', 'HEAD~1'], check=True)
+            subprocess.run(["git", "reset", "--hard", "HEAD~1"], check=True)
 
             console.print("[green]✓[/green] Rolled back to previous commit")
             return True
@@ -516,11 +578,11 @@ Provide concrete steps that can be executed immediately.
         fixes_applied = []
 
         # Fix high disk usage
-        if 'disk_usage' in diagnostic.system_health:
-            usage = int(diagnostic.system_health['disk_usage'].rstrip('%'))
+        if "disk_usage" in diagnostic.system_health:
+            usage = int(diagnostic.system_health["disk_usage"].rstrip("%"))
             if usage > 75:
                 # Clear common cache directories
-                cache_dirs = ['__pycache__', '.pytest_cache', 'node_modules/.cache']
+                cache_dirs = ["__pycache__", ".pytest_cache", "node_modules/.cache"]
                 for cache_dir in cache_dirs:
                     cache_path = Path(cache_dir)
                     if cache_path.exists():
@@ -528,10 +590,13 @@ Provide concrete steps that can be executed immediately.
                         fixes_applied.append(f"Cleared cache: {cache_dir}")
 
         # Fix uncommitted changes
-        if diagnostic.system_health.get('uncommitted_changes', 0) > 10:
+        if diagnostic.system_health.get("uncommitted_changes", 0) > 10:
             try:
-                subprocess.run(['git', 'add', '.'], check=True)
-                subprocess.run(['git', 'commit', '-m', 'Emergency commit: Auto-saving changes'], check=True)
+                subprocess.run(["git", "add", "."], check=True)
+                subprocess.run(
+                    ["git", "commit", "-m", "Emergency commit: Auto-saving changes"],
+                    check=True,
+                )
                 fixes_applied.append("Created emergency commit for uncommitted changes")
             except:
                 pass
@@ -541,26 +606,42 @@ Provide concrete steps that can be executed immediately.
     async def _clear_cache_and_restart(self):
         """Clear all caches and restart services."""
         # Clear Python cache
-        subprocess.run(['find', '.', '-type', 'd', '-name', '__pycache__', '-exec', 'rm', '-rf', '{}', '+'],
-                      capture_output=True)
+        subprocess.run(
+            [
+                "find",
+                ".",
+                "-type",
+                "d",
+                "-name",
+                "__pycache__",
+                "-exec",
+                "rm",
+                "-rf",
+                "{}",
+                "+",
+            ],
+            capture_output=True,
+        )
 
         # Clear npm cache if package.json exists
-        if Path('package.json').exists():
-            subprocess.run(['npm', 'cache', 'clean', '--force'], capture_output=True)
+        if Path("package.json").exists():
+            subprocess.run(["npm", "cache", "clean", "--force"], capture_output=True)
 
         # Clear pip cache
-        subprocess.run(['pip', 'cache', 'purge'], capture_output=True)
+        subprocess.run(["pip", "cache", "purge"], capture_output=True)
 
     async def _restore_from_backup(self, backup_path: Path) -> bool:
         """Restore from backup file."""
         try:
             # Extract backup
-            subprocess.run(['tar', 'xzf', str(backup_path)], check=True)
+            subprocess.run(["tar", "xzf", str(backup_path)], check=True)
             return True
         except subprocess.CalledProcessError:
             return False
 
-    async def _generate_incident_report(self, incident_id: str, diagnostic: SystemDiagnostic, recovery_plan: List[str]) -> Path:
+    async def _generate_incident_report(
+        self, incident_id: str, diagnostic: SystemDiagnostic, recovery_plan: List[str]
+    ) -> Path:
         """Generate detailed incident report."""
         report_path = self.logs_dir / f"incident_report_{incident_id}.md"
 
@@ -590,7 +671,7 @@ Provide concrete steps that can be executed immediately.
 Generated by CASPER Emergency Services
 """
 
-        with open(report_path, 'w') as f:
+        with open(report_path, "w") as f:
             f.write(report_content)
 
         return report_path
@@ -600,17 +681,19 @@ Generated by CASPER Emergency Services
         Rapid hotfix deployment with minimal testing.
         Creates emergency fix branch and fast-tracks deployment.
         """
-        console.print(Panel(
-            f"[bold yellow]🔥 HOTFIX MODE[/bold yellow]\n\n"
-            f"Issue: {issue_description}",
-            border_style="yellow"
-        ))
+        console.print(
+            Panel(
+                f"[bold yellow]🔥 HOTFIX MODE[/bold yellow]\n\n"
+                f"Issue: {issue_description}",
+                border_style="yellow",
+            )
+        )
 
         # Generate hotfix plan with AI
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
-            console=console
+            console=console,
         ) as progress:
             task = progress.add_task("Analyzing issue...", total=None)
 
@@ -634,7 +717,7 @@ Focus on the fastest, safest fix that resolves the immediate issue.
             hotfix_response = await llm_service.complete(
                 prompt,
                 system="You are a senior engineer creating emergency hotfixes for production issues.",
-                max_tokens=1000
+                max_tokens=1000,
             )
 
             progress.update(task, description="Creating hotfix plan...")
@@ -668,7 +751,7 @@ Focus on the fastest, safest fix that resolves the immediate issue.
 
         try:
             # Create and checkout hotfix branch
-            subprocess.run(['git', 'checkout', '-b', hotfix_branch], check=True)
+            subprocess.run(["git", "checkout", "-b", hotfix_branch], check=True)
             console.print(f"[green]✓[/green] Created hotfix branch: {hotfix_branch}")
 
             # Apply automated fixes if possible
@@ -676,22 +759,28 @@ Focus on the fastest, safest fix that resolves the immediate issue.
 
             # Here you would implement actual fix logic based on the plan
             # For now, we'll create a marker file
-            hotfix_marker = Path('.hotfix')
-            with open(hotfix_marker, 'w') as f:
-                json.dump({
-                    "issue": issue_description,
-                    "branch": hotfix_branch,
-                    "created": datetime.now().isoformat(),
-                    "plan": {
-                        "risk": plan.risk_level,
-                        "time": plan.estimated_time,
-                        "components": plan.affected_components
-                    }
-                }, f, indent=2)
+            hotfix_marker = Path(".hotfix")
+            with open(hotfix_marker, "w") as f:
+                json.dump(
+                    {
+                        "issue": issue_description,
+                        "branch": hotfix_branch,
+                        "created": datetime.now().isoformat(),
+                        "plan": {
+                            "risk": plan.risk_level,
+                            "time": plan.estimated_time,
+                            "components": plan.affected_components,
+                        },
+                    },
+                    f,
+                    indent=2,
+                )
 
             # Commit hotfix
-            subprocess.run(['git', 'add', '.'], check=True)
-            subprocess.run(['git', 'commit', '-m', f'HOTFIX: {issue_description}'], check=True)
+            subprocess.run(["git", "add", "."], check=True)
+            subprocess.run(
+                ["git", "commit", "-m", f"HOTFIX: {issue_description}"], check=True
+            )
             console.print("[green]✓[/green] Hotfix committed")
 
             # Run minimal tests
@@ -703,8 +792,18 @@ Focus on the fastest, safest fix that resolves the immediate issue.
 
                 if deploy or Confirm.ask("Deploy hotfix immediately?"):
                     # Merge to main/master
-                    subprocess.run(['git', 'checkout', 'main'], check=True)
-                    subprocess.run(['git', 'merge', hotfix_branch, '--no-ff', '-m', f'Merge hotfix: {issue_description}'], check=True)
+                    subprocess.run(["git", "checkout", "main"], check=True)
+                    subprocess.run(
+                        [
+                            "git",
+                            "merge",
+                            hotfix_branch,
+                            "--no-ff",
+                            "-m",
+                            f"Merge hotfix: {issue_description}",
+                        ],
+                        check=True,
+                    )
                     console.print("[green]✓[/green] Hotfix merged to main")
 
                     # Deploy (simulated)
@@ -713,20 +812,26 @@ Focus on the fastest, safest fix that resolves the immediate issue.
                     console.print("[green]✅ Hotfix deployed successfully![/green]")
 
                     # Save incident record
-                    self._save_incident({
-                        "id": hotfix_branch,
-                        "timestamp": datetime.now().isoformat(),
-                        "type": "hotfix",
-                        "issue": issue_description,
-                        "risk": plan.risk_level,
-                        "deployed": True,
-                        "resolved": True
-                    })
+                    self._save_incident(
+                        {
+                            "id": hotfix_branch,
+                            "timestamp": datetime.now().isoformat(),
+                            "type": "hotfix",
+                            "issue": issue_description,
+                            "risk": plan.risk_level,
+                            "deployed": True,
+                            "resolved": True,
+                        }
+                    )
 
                     return True
             else:
-                console.print("[red]❌ Tests failed. Manual intervention required.[/red]")
-                console.print(f"[dim]Stay on branch {hotfix_branch} to fix issues[/dim]")
+                console.print(
+                    "[red]❌ Tests failed. Manual intervention required.[/red]"
+                )
+                console.print(
+                    f"[dim]Stay on branch {hotfix_branch} to fix issues[/dim]"
+                )
 
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Hotfix failed: {e}[/red]")
@@ -737,7 +842,7 @@ Focus on the fastest, safest fix that resolves the immediate issue.
     def _parse_hotfix_plan(self, issue: str, ai_response: str) -> HotfixPlan:
         """Parse AI response into structured hotfix plan."""
         # Simple parsing - in production, use more robust parsing
-        lines = ai_response.split('\n')
+        lines = ai_response.split("\n")
 
         affected = []
         fix_steps = []
@@ -755,44 +860,58 @@ Focus on the fastest, safest fix that resolves the immediate issue.
 
             line_lower = line.lower()
 
-            if 'affected' in line_lower or 'component' in line_lower:
-                current_section = 'affected'
-            elif 'fix' in line_lower and 'step' in line_lower:
-                current_section = 'fix'
-            elif 'test' in line_lower:
-                current_section = 'test'
-            elif 'rollback' in line_lower:
-                current_section = 'rollback'
-            elif 'risk' in line_lower:
-                if 'high' in line_lower:
-                    risk = 'high'
-                elif 'low' in line_lower:
-                    risk = 'low'
-            elif 'minute' in line_lower:
+            if "affected" in line_lower or "component" in line_lower:
+                current_section = "affected"
+            elif "fix" in line_lower and "step" in line_lower:
+                current_section = "fix"
+            elif "test" in line_lower:
+                current_section = "test"
+            elif "rollback" in line_lower:
+                current_section = "rollback"
+            elif "risk" in line_lower:
+                if "high" in line_lower:
+                    risk = "high"
+                elif "low" in line_lower:
+                    risk = "low"
+            elif "minute" in line_lower:
                 import re
-                numbers = re.findall(r'\d+', line)
+
+                numbers = re.findall(r"\d+", line)
                 if numbers:
                     time = int(numbers[0])
-            elif line.startswith('-') or line.startswith('•') or line[0].isdigit():
-                clean_line = line.lstrip('-•0123456789. ')
-                if current_section == 'affected' and clean_line:
+            elif line.startswith("-") or line.startswith("•") or line[0].isdigit():
+                clean_line = line.lstrip("-•0123456789. ")
+                if current_section == "affected" and clean_line:
                     affected.append(clean_line)
-                elif current_section == 'fix' and clean_line:
+                elif current_section == "fix" and clean_line:
                     fix_steps.append(clean_line)
-                elif current_section == 'test' and clean_line:
+                elif current_section == "test" and clean_line:
                     tests.append(clean_line)
-                elif current_section == 'rollback' and clean_line:
+                elif current_section == "rollback" and clean_line:
                     rollback.append(clean_line)
 
         # Provide defaults if parsing failed
         if not affected:
-            affected = ["Main application module", "API endpoints", "Database connections"]
+            affected = [
+                "Main application module",
+                "API endpoints",
+                "Database connections",
+            ]
         if not fix_steps:
-            fix_steps = ["Identify root cause", "Apply minimal fix", "Test locally", "Deploy"]
+            fix_steps = [
+                "Identify root cause",
+                "Apply minimal fix",
+                "Test locally",
+                "Deploy",
+            ]
         if not tests:
             tests = ["Unit tests pass", "API endpoints respond", "No errors in logs"]
         if not rollback:
-            rollback = ["Revert last commit", "Redeploy previous version", "Clear cache"]
+            rollback = [
+                "Revert last commit",
+                "Redeploy previous version",
+                "Clear cache",
+            ]
 
         return HotfixPlan(
             issue_description=issue,
@@ -801,7 +920,7 @@ Focus on the fastest, safest fix that resolves the immediate issue.
             rollback_steps=rollback[:3],
             testing_checklist=tests[:5],
             estimated_time=time,
-            risk_level=risk
+            risk_level=risk,
         )
 
     async def _run_minimal_tests(self, test_checklist: List[str]) -> bool:

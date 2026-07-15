@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from slowapi import Limiter
@@ -9,19 +8,24 @@ from core.services.codebase import codebase_service
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
+
 class WorkspaceRequest(BaseModel):
     path: str
 
+
 class FileRequest(BaseModel):
     path: str
+
 
 class FileWriteRequest(BaseModel):
     path: str
     content: str
 
+
 class FileRenameRequest(BaseModel):
     old_path: str
     new_path: str
+
 
 # Codebase Management Endpoints
 @router.post("/api/workspace/open")
@@ -33,6 +37,7 @@ async def open_workspace(request: WorkspaceRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.get("/api/workspace/filetree")
 @limiter.limit("60/minute")
 async def get_file_tree(request: Request):
@@ -42,6 +47,7 @@ async def get_file_tree(request: Request):
         return {"file_tree": file_tree, "files": file_tree}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.post("/api/workspace/file")
 @limiter.limit("120/minute")
@@ -55,8 +61,11 @@ async def read_file(request_obj: Request, request: FileRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.get("/api/workspace/file")
-async def read_file_get(path: str = Query(..., description="Path to file relative to workspace root")):
+async def read_file_get(
+    path: str = Query(..., description="Path to file relative to workspace root")
+):
     """Support GET variant for compatibility."""
     try:
         return codebase_service.read_file(path)
@@ -64,6 +73,7 @@ async def read_file_get(path: str = Query(..., description="Path to file relativ
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.post("/api/workspace/file/write")
 async def write_file(request: FileWriteRequest):
@@ -74,6 +84,7 @@ async def write_file(request: FileWriteRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.post("/api/workspace/file/rename")
 async def rename_file(request: FileRenameRequest):
     """Rename a file in the workspace."""
@@ -82,6 +93,7 @@ async def rename_file(request: FileRenameRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.delete("/api/workspace/file")
 async def delete_file(request: FileRequest):
@@ -92,6 +104,7 @@ async def delete_file(request: FileRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.get("/api/workspace/info")
 async def get_workspace_info():
     """Get current workspace information."""
@@ -100,13 +113,17 @@ async def get_workspace_info():
 
     return codebase_service.get_workspace_info()
 
+
 @router.get("/api/workspace/recent")
 async def get_recent_workspaces():
     """List recently opened workspaces."""
     return {"recent": codebase_service.get_recent_workspaces()}
 
+
 @router.get("/api/workspace/search")
-async def search_workspace(query: str = Query(..., min_length=1), limit: int = Query(20, ge=1, le=100)):
+async def search_workspace(
+    query: str = Query(..., min_length=1), limit: int = Query(20, ge=1, le=100)
+):
     """Search for files within the active workspace."""
     if not codebase_service.current_workspace:
         raise HTTPException(status_code=400, detail="No workspace opened")

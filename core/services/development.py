@@ -27,6 +27,7 @@ console = Console()
 @dataclass
 class MigrationInfo:
     """Database migration information."""
+
     name: str
     version: str
     description: str
@@ -38,6 +39,7 @@ class MigrationInfo:
 @dataclass
 class SecurityIssue:
     """Security vulnerability information."""
+
     severity: str  # critical, high, medium, low
     type: str
     package: str
@@ -49,6 +51,7 @@ class SecurityIssue:
 @dataclass
 class LintResult:
     """Linting result for a file."""
+
     file: str
     issues: List[Dict[str, Any]]
     fixable: int
@@ -58,6 +61,7 @@ class LintResult:
 @dataclass
 class APIEndpoint:
     """API endpoint specification."""
+
     method: str
     path: str
     description: str
@@ -78,7 +82,12 @@ class DevelopmentService:
         self.api_specs_dir = self.dev_dir / "api_specs"
         self.security_dir = self.dev_dir / "security"
 
-        for dir_path in [self.migrations_dir, self.seeds_dir, self.api_specs_dir, self.security_dir]:
+        for dir_path in [
+            self.migrations_dir,
+            self.seeds_dir,
+            self.api_specs_dir,
+            self.security_dir,
+        ]:
             dir_path.mkdir(parents=True, exist_ok=True)
 
     async def manage_migration(self, action: str, name: str = None) -> bool:
@@ -95,7 +104,9 @@ class DevelopmentService:
             return await self._rollback_migration()
         else:
             console.print("[red]❌ Invalid migration action[/red]")
-            console.print("[dim]Available: create <name>, up, down, status, rollback[/dim]")
+            console.print(
+                "[dim]Available: create <name>, up, down, status, rollback[/dim]"
+            )
             return False
 
     async def _create_migration(self, name: str) -> bool:
@@ -135,7 +146,7 @@ Format as:
         migration_sql = await llm_service.complete(
             prompt,
             system=f"You are a database expert creating {db_type} migrations.",
-            max_tokens=800
+            max_tokens=800,
         )
 
         # Parse migration SQL
@@ -143,15 +154,15 @@ Format as:
         down_sql = ""
         current_section = None
 
-        for line in migration_sql.split('\n'):
-            if 'UP' in line.upper() and 'MIGRATION' in line.upper():
-                current_section = 'up'
-            elif 'DOWN' in line.upper() and 'MIGRATION' in line.upper():
-                current_section = 'down'
-            elif current_section == 'up':
-                up_sql += line + '\n'
-            elif current_section == 'down':
-                down_sql += line + '\n'
+        for line in migration_sql.split("\n"):
+            if "UP" in line.upper() and "MIGRATION" in line.upper():
+                current_section = "up"
+            elif "DOWN" in line.upper() and "MIGRATION" in line.upper():
+                current_section = "down"
+            elif current_section == "up":
+                up_sql += line + "\n"
+            elif current_section == "down":
+                down_sql += line + "\n"
 
         # Create migration file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -169,32 +180,40 @@ Format as:
 {down_sql.strip()}
 """
 
-        with open(migration_path, 'w') as f:
+        with open(migration_path, "w") as f:
             f.write(migration_content)
 
         # Create metadata file
-        metadata_path = self.migrations_dir / f"{timestamp}_{name.replace(' ', '_').lower()}.json"
-        with open(metadata_path, 'w') as f:
-            json.dump({
-                "name": name,
-                "version": timestamp,
-                "created_at": datetime.now().isoformat(),
-                "database": db_type,
-                "applied": False
-            }, f, indent=2)
+        metadata_path = (
+            self.migrations_dir / f"{timestamp}_{name.replace(' ', '_').lower()}.json"
+        )
+        with open(metadata_path, "w") as f:
+            json.dump(
+                {
+                    "name": name,
+                    "version": timestamp,
+                    "created_at": datetime.now().isoformat(),
+                    "database": db_type,
+                    "applied": False,
+                },
+                f,
+                indent=2,
+            )
 
-        console.print(Panel(
-            f"[green]✅ Migration created successfully![/green]\n\n"
-            f"[bold]File:[/bold] {migration_filename}\n"
-            f"[bold]Location:[/bold] {migration_path}\n\n"
-            f"Run '[yellow]/migrate up[/yellow]' to apply this migration",
-            title="Migration Created",
-            border_style="green"
-        ))
+        console.print(
+            Panel(
+                f"[green]✅ Migration created successfully![/green]\n\n"
+                f"[bold]File:[/bold] {migration_filename}\n"
+                f"[bold]Location:[/bold] {migration_path}\n\n"
+                f"Run '[yellow]/migrate up[/yellow]' to apply this migration",
+                title="Migration Created",
+                border_style="green",
+            )
+        )
 
         # Offer to edit migration
         if Confirm.ask("Edit migration file?"):
-            editor = os.environ.get('EDITOR', 'nano')
+            editor = os.environ.get("EDITOR", "nano")
             subprocess.run([editor, str(migration_path)])
 
         return True
@@ -213,36 +232,36 @@ Format as:
             return "postgresql"
         elif Path("prisma/schema.prisma").exists():
             # Prisma ORM
-            with open("prisma/schema.prisma", 'r') as f:
+            with open("prisma/schema.prisma", "r") as f:
                 content = f.read()
-                if 'postgresql' in content.lower():
+                if "postgresql" in content.lower():
                     return "postgresql"
-                elif 'mysql' in content.lower():
+                elif "mysql" in content.lower():
                     return "mysql"
-                elif 'sqlite' in content.lower():
+                elif "sqlite" in content.lower():
                     return "sqlite"
 
         # Check package files for database dependencies
         if Path("package.json").exists():
-            with open("package.json", 'r') as f:
+            with open("package.json", "r") as f:
                 content = f.read()
-                if 'pg' in content or 'postgres' in content:
+                if "pg" in content or "postgres" in content:
                     return "postgresql"
-                elif 'mysql' in content:
+                elif "mysql" in content:
                     return "mysql"
-                elif 'sqlite' in content:
+                elif "sqlite" in content:
                     return "sqlite"
-                elif 'mongodb' in content:
+                elif "mongodb" in content:
                     return "mongodb"
 
         if Path("requirements.txt").exists():
-            with open("requirements.txt", 'r') as f:
+            with open("requirements.txt", "r") as f:
                 content = f.read()
-                if 'psycopg' in content:
+                if "psycopg" in content:
                     return "postgresql"
-                elif 'mysqlclient' in content or 'pymysql' in content:
+                elif "mysqlclient" in content or "pymysql" in content:
                     return "mysql"
-                elif 'pymongo' in content:
+                elif "pymongo" in content:
                     return "mongodb"
 
         # Default to PostgreSQL
@@ -263,7 +282,7 @@ Format as:
         applied_file = self.migrations_dir / "applied.json"
         applied = []
         if applied_file.exists():
-            with open(applied_file, 'r') as f:
+            with open(applied_file, "r") as f:
                 applied = json.load(f)
 
         if direction == "up":
@@ -282,16 +301,19 @@ Format as:
                 # Here you would execute the actual migration
                 # For now, we'll simulate it
                 import asyncio
+
                 await asyncio.sleep(0.5)
 
                 applied.append(migration.stem)
                 console.print(" [green]✓[/green]")
 
             # Save applied migrations
-            with open(applied_file, 'w') as f:
+            with open(applied_file, "w") as f:
                 json.dump(applied, f, indent=2)
 
-            console.print(f"[green]✅ Applied {len(pending)} migrations successfully[/green]")
+            console.print(
+                f"[green]✅ Applied {len(pending)} migrations successfully[/green]"
+            )
 
         else:  # down
             if not applied:
@@ -307,13 +329,14 @@ Format as:
 
                 # Here you would execute the down migration
                 import asyncio
+
                 await asyncio.sleep(0.5)
 
                 applied.pop()
                 console.print(" [green]✓[/green]")
 
                 # Save applied migrations
-                with open(applied_file, 'w') as f:
+                with open(applied_file, "w") as f:
                     json.dump(applied, f, indent=2)
 
                 console.print("[green]✅ Rollback successful[/green]")
@@ -335,10 +358,12 @@ Format as:
         applied_file = self.migrations_dir / "applied.json"
         applied = []
         if applied_file.exists():
-            with open(applied_file, 'r') as f:
+            with open(applied_file, "r") as f:
                 applied = json.load(f)
 
-        table = Table(title="Migration Status", show_header=True, header_style="bold cyan")
+        table = Table(
+            title="Migration Status", show_header=True, header_style="bold cyan"
+        )
         table.add_column("Version", style="bright_white")
         table.add_column("Name", style="yellow")
         table.add_column("Status", justify="center")
@@ -346,16 +371,28 @@ Format as:
 
         for migration in migrations:
             # Load metadata if exists
-            metadata_file = migration.with_suffix('.json')
+            metadata_file = migration.with_suffix(".json")
             metadata = {}
             if metadata_file.exists():
-                with open(metadata_file, 'r') as f:
+                with open(metadata_file, "r") as f:
                     metadata = json.load(f)
 
-            version = migration.stem.split('_')[0] if '_' in migration.stem else migration.stem
-            name = metadata.get('name', migration.stem)
-            status = "[green]Applied[/green]" if migration.stem in applied else "[yellow]Pending[/yellow]"
-            created = metadata.get('created_at', '')[:10] if metadata.get('created_at') else ""
+            version = (
+                migration.stem.split("_")[0]
+                if "_" in migration.stem
+                else migration.stem
+            )
+            name = metadata.get("name", migration.stem)
+            status = (
+                "[green]Applied[/green]"
+                if migration.stem in applied
+                else "[yellow]Pending[/yellow]"
+            )
+            created = (
+                metadata.get("created_at", "")[:10]
+                if metadata.get("created_at")
+                else ""
+            )
 
             table.add_row(version, name, status, created)
 
@@ -413,7 +450,7 @@ Provide code that:
         seeder_code = await llm_service.complete(
             prompt,
             system="You are a database expert creating test data seeders.",
-            max_tokens=1000
+            max_tokens=1000,
         )
 
         # Create seeder file
@@ -428,21 +465,23 @@ Provide code that:
 
         seeder_path = self.seeds_dir / seeder_filename
 
-        with open(seeder_path, 'w') as f:
+        with open(seeder_path, "w") as f:
             f.write(seeder_code)
 
-        console.print(Panel(
-            f"[green]✅ Seeder created successfully![/green]\n\n"
-            f"[bold]File:[/bold] {seeder_filename}\n"
-            f"[bold]Location:[/bold] {seeder_path}\n\n"
-            f"Run '[yellow]/seed run[/yellow]' to execute this seeder",
-            title="Seeder Created",
-            border_style="green"
-        ))
+        console.print(
+            Panel(
+                f"[green]✅ Seeder created successfully![/green]\n\n"
+                f"[bold]File:[/bold] {seeder_filename}\n"
+                f"[bold]Location:[/bold] {seeder_path}\n\n"
+                f"Run '[yellow]/seed run[/yellow]' to execute this seeder",
+                title="Seeder Created",
+                border_style="green",
+            )
+        )
 
         # Offer to edit seeder
         if Confirm.ask("Edit seeder file?"):
-            editor = os.environ.get('EDITOR', 'nano')
+            editor = os.environ.get("EDITOR", "nano")
             subprocess.run([editor, str(seeder_path)])
 
         return True
@@ -461,6 +500,7 @@ Provide code that:
 
             # Simulate seeder execution
             import asyncio
+
             await asyncio.sleep(0.5)
 
             console.print(" [green]✓[/green]")
@@ -474,12 +514,15 @@ Provide code that:
 
         # Simulate rollback
         import asyncio
+
         await asyncio.sleep(1)
 
         console.print("[green]✅ Seeded data rolled back successfully[/green]")
         return True
 
-    async def security_scan(self, target: str = "all", auto_fix: bool = False) -> List[SecurityIssue]:
+    async def security_scan(
+        self, target: str = "all", auto_fix: bool = False
+    ) -> List[SecurityIssue]:
         """Security vulnerability scanning."""
         console.print(f"[bold cyan]Running security scan: {target}[/bold cyan]")
 
@@ -488,7 +531,7 @@ Provide code that:
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
-            console=console
+            console=console,
         ) as progress:
 
             if target in ["deps", "all"]:
@@ -498,7 +541,9 @@ Provide code that:
                 progress.update(task, completed=True)
 
             if target in ["code", "all"]:
-                task = progress.add_task("Scanning code for vulnerabilities...", total=None)
+                task = progress.add_task(
+                    "Scanning code for vulnerabilities...", total=None
+                )
                 code_issues = await self._scan_code()
                 issues.extend(code_issues)
                 progress.update(task, completed=True)
@@ -513,18 +558,22 @@ Provide code that:
             medium = [i for i in issues if i.severity == "medium"]
             low = [i for i in issues if i.severity == "low"]
 
-            console.print(Panel(
-                f"[bold red]Security Issues Found[/bold red]\n\n"
-                f"Critical: {len(critical)}\n"
-                f"High: {len(high)}\n"
-                f"Medium: {len(medium)}\n"
-                f"Low: {len(low)}",
-                border_style="red"
-            ))
+            console.print(
+                Panel(
+                    f"[bold red]Security Issues Found[/bold red]\n\n"
+                    f"Critical: {len(critical)}\n"
+                    f"High: {len(high)}\n"
+                    f"Medium: {len(medium)}\n"
+                    f"Low: {len(low)}",
+                    border_style="red",
+                )
+            )
 
             # Show critical and high issues
             for issue in critical + high:
-                console.print(f"\n[bold red]{issue.severity.upper()}:[/bold red] {issue.type}")
+                console.print(
+                    f"\n[bold red]{issue.severity.upper()}:[/bold red] {issue.type}"
+                )
                 console.print(f"  Package: {issue.package} @ {issue.version}")
                 console.print(f"  {issue.description}")
                 console.print(f"  [dim]Fix: {issue.recommendation}[/dim]")
@@ -535,16 +584,25 @@ Provide code that:
                 console.print(f"[green]✅ Fixed {fixed} vulnerabilities[/green]")
 
         # Save scan results
-        scan_report = self.security_dir / f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(scan_report, 'w') as f:
-            json.dump([{
-                "severity": i.severity,
-                "type": i.type,
-                "package": i.package,
-                "version": i.version,
-                "description": i.description,
-                "recommendation": i.recommendation
-            } for i in issues], f, indent=2)
+        scan_report = (
+            self.security_dir / f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
+        with open(scan_report, "w") as f:
+            json.dump(
+                [
+                    {
+                        "severity": i.severity,
+                        "type": i.type,
+                        "package": i.package,
+                        "version": i.version,
+                        "description": i.description,
+                        "recommendation": i.recommendation,
+                    }
+                    for i in issues
+                ],
+                f,
+                indent=2,
+            )
 
         console.print(f"\n[dim]Report saved to: {scan_report}[/dim]")
 
@@ -558,23 +616,30 @@ Provide code that:
         if Path("package.json").exists():
             try:
                 # Run npm audit
-                result = subprocess.run(['npm', 'audit', '--json'],
-                                      capture_output=True, text=True)
+                result = subprocess.run(
+                    ["npm", "audit", "--json"], capture_output=True, text=True
+                )
                 if result.stdout:
                     audit_data = json.loads(result.stdout)
                     # Parse npm audit results (simplified)
-                    if 'vulnerabilities' in audit_data:
-                        for severity in ['critical', 'high', 'moderate', 'low']:
-                            count = audit_data['vulnerabilities'].get(severity, 0)
+                    if "vulnerabilities" in audit_data:
+                        for severity in ["critical", "high", "moderate", "low"]:
+                            count = audit_data["vulnerabilities"].get(severity, 0)
                             if count > 0:
-                                issues.append(SecurityIssue(
-                                    severity=severity if severity != 'moderate' else 'medium',
-                                    type="Dependency Vulnerability",
-                                    package="npm dependencies",
-                                    version="various",
-                                    description=f"{count} {severity} vulnerabilities found",
-                                    recommendation="Run 'npm audit fix' to auto-fix"
-                                ))
+                                issues.append(
+                                    SecurityIssue(
+                                        severity=(
+                                            severity
+                                            if severity != "moderate"
+                                            else "medium"
+                                        ),
+                                        type="Dependency Vulnerability",
+                                        package="npm dependencies",
+                                        version="various",
+                                        description=f"{count} {severity} vulnerabilities found",
+                                        recommendation="Run 'npm audit fix' to auto-fix",
+                                    )
+                                )
             except:
                 pass
 
@@ -582,38 +647,47 @@ Provide code that:
         if Path("requirements.txt").exists():
             try:
                 # Use safety check if available
-                result = subprocess.run(['safety', 'check', '--json'],
-                                      capture_output=True, text=True)
+                result = subprocess.run(
+                    ["safety", "check", "--json"], capture_output=True, text=True
+                )
                 if result.returncode != 0 and result.stdout:
                     vulnerabilities = json.loads(result.stdout)
                     for vuln in vulnerabilities[:10]:  # Limit to 10
-                        issues.append(SecurityIssue(
-                            severity="high",
-                            type="Dependency Vulnerability",
-                            package=vuln.get('package', 'unknown'),
-                            version=vuln.get('installed_version', 'unknown'),
-                            description=vuln.get('description', 'Security vulnerability detected'),
-                            recommendation=vuln.get('recommendation', 'Update to latest version')
-                        ))
+                        issues.append(
+                            SecurityIssue(
+                                severity="high",
+                                type="Dependency Vulnerability",
+                                package=vuln.get("package", "unknown"),
+                                version=vuln.get("installed_version", "unknown"),
+                                description=vuln.get(
+                                    "description", "Security vulnerability detected"
+                                ),
+                                recommendation=vuln.get(
+                                    "recommendation", "Update to latest version"
+                                ),
+                            )
+                        )
             except:
                 # Fallback: Check for commonly vulnerable packages
-                with open("requirements.txt", 'r') as f:
+                with open("requirements.txt", "r") as f:
                     content = f.read()
                     vulnerable_packages = {
-                        'django<3.2': 'Update Django to 3.2 or later',
-                        'flask<2.0': 'Update Flask to 2.0 or later',
-                        'requests<2.25': 'Update requests to 2.25 or later'
+                        "django<3.2": "Update Django to 3.2 or later",
+                        "flask<2.0": "Update Flask to 2.0 or later",
+                        "requests<2.25": "Update requests to 2.25 or later",
                     }
                     for pkg, fix in vulnerable_packages.items():
-                        if pkg.split('<')[0] in content.lower():
-                            issues.append(SecurityIssue(
-                                severity="medium",
-                                type="Potentially Outdated Dependency",
-                                package=pkg.split('<')[0],
-                                version="check version",
-                                description="May contain known vulnerabilities",
-                                recommendation=fix
-                            ))
+                        if pkg.split("<")[0] in content.lower():
+                            issues.append(
+                                SecurityIssue(
+                                    severity="medium",
+                                    type="Potentially Outdated Dependency",
+                                    package=pkg.split("<")[0],
+                                    version="check version",
+                                    description="May contain known vulnerabilities",
+                                    recommendation=fix,
+                                )
+                            )
 
         return issues
 
@@ -623,58 +697,66 @@ Provide code that:
 
         # Common security patterns to check
         security_patterns = [
-            (r'eval\s*\(', "Dangerous eval() usage", "critical"),
-            (r'exec\s*\(', "Dangerous exec() usage", "critical"),
-            (r'os\.system\s*\(', "Shell command injection risk", "high"),
-            (r'subprocess\..*shell\s*=\s*True', "Shell injection risk", "high"),
-            (r'pickle\.loads?\s*\(', "Insecure deserialization", "high"),
+            (r"eval\s*\(", "Dangerous eval() usage", "critical"),
+            (r"exec\s*\(", "Dangerous exec() usage", "critical"),
+            (r"os\.system\s*\(", "Shell command injection risk", "high"),
+            (r"subprocess\..*shell\s*=\s*True", "Shell injection risk", "high"),
+            (r"pickle\.loads?\s*\(", "Insecure deserialization", "high"),
             (r'hardcoded.*password|password\s*=\s*["\']', "Hardcoded password", "high"),
             (r'api[_-]?key\s*=\s*["\']', "Hardcoded API key", "high"),
-            (r'TODO.*security|FIXME.*security', "Security TODO", "medium"),
-            (r'http://', "Insecure HTTP usage", "low")
+            (r"TODO.*security|FIXME.*security", "Security TODO", "medium"),
+            (r"http://", "Insecure HTTP usage", "low"),
         ]
 
         # Scan Python files
         for py_file in Path.cwd().rglob("*.py"):
             try:
-                with open(py_file, 'r') as f:
+                with open(py_file, "r") as f:
                     content = f.read()
 
                     for pattern, description, severity in security_patterns:
                         if re.search(pattern, content, re.IGNORECASE):
-                            issues.append(SecurityIssue(
-                                severity=severity,
-                                type="Code Vulnerability",
-                                package=str(py_file.relative_to(Path.cwd())),
-                                version="",
-                                description=description,
-                                recommendation="Review and fix the security issue"
-                            ))
+                            issues.append(
+                                SecurityIssue(
+                                    severity=severity,
+                                    type="Code Vulnerability",
+                                    package=str(py_file.relative_to(Path.cwd())),
+                                    version="",
+                                    description=description,
+                                    recommendation="Review and fix the security issue",
+                                )
+                            )
             except:
                 pass
 
         # Scan JavaScript files
         for js_file in Path.cwd().rglob("*.js"):
             try:
-                with open(js_file, 'r') as f:
+                with open(js_file, "r") as f:
                     content = f.read()
 
                     js_patterns = [
-                        (r'eval\s*\(', "Dangerous eval() usage", "critical"),
-                        (r'innerHTML\s*=', "Potential XSS vulnerability", "high"),
-                        (r'document\.write\s*\(', "Dangerous document.write()", "medium")
+                        (r"eval\s*\(", "Dangerous eval() usage", "critical"),
+                        (r"innerHTML\s*=", "Potential XSS vulnerability", "high"),
+                        (
+                            r"document\.write\s*\(",
+                            "Dangerous document.write()",
+                            "medium",
+                        ),
                     ]
 
                     for pattern, description, severity in js_patterns:
                         if re.search(pattern, content):
-                            issues.append(SecurityIssue(
-                                severity=severity,
-                                type="Code Vulnerability",
-                                package=str(js_file.relative_to(Path.cwd())),
-                                version="",
-                                description=description,
-                                recommendation="Review and fix the security issue"
-                            ))
+                            issues.append(
+                                SecurityIssue(
+                                    severity=severity,
+                                    type="Code Vulnerability",
+                                    package=str(js_file.relative_to(Path.cwd())),
+                                    version="",
+                                    description=description,
+                                    recommendation="Review and fix the security issue",
+                                )
+                            )
             except:
                 pass
 
@@ -685,10 +767,10 @@ Provide code that:
         fixed = 0
 
         # Fix npm vulnerabilities
-        if any('npm' in i.package for i in issues):
+        if any("npm" in i.package for i in issues):
             try:
-                subprocess.run(['npm', 'audit', 'fix'], check=True, capture_output=True)
-                fixed += sum(1 for i in issues if 'npm' in i.package)
+                subprocess.run(["npm", "audit", "fix"], check=True, capture_output=True)
+                fixed += sum(1 for i in issues if "npm" in i.package)
             except:
                 pass
 
@@ -700,7 +782,9 @@ Provide code that:
 
         return fixed
 
-    async def run_linting(self, file_pattern: str = None, auto_fix: bool = False, scan_all: bool = False) -> List[LintResult]:
+    async def run_linting(
+        self, file_pattern: str = None, auto_fix: bool = False, scan_all: bool = False
+    ) -> List[LintResult]:
         """Multi-language linting with auto-fix."""
         console.print("[bold cyan]Running code linting...[/bold cyan]")
 
@@ -738,17 +822,15 @@ Provide code that:
             # Show files with most issues
             worst_files = sorted(results, key=lambda r: r.total, reverse=True)[:5]
 
-            table = Table(title="Files with Issues", show_header=True, header_style="bold cyan")
+            table = Table(
+                title="Files with Issues", show_header=True, header_style="bold cyan"
+            )
             table.add_column("File", style="bright_white")
             table.add_column("Issues", justify="right", style="yellow")
             table.add_column("Fixable", justify="right", style="green")
 
             for result in worst_files:
-                table.add_row(
-                    result.file,
-                    str(result.total),
-                    str(result.fixable)
-                )
+                table.add_row(result.file, str(result.total), str(result.fixable))
 
             console.print(table)
 
@@ -763,16 +845,17 @@ Provide code that:
         fixable = 0
 
         # Python linting
-        if file_path.suffix == '.py':
+        if file_path.suffix == ".py":
             # Use flake8 for linting
             try:
                 result = subprocess.run(
-                    ['flake8', '--format=json', str(file_path)],
-                    capture_output=True, text=True
+                    ["flake8", "--format=json", str(file_path)],
+                    capture_output=True,
+                    text=True,
                 )
                 if result.stdout:
                     # Parse flake8 output
-                    for line in result.stdout.split('\n'):
+                    for line in result.stdout.split("\n"):
                         if line.strip():
                             issues.append({"type": "style", "message": line})
             except:
@@ -781,29 +864,32 @@ Provide code that:
             # Auto-fix with black if requested
             if auto_fix:
                 try:
-                    subprocess.run(['black', str(file_path)], capture_output=True)
+                    subprocess.run(["black", str(file_path)], capture_output=True)
                     fixable = len(issues) // 2  # Estimate
                 except:
                     pass
 
         # JavaScript/TypeScript linting
-        elif file_path.suffix in ['.js', '.ts', '.jsx', '.tsx']:
+        elif file_path.suffix in [".js", ".ts", ".jsx", ".tsx"]:
             # Use eslint if available
             try:
                 result = subprocess.run(
-                    ['eslint', str(file_path), '--format=json'],
-                    capture_output=True, text=True
+                    ["eslint", str(file_path), "--format=json"],
+                    capture_output=True,
+                    text=True,
                 )
                 if result.stdout:
                     lint_data = json.loads(result.stdout)
-                    if lint_data and lint_data[0].get('messages'):
-                        for msg in lint_data[0]['messages']:
-                            issues.append({
-                                "type": msg.get('severity'),
-                                "message": msg.get('message'),
-                                "line": msg.get('line')
-                            })
-                            if msg.get('fix'):
+                    if lint_data and lint_data[0].get("messages"):
+                        for msg in lint_data[0]["messages"]:
+                            issues.append(
+                                {
+                                    "type": msg.get("severity"),
+                                    "message": msg.get("message"),
+                                    "line": msg.get("line"),
+                                }
+                            )
+                            if msg.get("fix"):
                                 fixable += 1
             except:
                 pass
@@ -811,7 +897,9 @@ Provide code that:
             # Auto-fix with eslint if requested
             if auto_fix and fixable > 0:
                 try:
-                    subprocess.run(['eslint', str(file_path), '--fix'], capture_output=True)
+                    subprocess.run(
+                        ["eslint", str(file_path), "--fix"], capture_output=True
+                    )
                 except:
                     pass
 
@@ -819,12 +907,20 @@ Provide code that:
             file=str(file_path.relative_to(Path.cwd())),
             issues=issues,
             fixable=fixable,
-            total=len(issues)
+            total=len(issues),
         )
 
-    async def generate_api(self, api_type: str, resource_name: str, include_crud: bool = False, include_auth: bool = False) -> bool:
+    async def generate_api(
+        self,
+        api_type: str,
+        resource_name: str,
+        include_crud: bool = False,
+        include_auth: bool = False,
+    ) -> bool:
         """Generate REST/GraphQL API scaffolding."""
-        console.print(f"[bold cyan]Generating {api_type.upper()} API for {resource_name}...[/bold cyan]")
+        console.print(
+            f"[bold cyan]Generating {api_type.upper()} API for {resource_name}...[/bold cyan]"
+        )
 
         # Generate API specification with AI
         prompt = f"""
@@ -848,7 +944,7 @@ Provide production-ready code with best practices.
         api_code = await llm_service.complete(
             prompt,
             system=f"You are an API architect designing {api_type} APIs.",
-            max_tokens=1500
+            max_tokens=1500,
         )
 
         # Create API specification files
@@ -862,21 +958,25 @@ Provide production-ready code with best practices.
             # Routes file
             routes_file = api_dir / f"{resource_name.lower()}_routes.js"
             routes_content = self._extract_section(api_code, "routes", "endpoints")
-            with open(routes_file, 'w') as f:
+            with open(routes_file, "w") as f:
                 f.write(routes_content or api_code)
             files_created.append(routes_file)
 
             # Controller file
             controller_file = api_dir / f"{resource_name.lower()}_controller.js"
-            controller_content = self._extract_section(api_code, "controller", "handlers")
-            with open(controller_file, 'w') as f:
+            controller_content = self._extract_section(
+                api_code, "controller", "handlers"
+            )
+            with open(controller_file, "w") as f:
                 f.write(controller_content or "// Controller implementation")
             files_created.append(controller_file)
 
             # OpenAPI spec
             openapi_file = api_dir / f"{resource_name.lower()}_openapi.yaml"
-            openapi_content = self._generate_openapi_spec(resource_name, include_crud, include_auth)
-            with open(openapi_file, 'w') as f:
+            openapi_content = self._generate_openapi_spec(
+                resource_name, include_crud, include_auth
+            )
+            with open(openapi_file, "w") as f:
                 f.write(openapi_content)
             files_created.append(openapi_file)
 
@@ -887,39 +987,45 @@ Provide production-ready code with best practices.
             # Schema file
             schema_file = api_dir / f"{resource_name.lower()}_schema.graphql"
             schema_content = self._extract_section(api_code, "schema", "type")
-            with open(schema_file, 'w') as f:
+            with open(schema_file, "w") as f:
                 f.write(schema_content or api_code)
             files_created.append(schema_file)
 
             # Resolvers file
             resolvers_file = api_dir / f"{resource_name.lower()}_resolvers.js"
             resolvers_content = self._extract_section(api_code, "resolver", "query")
-            with open(resolvers_file, 'w') as f:
+            with open(resolvers_file, "w") as f:
                 f.write(resolvers_content or "// Resolver implementation")
             files_created.append(resolvers_file)
 
         # Save API specification metadata
         spec_file = self.api_specs_dir / f"{resource_name.lower()}_{api_type}.json"
-        with open(spec_file, 'w') as f:
-            json.dump({
-                "resource": resource_name,
-                "type": api_type,
-                "crud": include_crud,
-                "auth": include_auth,
-                "created_at": datetime.now().isoformat(),
-                "files": [str(f) for f in files_created]
-            }, f, indent=2)
+        with open(spec_file, "w") as f:
+            json.dump(
+                {
+                    "resource": resource_name,
+                    "type": api_type,
+                    "crud": include_crud,
+                    "auth": include_auth,
+                    "created_at": datetime.now().isoformat(),
+                    "files": [str(f) for f in files_created],
+                },
+                f,
+                indent=2,
+            )
 
         # Display results
-        console.print(Panel(
-            f"[green]✅ {api_type.upper()} API generated successfully![/green]\n\n"
-            f"[bold]Resource:[/bold] {resource_name}\n"
-            f"[bold]Location:[/bold] {api_dir}\n\n"
-            f"[bold]Files created:[/bold]\n" +
-            "\n".join(f"  • {f.name}" for f in files_created),
-            title="API Generated",
-            border_style="green"
-        ))
+        console.print(
+            Panel(
+                f"[green]✅ {api_type.upper()} API generated successfully![/green]\n\n"
+                f"[bold]Resource:[/bold] {resource_name}\n"
+                f"[bold]Location:[/bold] {api_dir}\n\n"
+                f"[bold]Files created:[/bold]\n"
+                + "\n".join(f"  • {f.name}" for f in files_created),
+                title="API Generated",
+                border_style="green",
+            )
+        )
 
         # Show example usage
         if api_type == "rest":
@@ -935,7 +1041,7 @@ Provide production-ready code with best practices.
 
     def _extract_section(self, content: str, *keywords: str) -> str:
         """Extract a section from generated content based on keywords."""
-        lines = content.split('\n')
+        lines = content.split("\n")
         extracted = []
         capturing = False
 
@@ -946,7 +1052,7 @@ Provide production-ready code with best practices.
             if capturing:
                 extracted.append(line)
 
-        return '\n'.join(extracted) if extracted else content
+        return "\n".join(extracted) if extracted else content
 
     def _generate_openapi_spec(self, resource: str, crud: bool, auth: bool) -> str:
         """Generate OpenAPI specification."""
@@ -1088,7 +1194,9 @@ security:
 
         return spec
 
-    async def analyze_logs(self, action: str = "tail", pattern: str = None, follow: bool = False) -> bool:
+    async def analyze_logs(
+        self, action: str = "tail", pattern: str = None, follow: bool = False
+    ) -> bool:
         """Intelligent log analysis and error detection."""
         console.print(f"[bold cyan]Log Analysis: {action}[/bold cyan]")
 
@@ -1110,17 +1218,18 @@ security:
                 try:
                     if follow:
                         # Follow log in real-time (simplified)
-                        subprocess.run(['tail', '-f', '-n', '20', str(log_file)])
+                        subprocess.run(["tail", "-f", "-n", "20", str(log_file)])
                     else:
                         result = subprocess.run(
-                            ['tail', '-n', '20', str(log_file)],
-                            capture_output=True, text=True
+                            ["tail", "-n", "20", str(log_file)],
+                            capture_output=True,
+                            text=True,
                         )
                         console.print(result.stdout)
                 except KeyboardInterrupt:
                     console.print("\n[dim]Log following stopped[/dim]")
                 except:
-                    with open(log_file, 'r') as f:
+                    with open(log_file, "r") as f:
                         lines = f.readlines()
                         for line in lines[-20:]:
                             console.print(line.rstrip())
@@ -1132,7 +1241,7 @@ security:
             matches = []
             for log_file in log_files:
                 try:
-                    with open(log_file, 'r') as f:
+                    with open(log_file, "r") as f:
                         for line_num, line in enumerate(f, 1):
                             if pattern.lower() in line.lower():
                                 matches.append((log_file.name, line_num, line.strip()))
@@ -1155,12 +1264,17 @@ security:
 
             for log_file in log_files:
                 try:
-                    with open(log_file, 'r') as f:
+                    with open(log_file, "r") as f:
                         for line in f:
                             line_lower = line.lower()
-                            if any(word in line_lower for word in ['error', 'exception', 'fatal', 'critical']):
+                            if any(
+                                word in line_lower
+                                for word in ["error", "exception", "fatal", "critical"]
+                            ):
                                 errors.append((log_file.name, line.strip()[:150]))
-                            elif any(word in line_lower for word in ['warning', 'warn']):
+                            elif any(
+                                word in line_lower for word in ["warning", "warn"]
+                            ):
                                 warnings.append((log_file.name, line.strip()[:150]))
                 except:
                     pass
@@ -1171,7 +1285,9 @@ security:
                     console.print(f"  [{file}] {error}")
 
             if warnings:
-                console.print(f"\n[bold yellow]Warnings ({len(warnings)}):[/bold yellow]")
+                console.print(
+                    f"\n[bold yellow]Warnings ({len(warnings)}):[/bold yellow]"
+                )
                 for file, warning in warnings[:5]:
                     console.print(f"  [{file}] {warning}")
 
@@ -1196,7 +1312,7 @@ Errors:
                 analysis = await llm_service.complete(
                     prompt,
                     system="You are a DevOps expert analyzing application logs.",
-                    max_tokens=500
+                    max_tokens=500,
                 )
 
                 console.print("\n[bold cyan]AI Analysis:[/bold cyan]")

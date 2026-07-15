@@ -45,7 +45,7 @@ _RUNS: Dict[str, Dict] = {}
 class RunRequest(BaseModel):
     intent: str
     answers: Optional[Dict[str, str]] = None
-    mode: str = "AUTO"                 # STRICT | AUTO | YOLO
+    mode: str = "AUTO"  # STRICT | AUTO | YOLO
     project_root: Optional[str] = None
     build_cmd: Optional[List[str]] = None
     test_cmd: Optional[List[str]] = None
@@ -100,20 +100,30 @@ async def pipeline_run(req: RunRequest):
     progress: List[Dict] = []
     pipe.progress.on_update(lambda p: progress.append(p))
 
-    _RUNS[run_id] = {"status": "running", "pipeline": pipe, "progress": progress,
-                     "result": None, "project_root": root}
+    _RUNS[run_id] = {
+        "status": "running",
+        "pipeline": pipe,
+        "progress": progress,
+        "result": None,
+        "project_root": root,
+    }
 
     async def _execute():
         try:
             result = await pipe.run(
-                req.intent, answers=req.answers,
-                build_cmd=req.build_cmd, test_cmd=req.test_cmd,
+                req.intent,
+                answers=req.answers,
+                build_cmd=req.build_cmd,
+                test_cmd=req.test_cmd,
             )
             _RUNS[run_id]["status"] = result.status
             _RUNS[run_id]["result"] = result.to_dict()
         except Exception as e:  # never let a run crash the server
             _RUNS[run_id]["status"] = "failed"
-            _RUNS[run_id]["result"] = {"status": "failed", "human_summary": f"Run failed: {e}"}
+            _RUNS[run_id]["result"] = {
+                "status": "failed",
+                "human_summary": f"Run failed: {e}",
+            }
 
     asyncio.create_task(_execute())
     return {"run_id": run_id, "status": "running"}

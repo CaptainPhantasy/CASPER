@@ -6,7 +6,11 @@ import asyncio
 from typing import Optional, Dict, Any
 from pathlib import Path
 
-from core.ai.command_interpreter import command_interpreter, CommandType, InterpretedCommand
+from core.ai.command_interpreter import (
+    command_interpreter,
+    CommandType,
+    InterpretedCommand,
+)
 from core.cli import CasperCLI
 from core.agents.base import ContextBundle
 from core.services.llm import llm_service
@@ -40,13 +44,15 @@ class CasperBrain:
         interpretation = await self.interpreter.interpret(user_input)
 
         # Step 2: Validate the interpretation
-        is_valid, validation_msg = await self.interpreter.validate_interpretation(interpretation)
+        is_valid, validation_msg = await self.interpreter.validate_interpretation(
+            interpretation
+        )
 
         if not is_valid:
             return {
                 "success": False,
                 "message": validation_msg,
-                "interpretation": interpretation
+                "interpretation": interpretation,
             }
 
         # Step 3: Explain what we're about to do (transparency)
@@ -60,10 +66,12 @@ class CasperBrain:
             "message": result.get("message", ""),
             "explanation": explanation,
             "interpretation": interpretation,
-            "result": result
+            "result": result,
         }
 
-    async def _execute_interpretation(self, command: InterpretedCommand) -> Dict[str, Any]:
+    async def _execute_interpretation(
+        self, command: InterpretedCommand
+    ) -> Dict[str, Any]:
         """Execute the interpreted command through the appropriate system"""
 
         # Initialize CLI if needed
@@ -95,10 +103,12 @@ class CasperBrain:
         else:
             return {
                 "success": False,
-                "message": "I don't know how to handle that type of command yet."
+                "message": "I don't know how to handle that type of command yet.",
             }
 
-    async def _handle_file_operation(self, command: InterpretedCommand) -> Dict[str, Any]:
+    async def _handle_file_operation(
+        self, command: InterpretedCommand
+    ) -> Dict[str, Any]:
         """Handle file system operations"""
 
         # Build task description for CASPER
@@ -139,10 +149,7 @@ class CasperBrain:
                 task_parts.append(task)
 
         if not task_parts:
-            return {
-                "success": False,
-                "message": "No clear file operation to perform"
-            }
+            return {"success": False, "message": "No clear file operation to perform"}
 
         # Execute through CASPER CLI
         results = []
@@ -156,11 +163,15 @@ class CasperBrain:
         success = all(r["success"] for r in results)
         return {
             "success": success,
-            "message": "File operations completed" if success else "Some operations failed",
-            "details": results
+            "message": (
+                "File operations completed" if success else "Some operations failed"
+            ),
+            "details": results,
         }
 
-    async def _handle_code_generation(self, command: InterpretedCommand) -> Dict[str, Any]:
+    async def _handle_code_generation(
+        self, command: InterpretedCommand
+    ) -> Dict[str, Any]:
         """Handle code generation requests"""
 
         tasks = []
@@ -192,7 +203,7 @@ class CasperBrain:
         return {
             "success": all(r["success"] for r in results),
             "message": "Code generation completed",
-            "details": results
+            "details": results,
         }
 
     async def _handle_testing(self, command: InterpretedCommand) -> Dict[str, Any]:
@@ -208,15 +219,9 @@ class CasperBrain:
 
         try:
             await self.cli.execute_task(task, priority="high")
-            return {
-                "success": True,
-                "message": "Testing task submitted"
-            }
+            return {"success": True, "message": "Testing task submitted"}
         except Exception as e:
-            return {
-                "success": False,
-                "message": f"Testing failed: {e}"
-            }
+            return {"success": False, "message": f"Testing failed: {e}"}
 
     async def _handle_debugging(self, command: InterpretedCommand) -> Dict[str, Any]:
         """Handle debugging requests"""
@@ -230,17 +235,13 @@ class CasperBrain:
 
         try:
             await self.cli.execute_task(task, priority="high")
-            return {
-                "success": True,
-                "message": "Debugging task initiated"
-            }
+            return {"success": True, "message": "Debugging task initiated"}
         except Exception as e:
-            return {
-                "success": False,
-                "message": f"Debugging failed: {e}"
-            }
+            return {"success": False, "message": f"Debugging failed: {e}"}
 
-    async def _handle_documentation(self, command: InterpretedCommand) -> Dict[str, Any]:
+    async def _handle_documentation(
+        self, command: InterpretedCommand
+    ) -> Dict[str, Any]:
         """Handle documentation requests"""
 
         task = f"{command.action} documentation"
@@ -250,15 +251,9 @@ class CasperBrain:
 
         try:
             await self.cli.execute_task(task)
-            return {
-                "success": True,
-                "message": "Documentation task submitted"
-            }
+            return {"success": True, "message": "Documentation task submitted"}
         except Exception as e:
-            return {
-                "success": False,
-                "message": f"Documentation task failed: {e}"
-            }
+            return {"success": False, "message": f"Documentation task failed: {e}"}
 
     async def _handle_system_query(self, command: InterpretedCommand) -> Dict[str, Any]:
         """Handle system queries (status, info, etc.)"""
@@ -273,14 +268,11 @@ class CasperBrain:
                 "message": "CASPER is operational",
                 "details": {
                     "agents": "ready",
-                    "cli": "initialized" if self.cli else "not initialized"
-                }
+                    "cli": "initialized" if self.cli else "not initialized",
+                },
             }
         else:
-            return {
-                "success": True,
-                "message": "System query received"
-            }
+            return {"success": True, "message": "System query received"}
 
     async def _handle_conversation(self, command: InterpretedCommand) -> Dict[str, Any]:
         """Handle conversational inputs"""
@@ -297,12 +289,13 @@ class CasperBrain:
             response = await llm_service.complete(prompt=prompt, max_tokens=500)
             return {
                 "success": True,
-                "message": response or "I understand. How can I help you with development?"
+                "message": response
+                or "I understand. How can I help you with development?",
             }
         except:
             return {
                 "success": True,
-                "message": "I understand. How can I help you with development?"
+                "message": "I understand. How can I help you with development?",
             }
 
     async def shutdown(self):

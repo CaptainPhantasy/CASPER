@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CASPER2 Complete Terminal - All 49 Commands Implementation
+CASPER2 Complete Terminal - All 57 Commands Implementation
 Full implementation following COT methodology with all tiers.
 Enhanced with agent-based natural language processing.
 """
@@ -39,7 +39,7 @@ from core.agents.base import AgentRole, ContextBundle
 logger = logging.getLogger(__name__)
 
 
-# Command categories for organized help - ALL 49+ COMMANDS
+# Command categories for organized help - ALL 57 COMMANDS
 COMMAND_CATEGORIES = {
     "core": {
         "help": "Display available commands and usage",
@@ -49,21 +49,21 @@ COMMAND_CATEGORIES = {
         "approve": "Review and approve pending operations",
         "clear": "Clear the terminal screen",
         "exit": "Exit CASPER2 terminal",
-        "quit": "Exit CASPER2 terminal (alias for exit)"
+        "quit": "Exit CASPER2 terminal (alias for exit)",
     },
     "workflow": {
         "/task": "Execute task (slash version)",
         "/analyze": "Analyze task (slash version)",
         "/status": "Show status (slash version)",
         "/help": "Display help (slash version)",
-        "list": "List available agents and tasks"
+        "list": "List available agents and tasks",
     },
     "agent": {
         "/goal": "Persist an evidence-gated project goal",
         "/model": "Show or select the active provider/model",
         "/plan": "Analyze a request without executing it",
         "/diff": "Show the current Git diff",
-        "/pwd": "Show the active working directory"
+        "/pwd": "Show the active working directory",
     },
     "development": {
         "/create": "Create new components",
@@ -79,28 +79,28 @@ COMMAND_CATEGORIES = {
         "/generate": "Generate code",
         "/scaffold": "Scaffold project structure",
         "/optimize": "Optimize code",
-        "/profile": "Profile performance"
+        "/profile": "Profile performance",
     },
     "ai": {
         "/ai-review": "AI code review",
         "/ai-complete": "AI code completion",
         "/ai-explain": "AI code explanation",
         "/ai-suggest": "AI suggestions",
-        "/ai-translate": "AI code translation"
+        "/ai-translate": "AI code translation",
     },
     "business": {
         "/invoice": "Generate invoice",
         "/proposal": "Create proposal",
         "/contract": "Draft contract",
         "/quote": "Generate quote",
-        "/timesheet": "Manage timesheet"
+        "/timesheet": "Manage timesheet",
     },
     "testing": {
         "/unit-test": "Run unit tests",
         "/integration-test": "Run integration tests",
         "/e2e-test": "Run end-to-end tests",
         "/load-test": "Run load tests",
-        "/security-test": "Run security tests"
+        "/security-test": "Run security tests",
     },
     "utility": {
         "/search": "Search in codebase",
@@ -112,13 +112,13 @@ COMMAND_CATEGORIES = {
         "/restore": "Restore from backup",
         "/export": "Export data",
         "/import": "Import data",
-        "/sync": "Sync repositories"
-    }
+        "/sync": "Sync repositories",
+    },
 }
 
 
 class CasperTerminalComplete:
-    """Complete CASPER2 terminal with all 49 commands and agent-based NLP"""
+    """Complete CASPER2 terminal with all 57 commands and agent-based NLP"""
 
     def __init__(self):
         self.console = Console()
@@ -140,53 +140,76 @@ class CasperTerminalComplete:
 
     async def initialize(self):
         """Initialize CASPER CLI with approval mode and agent layers"""
-        self.casper_cli = CasperCLI()
+        injected_cli = self.casper_cli is not None
+        if self.casper_cli is None:
+            self.casper_cli = CasperCLI()
 
         # Get approval mode from environment
-        approval_mode = os.environ.get('CASPER_APPROVAL_MODE', 'STRICT')
+        approval_mode = os.environ.get("CASPER_APPROVAL_MODE", "STRICT")
         self.approval_mode = approval_mode
 
         # Configure approval based on mode
         try:
-            if approval_mode == 'YOLO':
+            if approval_mode == "YOLO":
                 # YOLO mode - approve everything automatically
-                if hasattr(self.casper_cli, 'config'):
-                    self.casper_cli.config['require_human_approval'] = False
+                if hasattr(self.casper_cli, "config"):
+                    self.casper_cli.config["require_human_approval"] = False
                 approval_service = ApprovalService()
                 approval_service.auto_approve = True
-                self.console.print("[bold yellow]⚡ YOLO MODE ACTIVATED[/bold yellow] - All operations will be auto-approved!")
-            elif approval_mode == 'AUTO':
+                self.console.print(
+                    "[bold yellow]⚡ YOLO MODE ACTIVATED[/bold yellow] - All operations will be auto-approved!"
+                )
+            elif approval_mode == "AUTO":
                 # Auto mode - smart auto-approval for safe operations
-                if hasattr(self.casper_cli, 'config'):
-                    self.casper_cli.config['require_human_approval'] = True
-                    self.casper_cli.config['auto_approve_safe'] = True
-                self.console.print("[bold green]🤖 AUTO-APPROVAL MODE[/bold green] - Safe operations will be auto-approved")
+                if hasattr(self.casper_cli, "config"):
+                    self.casper_cli.config["require_human_approval"] = True
+                    self.casper_cli.config["auto_approve_safe"] = True
+                self.console.print(
+                    "[bold green]🤖 AUTO-APPROVAL MODE[/bold green] - Safe operations will be auto-approved"
+                )
             else:  # STRICT mode (default)
                 # Strict mode - require approval for all operations
-                if hasattr(self.casper_cli, 'config'):
-                    self.casper_cli.config['require_human_approval'] = True
+                if hasattr(self.casper_cli, "config"):
+                    self.casper_cli.config["require_human_approval"] = True
                 approval_service = ApprovalService()
                 approval_service.auto_approve = False
-                self.console.print("[bold red]🔒 STRICT MODE[/bold red] - All operations require approval")
+                self.console.print(
+                    "[bold red]🔒 STRICT MODE[/bold red] - All operations require approval"
+                )
         except:
             pass
 
         await self.casper_cli.initialize()
         self.slash_commands = SlashCommandRegistry(self.casper_cli)
 
+        # Dependency injection is used by tests and embedders that already
+        # own the CLI lifecycle. Do not replace it or start a second agent
+        # hierarchy behind their back.
+        if injected_cli:
+            return
+
         # Initialize agent layers for natural language processing
         self.console.print("[dim]→ Initializing agent layers...[/dim]")
         try:
             self.agent_initializer = AgentLayerInitializer()
-            self.agent_session = await self.agent_initializer.initialize_casper_session()
+            self.agent_session = (
+                await self.agent_initializer.initialize_casper_session()
+            )
 
             # Get Layer 0 agent for orchestration
             from core.agents.layer_initialization import AgentLayer
+
             if AgentLayer.LAYER_0 in self.agent_initializer.layer_agents:
-                self.layer_0_agent = self.agent_initializer.layer_agents[AgentLayer.LAYER_0][0]
-                self.console.print("[bold green]✓[/bold green] Agent layers initialized")
+                self.layer_0_agent = self.agent_initializer.layer_agents[
+                    AgentLayer.LAYER_0
+                ][0]
+                self.console.print(
+                    "[bold green]✓[/bold green] Agent layers initialized"
+                )
             else:
-                self.console.print("[yellow]⚠ Agent layers initialized without Layer 0[/yellow]")
+                self.console.print(
+                    "[yellow]⚠ Agent layers initialized without Layer 0[/yellow]"
+                )
         except Exception as e:
             self.console.print(f"[yellow]⚠ Agent initialization warning: {e}[/yellow]")
             logger.warning(f"Failed to initialize agent layers: {e}")
@@ -215,26 +238,46 @@ class CasperTerminalComplete:
 
             # Use actual LLM to process the input
             response = await llm_service.complete(
-                prompt=input_text,
-                system=system_prompt,
-                max_tokens=1000
+                prompt=input_text, system=system_prompt, max_tokens=1000
             )
 
             if not response:
                 # LLM failed - try to handle locally
-                self.console.print("[yellow]⚠ LLM service unavailable. Processing locally...[/yellow]")
+                self.console.print(
+                    "[yellow]⚠ LLM service unavailable. Processing locally...[/yellow]"
+                )
 
                 # Check if it's a task-like request
-                action_words = ['create', 'make', 'build', 'test', 'debug', 'deploy', 'implement', 'add', 'fix', 'update', 'refactor', 'write', 'generate']
+                action_words = [
+                    "create",
+                    "make",
+                    "build",
+                    "test",
+                    "debug",
+                    "deploy",
+                    "implement",
+                    "add",
+                    "fix",
+                    "update",
+                    "refactor",
+                    "write",
+                    "generate",
+                ]
                 if any(word in input_text.lower() for word in action_words):
                     # Route as task
-                    self.console.print(f"[dim]→ Routing to task execution: {input_text}[/dim]")
+                    self.console.print(
+                        f"[dim]→ Routing to task execution: {input_text}[/dim]"
+                    )
                     await self.handle_task(input_text)
                     return True
                 else:
                     # Can't process without LLM
-                    self.console.print("[red]Unable to process natural language without LLM service.[/red]")
-                    self.console.print("[dim]Please configure ANTHROPIC_API_KEY or OPENAI_API_KEY in your environment.[/dim]")
+                    self.console.print(
+                        "[red]Unable to process natural language without LLM service.[/red]"
+                    )
+                    self.console.print(
+                        "[dim]Please configure ANTHROPIC_API_KEY or OPENAI_API_KEY in your environment.[/dim]"
+                    )
                     return False
 
             # Display the LLM response
@@ -244,16 +287,35 @@ class CasperTerminalComplete:
             # Now determine if we need to execute any actions based on the input
             # Check if this looks like a task request that needs execution
             task_indicators = [
-                'create', 'make', 'build', 'implement', 'add', 'write', 'generate',
-                'test', 'debug', 'deploy', 'fix', 'update', 'refactor', 'setup',
-                'install', 'configure', 'delete', 'remove'
+                "create",
+                "make",
+                "build",
+                "implement",
+                "add",
+                "write",
+                "generate",
+                "test",
+                "debug",
+                "deploy",
+                "fix",
+                "update",
+                "refactor",
+                "setup",
+                "install",
+                "configure",
+                "delete",
+                "remove",
             ]
 
-            is_task_request = any(word in input_text.lower() for word in task_indicators)
+            is_task_request = any(
+                word in input_text.lower() for word in task_indicators
+            )
 
             if is_task_request:
                 # This is a task that needs execution
-                self.console.print("\n[dim]→ Executing task through agent system...[/dim]")
+                self.console.print(
+                    "\n[dim]→ Executing task through agent system...[/dim]"
+                )
 
                 # Use the casper_cli to execute the task directly
                 try:
@@ -266,28 +328,42 @@ class CasperTerminalComplete:
                         # Create context for agent execution
                         context = ContextBundle(
                             parent_task=input_text,
-                            session_id=self.agent_session['session_id'] if self.agent_session else None
+                            session_id=(
+                                self.agent_session["session_id"]
+                                if self.agent_session
+                                else None
+                            ),
                         )
 
                         # Analyze if we can handle this task
-                        can_handle, reason = await self.layer_0_agent.analyze_task(input_text, context)
+                        can_handle, reason = await self.layer_0_agent.analyze_task(
+                            input_text, context
+                        )
 
                         if can_handle:
                             # Execute through the actual agent system
-                            result = await self.layer_0_agent.execute_task(input_text, context)
+                            result = await self.layer_0_agent.execute_task(
+                                input_text, context
+                            )
 
                             if result and result.output:
-                                self.console.print("\n[bold green]Task Execution Result:[/bold green]")
+                                self.console.print(
+                                    "\n[bold green]Task Execution Result:[/bold green]"
+                                )
                                 self.console.print(result.output)
 
                             # If there were any errors, display them
                             if result and result.errors:
-                                self.console.print("\n[bold red]Errors encountered:[/bold red]")
+                                self.console.print(
+                                    "\n[bold red]Errors encountered:[/bold red]"
+                                )
                                 for error in result.errors:
                                     self.console.print(f"  • {error}")
                         else:
                             # Can't execute this specific task
-                            self.console.print(f"\n[yellow]Note: Unable to execute this task automatically.[/yellow]")
+                            self.console.print(
+                                f"\n[yellow]Note: Unable to execute this task automatically.[/yellow]"
+                            )
                             self.console.print(f"[dim]Reason: {reason}[/dim]")
 
             return True
@@ -297,8 +373,13 @@ class CasperTerminalComplete:
             self.console.print(f"[red]Error processing natural language: {e}[/red]")
 
             # Fallback to basic task routing if it looks like a command
-            if any(word in input_text.lower() for word in ['create', 'test', 'debug', 'build']):
-                self.console.print("[dim]→ Falling back to direct task execution...[/dim]")
+            if any(
+                word in input_text.lower()
+                for word in ["create", "test", "debug", "build"]
+            ):
+                self.console.print(
+                    "[dim]→ Falling back to direct task execution...[/dim]"
+                )
                 await self.handle_task(input_text)
                 return True
 
@@ -310,12 +391,16 @@ class CasperTerminalComplete:
         """Handle help command with category support"""
         if args and args not in COMMAND_CATEGORIES:
             self.console.print(f"[red]❌ Unknown category: {args}[/red]")
-            self.console.print(f"[dim]Available categories: {', '.join(COMMAND_CATEGORIES.keys())}[/dim]")
+            self.console.print(
+                f"[dim]Available categories: {', '.join(COMMAND_CATEGORIES.keys())}[/dim]"
+            )
             return
 
         if not args:
             # Show all commands
-            help_content = "[bold cyan]CASPER2 Complete - All 49 Commands[/bold cyan]\n\n"
+            help_content = (
+                "[bold cyan]CASPER2 Complete - All 57 Commands[/bold cyan]\n\n"
+            )
 
             for category, commands in COMMAND_CATEGORIES.items():
                 help_content += f"[green]{category.title()} Commands:[/green]\n"
@@ -337,7 +422,7 @@ class CasperTerminalComplete:
         help_panel = Panel.fit(
             help_content,
             title=f"📖 CASPER2 Help{f' - {args.title()}' if args else ''}",
-            border_style="yellow"
+            border_style="yellow",
         )
         self.console.print(help_panel)
 
@@ -375,7 +460,7 @@ class CasperTerminalComplete:
         except Exception as e:
             self.console.print(f"[red]❌ Analysis failed: {e}[/red]")
 
-    async def handle_status(self) -> None:
+    async def handle_status(self, args: str = "") -> None:
         """Handle status command"""
         self.console.print("[dim]→ Fetching system status...[/dim]")
         try:
@@ -383,7 +468,7 @@ class CasperTerminalComplete:
         except Exception as e:
             self.console.print(f"[red]❌ Status check failed: {e}[/red]")
 
-    async def handle_list(self) -> None:
+    async def handle_list(self, args: str = "") -> None:
         """Handle list command"""
         table = Table(title="Available CASPER2 Agents")
         table.add_column("Agent", style="cyan", width=20)
@@ -391,12 +476,24 @@ class CasperTerminalComplete:
         table.add_column("Capabilities", style="white")
 
         agents = [
-            ("Master Prime", "Orchestrator", "Task routing, complexity analysis, agent coordination"),
-            ("Alpha Prime", "React Developer", "React components, TypeScript, frontend architecture"),
+            (
+                "Master Prime",
+                "Orchestrator",
+                "Task routing, complexity analysis, agent coordination",
+            ),
+            (
+                "Alpha Prime",
+                "React Developer",
+                "React components, TypeScript, frontend architecture",
+            ),
             ("Beta Prime", "Backend Developer", "APIs, databases, server architecture"),
             ("Gamma Prime", "Full Stack", "End-to-end implementation, integration"),
             ("Delta Prime", "DevOps", "CI/CD, deployment, infrastructure"),
-            ("Epsilon Prime", "Quality Assurance", "Testing, debugging, quality control")
+            (
+                "Epsilon Prime",
+                "Quality Assurance",
+                "Testing, debugging, quality control",
+            ),
         ]
 
         for agent, role, caps in agents:
@@ -406,8 +503,10 @@ class CasperTerminalComplete:
 
     async def handle_approve(self) -> None:
         """Handle approve command - review pending operations"""
-        if self.approval_mode == 'YOLO':
-            self.console.print("[yellow]⚡ YOLO mode active - operations are auto-approved![/yellow]")
+        if self.approval_mode == "YOLO":
+            self.console.print(
+                "[yellow]⚡ YOLO mode active - operations are auto-approved![/yellow]"
+            )
             return
 
         try:
@@ -418,7 +517,9 @@ class CasperTerminalComplete:
             pending = approval_service.get_pending_approvals()
 
             if pending:
-                self.console.print(f"[yellow]Found {len(pending)} pending operations:[/yellow]\n")
+                self.console.print(
+                    f"[yellow]Found {len(pending)} pending operations:[/yellow]\n"
+                )
 
                 for op in pending:
                     # Display operation details
@@ -430,16 +531,27 @@ class CasperTerminalComplete:
                     table.add_row("Type", op.operation_type)
                     table.add_row("Path", op.path)
                     table.add_row("Agent ID", op.agent_id)
-                    table.add_row("Created", op.created_at.strftime("%Y-%m-%d %H:%M:%S"))
+                    table.add_row(
+                        "Created", op.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    )
 
                     # Show content preview
-                    content_preview = op.content[:200] + "..." if len(op.content) > 200 else op.content
+                    content_preview = (
+                        op.content[:200] + "..."
+                        if len(op.content) > 200
+                        else op.content
+                    )
                     table.add_row("Content Preview", content_preview)
 
-                    self.console.print(Panel(table, title=f"[bold yellow]Pending Operation[/bold yellow]"))
+                    self.console.print(
+                        Panel(
+                            table, title=f"[bold yellow]Pending Operation[/bold yellow]"
+                        )
+                    )
 
                     # Ask for approval
                     from rich.prompt import Confirm
+
                     if Confirm.ask("Approve this operation?", default=False):
                         approval_service.approve_operation(op.id)
                         self.console.print("[green]✓ Approved[/green]\n")
@@ -480,7 +592,7 @@ class CasperTerminalComplete:
             "--coverage": "pytest --cov=core tests/",
             "--unit": "pytest tests/unit/",
             "--integration": "pytest tests/integration/",
-            "--verbose": "pytest -xvs tests/"
+            "--verbose": "pytest -xvs tests/",
         }
 
         cmd = test_commands.get(args, f"pytest {args}")
@@ -549,13 +661,15 @@ class CasperTerminalComplete:
             "yarn build",
             "python setup.py build",
             "make build",
-            "cargo build"
+            "cargo build",
         ]
 
         for cmd in build_commands:
             if shutil.which(cmd.split()[0]):
                 try:
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    result = subprocess.run(
+                        cmd, shell=True, capture_output=True, text=True
+                    )
                     if result.returncode == 0:
                         self.console.print("[green]✓ Build successful![/green]")
                         return
@@ -589,13 +703,15 @@ class CasperTerminalComplete:
             "python manage.py migrate",
             "alembic upgrade head",
             "npm run migrate",
-            "rake db:migrate"
+            "rake db:migrate",
         ]
 
         for cmd in migration_commands:
             if shutil.which(cmd.split()[0]):
                 try:
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    result = subprocess.run(
+                        cmd, shell=True, capture_output=True, text=True
+                    )
                     if result.returncode == 0:
                         self.console.print("[green]✓ Migrations completed![/green]")
                         return
@@ -617,7 +733,9 @@ class CasperTerminalComplete:
     async def handle_scaffold(self, args: str) -> None:
         """Handle project scaffolding"""
         template = args or "default"
-        self.console.print(f"[dim]→ Scaffolding with template:[/dim] [cyan]{template}[/cyan]")
+        self.console.print(
+            f"[dim]→ Scaffolding with template:[/dim] [cyan]{template}[/cyan]"
+        )
 
         task = f"scaffold project structure using {template} template"
         await self.handle_task(task)
@@ -671,7 +789,9 @@ class CasperTerminalComplete:
     async def handle_ai_suggest(self, args: str) -> None:
         """Handle AI suggestions"""
         context = args or "current project"
-        self.console.print(f"[dim]→ Getting AI suggestions for:[/dim] [cyan]{context}[/cyan]")
+        self.console.print(
+            f"[dim]→ Getting AI suggestions for:[/dim] [cyan]{context}[/cyan]"
+        )
 
         task = f"provide AI suggestions for improving {context}"
         await self.handle_task(task)
@@ -679,7 +799,9 @@ class CasperTerminalComplete:
     async def handle_ai_translate(self, args: str) -> None:
         """Handle AI code translation"""
         if not args:
-            self.console.print("[red]❌ Usage:[/red] /ai-translate <from_lang> <to_lang> <code>")
+            self.console.print(
+                "[red]❌ Usage:[/red] /ai-translate <from_lang> <to_lang> <code>"
+            )
             return
 
         self.console.print(f"[dim]→ AI translating code...[/dim]")
@@ -691,7 +813,9 @@ class CasperTerminalComplete:
     async def handle_invoice(self, args: str) -> None:
         """Handle invoice generation"""
         client = args or "default"
-        self.console.print(f"[dim]→ Generating invoice for:[/dim] [cyan]{client}[/cyan]")
+        self.console.print(
+            f"[dim]→ Generating invoice for:[/dim] [cyan]{client}[/cyan]"
+        )
 
         task = f"generate an invoice for {client}"
         await self.handle_task(task)
@@ -699,7 +823,9 @@ class CasperTerminalComplete:
     async def handle_proposal(self, args: str) -> None:
         """Handle proposal creation"""
         project = args or "new project"
-        self.console.print(f"[dim]→ Creating proposal for:[/dim] [cyan]{project}[/cyan]")
+        self.console.print(
+            f"[dim]→ Creating proposal for:[/dim] [cyan]{project}[/cyan]"
+        )
 
         task = f"create a project proposal for {project}"
         await self.handle_task(task)
@@ -739,7 +865,9 @@ class CasperTerminalComplete:
     async def handle_unit_test(self, args: str) -> None:
         """Handle unit test execution"""
         target = args or "all"
-        self.console.print(f"[dim]→ Running unit tests for:[/dim] [cyan]{target}[/cyan]")
+        self.console.print(
+            f"[dim]→ Running unit tests for:[/dim] [cyan]{target}[/cyan]"
+        )
 
         cmd = f"pytest tests/unit/{target}" if target != "all" else "pytest tests/unit/"
         try:
@@ -755,7 +883,11 @@ class CasperTerminalComplete:
         """Handle integration test execution"""
         self.console.print("[dim]→ Running integration tests...[/dim]")
 
-        cmd = "pytest tests/integration/" if not args else f"pytest tests/integration/{args}"
+        cmd = (
+            "pytest tests/integration/"
+            if not args
+            else f"pytest tests/integration/{args}"
+        )
         try:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             if result.returncode == 0:
@@ -774,13 +906,15 @@ class CasperTerminalComplete:
             "npm run test:e2e",
             "yarn test:e2e",
             "playwright test",
-            "cypress run"
+            "cypress run",
         ]
 
         for cmd in e2e_commands:
             if shutil.which(cmd.split()[0]):
                 try:
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    result = subprocess.run(
+                        cmd, shell=True, capture_output=True, text=True
+                    )
                     if result.returncode == 0:
                         self.console.print("[green]✓ E2E tests passed![/green]")
                         return
@@ -792,7 +926,9 @@ class CasperTerminalComplete:
     async def handle_load_test(self, args: str) -> None:
         """Handle load testing"""
         target = args or "http://localhost:8000"
-        self.console.print(f"[dim]→ Running load test against:[/dim] [cyan]{target}[/cyan]")
+        self.console.print(
+            f"[dim]→ Running load test against:[/dim] [cyan]{target}[/cyan]"
+        )
 
         task = f"perform load testing on {target}"
         await self.handle_task(task)
@@ -820,12 +956,14 @@ class CasperTerminalComplete:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
             if result.stdout:
-                all_lines = result.stdout.strip().split('\n')
+                all_lines = result.stdout.strip().split("\n")
                 lines = all_lines[:20]  # Show first 20 results
                 for line in lines:
                     self.console.print(line)
                 if len(all_lines) > 20:
-                    self.console.print(f"[dim]... and {len(all_lines) - 20} more results[/dim]")
+                    self.console.print(
+                        f"[dim]... and {len(all_lines) - 20} more results[/dim]"
+                    )
             else:
                 self.console.print("[yellow]No results found[/yellow]")
         except Exception as e:
@@ -833,7 +971,7 @@ class CasperTerminalComplete:
 
     async def handle_replace(self, args: str) -> None:
         """Handle find and replace"""
-        if not args or ' ' not in args:
+        if not args or " " not in args:
             self.console.print("[red]❌ Usage:[/red] /replace <find> <replace>")
             return
 
@@ -841,7 +979,9 @@ class CasperTerminalComplete:
         find_text = parts[0]
         replace_text = parts[1] if len(parts) > 1 else ""
 
-        self.console.print(f"[dim]→ Replacing:[/dim] [cyan]{find_text}[/cyan] → [green]{replace_text}[/green]")
+        self.console.print(
+            f"[dim]→ Replacing:[/dim] [cyan]{find_text}[/cyan] → [green]{replace_text}[/green]"
+        )
 
         task = f"find and replace '{find_text}' with '{replace_text}' in the codebase"
         await self.handle_task(task)
@@ -857,7 +997,7 @@ class CasperTerminalComplete:
             ".js": "prettier",
             ".ts": "prettier",
             ".go": "gofmt",
-            ".rs": "rustfmt"
+            ".rs": "rustfmt",
         }
 
         for ext, formatter in formatters.items():
@@ -878,19 +1018,15 @@ class CasperTerminalComplete:
         self.console.print(f"[dim]→ Linting:[/dim] [cyan]{target}[/cyan]")
 
         # Try common linters
-        linters = [
-            "eslint",
-            "pylint",
-            "flake8",
-            "rubocop",
-            "golint"
-        ]
+        linters = ["eslint", "pylint", "flake8", "rubocop", "golint"]
 
         for linter in linters:
             if shutil.which(linter):
                 cmd = f"{linter} {target}"
                 try:
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    result = subprocess.run(
+                        cmd, shell=True, capture_output=True, text=True
+                    )
                     if result.returncode == 0:
                         self.console.print(f"[green]✓ No linting issues found![/green]")
                     else:
@@ -913,7 +1049,7 @@ class CasperTerminalComplete:
             "**/dist",
             "**/build",
             "**/*.pyc",
-            "**/.DS_Store"
+            "**/.DS_Store",
         ]
 
         cleaned = 0
@@ -938,7 +1074,7 @@ class CasperTerminalComplete:
         self.console.print(f"[dim]→ Creating backup:[/dim] [cyan]{backup_name}[/cyan]")
 
         try:
-            shutil.make_archive(str(backup_path), 'zip', self.project_root)
+            shutil.make_archive(str(backup_path), "zip", self.project_root)
             self.console.print(f"[green]✓ Backup created: {backup_path}.zip[/green]")
         except Exception as e:
             self.console.print(f"[red]❌ Backup failed: {e}[/red]")
@@ -961,7 +1097,9 @@ class CasperTerminalComplete:
             backup_path = self.backup_dir / f"{args}.zip"
 
         if backup_path.exists():
-            self.console.print(f"[dim]→ Restoring from:[/dim] [cyan]{backup_path.name}[/cyan]")
+            self.console.print(
+                f"[dim]→ Restoring from:[/dim] [cyan]{backup_path.name}[/cyan]"
+            )
             try:
                 shutil.unpack_archive(str(backup_path), self.project_root)
                 self.console.print("[green]✓ Backup restored successfully[/green]")
@@ -973,9 +1111,14 @@ class CasperTerminalComplete:
     async def handle_export(self, args: str) -> None:
         """Handle data export"""
         format_type = args or "json"
-        export_file = self.export_dir / f"export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format_type}"
+        export_file = (
+            self.export_dir
+            / f"export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format_type}"
+        )
 
-        self.console.print(f"[dim]→ Exporting data as:[/dim] [cyan]{format_type}[/cyan]")
+        self.console.print(
+            f"[dim]→ Exporting data as:[/dim] [cyan]{format_type}[/cyan]"
+        )
 
         task = f"export project data to {export_file}"
         await self.handle_task(task)
@@ -1001,7 +1144,7 @@ class CasperTerminalComplete:
             commands = [
                 f"git fetch {remote}",
                 f"git pull {remote}",
-                f"git push {remote}"
+                f"git push {remote}",
             ]
 
             for cmd in commands:
@@ -1056,7 +1199,6 @@ class CasperTerminalComplete:
             "exit": lambda: self.handle_exit(),
             "quit": lambda: self.handle_exit(),
             "q": lambda: self.handle_exit(),
-
             # Slash commands
             "/help": lambda: self.handle_help(args),
             "/task": lambda: self.handle_task(args),
@@ -1064,11 +1206,12 @@ class CasperTerminalComplete:
             "/status": lambda: self.handle_status(),
             "/goal": lambda: self.handle_agent_command("/goal", args),
             "/model": lambda: self.handle_agent_command("/model", args),
-            "/models": lambda: self.handle_agent_command("/model", f"list {args}".strip()),
+            "/models": lambda: self.handle_agent_command(
+                "/model", f"list {args}".strip()
+            ),
             "/plan": lambda: self.handle_agent_command("/plan", args),
             "/diff": lambda: self.handle_agent_command("/diff", args),
             "/pwd": lambda: self.handle_agent_command("/pwd", args),
-
             # Development commands
             "/create": lambda: self.handle_create(args),
             "/test": lambda: self.handle_test(args),
@@ -1084,28 +1227,24 @@ class CasperTerminalComplete:
             "/scaffold": lambda: self.handle_scaffold(args),
             "/optimize": lambda: self.handle_optimize(args),
             "/profile": lambda: self.handle_profile(args),
-
             # AI commands
             "/ai-review": lambda: self.handle_ai_review(args),
             "/ai-complete": lambda: self.handle_ai_complete(args),
             "/ai-explain": lambda: self.handle_ai_explain(args),
             "/ai-suggest": lambda: self.handle_ai_suggest(args),
             "/ai-translate": lambda: self.handle_ai_translate(args),
-
             # Business commands
             "/invoice": lambda: self.handle_invoice(args),
             "/proposal": lambda: self.handle_proposal(args),
             "/contract": lambda: self.handle_contract(args),
             "/quote": lambda: self.handle_quote(args),
             "/timesheet": lambda: self.handle_timesheet(args),
-
             # Testing commands
             "/unit-test": lambda: self.handle_unit_test(args),
             "/integration-test": lambda: self.handle_integration_test(args),
             "/e2e-test": lambda: self.handle_e2e_test(args),
             "/load-test": lambda: self.handle_load_test(args),
             "/security-test": lambda: self.handle_security_test(args),
-
             # Utility commands
             "/search": lambda: self.handle_search(args),
             "/replace": lambda: self.handle_replace(args),
@@ -1116,7 +1255,7 @@ class CasperTerminalComplete:
             "/restore": lambda: self.handle_restore(args),
             "/export": lambda: self.handle_export(args),
             "/import": lambda: self.handle_import(args),
-            "/sync": lambda: self.handle_sync(args)
+            "/sync": lambda: self.handle_sync(args),
         }
 
         if command in handlers:
@@ -1125,8 +1264,10 @@ class CasperTerminalComplete:
         else:
             # Unknown command - try natural language as fallback
             full_input = f"{command} {args}".strip()
-            self.console.print(f"[yellow]'{command}' is not a recognized command.[/yellow]")
-            self.console.print("[dim]→ Attempting to interpret as natural language...[/dim]")
+            self.console.print(f"[yellow]Unknown command '{command}'.[/yellow]")
+            self.console.print(
+                "[dim]→ Attempting to interpret as natural language...[/dim]"
+            )
 
             # Try to process as natural language
             handled = await self.process_natural_language(full_input)
@@ -1179,9 +1320,9 @@ class CasperTerminalComplete:
 
         # Welcome message with approval mode status
         approval_status = {
-            'YOLO': "[bold yellow]⚡ YOLO MODE[/bold yellow] - Auto-approving everything",
-            'AUTO': "[bold green]🤖 AUTO MODE[/bold green] - Smart auto-approval",
-            'STRICT': "[bold red]🔒 STRICT MODE[/bold red] - Manual approval required"
+            "YOLO": "[bold yellow]⚡ YOLO MODE[/bold yellow] - Auto-approving everything",
+            "AUTO": "[bold green]🤖 AUTO MODE[/bold green] - Smart auto-approval",
+            "STRICT": "[bold red]🔒 STRICT MODE[/bold red] - Manual approval required",
         }.get(self.approval_mode, "[dim]Unknown approval mode[/dim]")
 
         welcome_panel = Panel.fit(
@@ -1199,7 +1340,7 @@ class CasperTerminalComplete:
             "[dim]Type 'help' for commands, 'approve' to review operations[/dim]\n"
             "[dim]Press Ctrl+C twice quickly to force exit[/dim]",
             title="🚀 CASPER2 Complete",
-            border_style="cyan"
+            border_style="cyan",
         )
         self.console.print(welcome_panel)
         self.console.print()
@@ -1210,7 +1351,7 @@ class CasperTerminalComplete:
                 # Get user input
                 user_input = Prompt.ask(
                     Text.from_markup("[bold blue]casper2[/bold blue][dim]>[/dim]"),
-                    default=""
+                    default="",
                 ).strip()
 
                 if not user_input:
@@ -1218,9 +1359,21 @@ class CasperTerminalComplete:
 
                 # First, try natural language processing if not a clear command
                 # Check if it starts with a known command prefix
-                is_command = (user_input.startswith('/') or
-                             user_input.split()[0].lower() in ['help', 'task', 'analyze', 'status', 'approve',
-                                                                'clear', 'exit', 'quit', 'list', 'cls', 'q'])
+                is_command = user_input.startswith("/") or user_input.split()[
+                    0
+                ].lower() in [
+                    "help",
+                    "task",
+                    "analyze",
+                    "status",
+                    "approve",
+                    "clear",
+                    "exit",
+                    "quit",
+                    "list",
+                    "cls",
+                    "q",
+                ]
 
                 if not is_command:
                     # Try to process as natural language
@@ -1230,7 +1383,7 @@ class CasperTerminalComplete:
                         continue
 
                 # Parse as command if not handled by NLP or is explicit command
-                parts = user_input.split(' ', 1)
+                parts = user_input.split(" ", 1)
                 command = parts[0].lower()
                 args = parts[1] if len(parts) > 1 else ""
 
@@ -1248,18 +1401,24 @@ class CasperTerminalComplete:
                     self.console.print("\n[dim]→ Shutting down CASPER2...[/dim]")
                     try:
                         await self.casper_cli.shutdown()
-                        self.console.print("[bold green]✓[/bold green] CASPER2 shutdown complete")
+                        self.console.print(
+                            "[bold green]✓[/bold green] CASPER2 shutdown complete"
+                        )
                     except:
                         pass  # Ignore shutdown errors on force exit
                     break
                 else:
                     # First CTRL-C - show message and continue
                     last_interrupt_time = current_time
-                    self.console.print("\n[dim]→ Press Ctrl+C again to exit, or type 'exit' for graceful shutdown[/dim]")
+                    self.console.print(
+                        "\n[dim]→ Press Ctrl+C again to exit, or type 'exit' for graceful shutdown[/dim]"
+                    )
 
             except Exception as e:
                 self.console.print(f"[red]❌ Error: {e}[/red]")
-                self.console.print("[dim]The session remains active. Type 'help' for commands.[/dim]")
+                self.console.print(
+                    "[dim]The session remains active. Type 'help' for commands.[/dim]"
+                )
 
 
 def print_casper2_banner():
@@ -1280,7 +1439,9 @@ ________/\\\\\\\\_____/\\\\\\\\\________/\\\\\\\\\\\____/\\\\\\\\\\\\\____/\\\\\
 [/bold bright_cyan]"""
 
     console.print(banner)
-    console.print("[bold green]✓[/bold green] [bright_white]CASPER2 Complete initialized[/bright_white]")
+    console.print(
+        "[bold green]✓[/bold green] [bright_white]CASPER2 Complete initialized[/bright_white]"
+    )
 
 
 async def main():
@@ -1288,21 +1449,33 @@ async def main():
     import argparse
 
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description='CASPER2 Complete Terminal')
-    parser.add_argument('task', nargs='?', help='Task to execute directly')
-    parser.add_argument('--yolo', action='store_true', help='Enable YOLO mode (auto-approve all operations)')
-    parser.add_argument('--auto', action='store_true', help='Enable AUTO mode (auto-approve safe operations)')
-    parser.add_argument('--strict', action='store_true', help='Enable STRICT mode (require approval for all operations)')
+    parser = argparse.ArgumentParser(description="CASPER2 Complete Terminal")
+    parser.add_argument("task", nargs="?", help="Task to execute directly")
+    parser.add_argument(
+        "--yolo",
+        action="store_true",
+        help="Enable YOLO mode (auto-approve all operations)",
+    )
+    parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="Enable AUTO mode (auto-approve safe operations)",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Enable STRICT mode (require approval for all operations)",
+    )
 
     args = parser.parse_args()
 
     # Set approval mode based on flags
     if args.yolo:
-        os.environ['CASPER_APPROVAL_MODE'] = 'YOLO'
+        os.environ["CASPER_APPROVAL_MODE"] = "YOLO"
     elif args.auto:
-        os.environ['CASPER_APPROVAL_MODE'] = 'AUTO'
+        os.environ["CASPER_APPROVAL_MODE"] = "AUTO"
     elif args.strict:
-        os.environ['CASPER_APPROVAL_MODE'] = 'STRICT'
+        os.environ["CASPER_APPROVAL_MODE"] = "STRICT"
 
     terminal = CasperTerminalComplete()
 

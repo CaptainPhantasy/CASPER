@@ -78,15 +78,25 @@ class WebKnowledge:
         """Fetch a URL, strip to text, cache. Returns "" on failure (never raises)."""
         key = hashlib.sha256(url.encode()).hexdigest()[:16]
         cache_file = self.cache_dir / f"{key}.txt"
-        if not force and cache_file.exists() and (time.time() - cache_file.stat().st_mtime) < self.ttl:
+        if (
+            not force
+            and cache_file.exists()
+            and (time.time() - cache_file.stat().st_mtime) < self.ttl
+        ):
             return cache_file.read_text(encoding="utf-8", errors="replace")[:max_chars]
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": _UA, "Accept": "text/html,text/plain,*/*"})
+            req = urllib.request.Request(
+                url, headers={"User-Agent": _UA, "Accept": "text/html,text/plain,*/*"}
+            )
             with urllib.request.urlopen(req, timeout=12) as r:
                 raw = r.read(1_500_000)
                 ctype = r.headers.get("Content-Type", "")
             text = raw.decode("utf-8", errors="replace")
-            if "html" in ctype or text.lstrip().lower().startswith("<!doctype") or "<html" in text[:200].lower():
+            if (
+                "html" in ctype
+                or text.lstrip().lower().startswith("<!doctype")
+                or "<html" in text[:200].lower()
+            ):
                 text = self._html_to_text(text)
             text = self._collapse(text)
             try:
@@ -107,7 +117,9 @@ class WebKnowledge:
                 topics.append(topic)
         return topics
 
-    def research(self, query: str, max_sources: int = 4, chars_per_source: int = 4000) -> Dict[str, str]:
+    def research(
+        self, query: str, max_sources: int = 4, chars_per_source: int = 4000
+    ) -> Dict[str, str]:
         """Return {url: excerpt} of docs relevant to the query."""
         urls: List[str] = []
         for topic in self.topics_for(query):
@@ -138,8 +150,14 @@ class WebKnowledge:
         html = re.sub(r"(?i)<br\s*/?>", "\n", html)
         html = re.sub(r"(?i)</(p|div|li|h[1-6]|tr|section)>", "\n", html)
         html = re.sub(r"<[^>]+>", " ", html)
-        html = (html.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
-                .replace("&quot;", '"').replace("&#39;", "'").replace("&nbsp;", " "))
+        html = (
+            html.replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", '"')
+            .replace("&#39;", "'")
+            .replace("&nbsp;", " ")
+        )
         return html
 
     @staticmethod
@@ -171,16 +189,24 @@ class GitHubKnowledge:
         self.token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
 
     def _headers(self) -> Dict[str, str]:
-        h = {"User-Agent": _UA, "Accept": "application/vnd.github+json",
-             "X-GitHub-Api-Version": "2022-11-28"}
+        h = {
+            "User-Agent": _UA,
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
         if self.token:
             h["Authorization"] = f"Bearer {self.token}"
         return h
 
-    def _get(self, url: str, accept_json: bool = True, max_bytes: int = 1_500_000) -> Optional[Any]:
+    def _get(
+        self, url: str, accept_json: bool = True, max_bytes: int = 1_500_000
+    ) -> Optional[Any]:
         key = hashlib.sha256(url.encode()).hexdigest()[:16]
         cache_file = self.cache_dir / f"{key}.cache"
-        if cache_file.exists() and (time.time() - cache_file.stat().st_mtime) < self.ttl:
+        if (
+            cache_file.exists()
+            and (time.time() - cache_file.stat().st_mtime) < self.ttl
+        ):
             raw = cache_file.read_text(encoding="utf-8", errors="replace")
             return json.loads(raw) if accept_json else raw
         try:
@@ -205,21 +231,29 @@ class GitHubKnowledge:
             return (txt or "")[:max_chars]
         return ""
 
-    def list_tree(self, repo: str, ref: str = "HEAD", max_entries: int = 400) -> List[str]:
+    def list_tree(
+        self, repo: str, ref: str = "HEAD", max_entries: int = 400
+    ) -> List[str]:
         """Return repo file paths (recursive)."""
         # Resolve ref to a tree sha via the branches/commits API when needed.
         data = self._get(f"{self.API}/repos/{repo}/git/trees/{ref}?recursive=1")
         if not isinstance(data, dict):
             return []
-        return [e["path"] for e in data.get("tree", []) if e.get("type") == "blob"][:max_entries]
+        return [e["path"] for e in data.get("tree", []) if e.get("type") == "blob"][
+            :max_entries
+        ]
 
-    def get_file(self, repo: str, path: str, ref: str = "HEAD", max_chars: int = 12000) -> str:
+    def get_file(
+        self, repo: str, path: str, ref: str = "HEAD", max_chars: int = 12000
+    ) -> str:
         """Fetch a single file's contents via raw.githubusercontent.com."""
         url = f"{self.RAW}/{repo}/{ref}/{path}"
         txt = self._get(url, accept_json=False)
         return (txt or "")[:max_chars]
 
-    def search_code(self, query: str, repo: Optional[str] = None, limit: int = 5) -> List[Dict[str, str]]:
+    def search_code(
+        self, query: str, repo: Optional[str] = None, limit: int = 5
+    ) -> List[Dict[str, str]]:
         """Search code on GitHub. Returns [{repo, path, url}]. Needs network; best with GITHUB_TOKEN."""
         q = query + (f" repo:{repo}" if repo else "")
         url = f"{self.API}/search/code?q={urllib.parse.quote(q)}&per_page={limit}"
@@ -227,15 +261,23 @@ class GitHubKnowledge:
         out: List[Dict[str, str]] = []
         if isinstance(data, dict):
             for item in data.get("items", [])[:limit]:
-                out.append({
-                    "repo": item.get("repository", {}).get("full_name", ""),
-                    "path": item.get("path", ""),
-                    "url": item.get("html_url", ""),
-                })
+                out.append(
+                    {
+                        "repo": item.get("repository", {}).get("full_name", ""),
+                        "path": item.get("path", ""),
+                        "url": item.get("html_url", ""),
+                    }
+                )
         return out
 
-    def find_examples(self, repo: str, name_filters: List[str], ref: str = "HEAD",
-                      max_files: int = 3, chars_per_file: int = 4000) -> Dict[str, str]:
+    def find_examples(
+        self,
+        repo: str,
+        name_filters: List[str],
+        ref: str = "HEAD",
+        max_files: int = 3,
+        chars_per_file: int = 4000,
+    ) -> Dict[str, str]:
         """Browse a repo's tree and return contents of files whose path matches any filter."""
         tree = self.list_tree(repo, ref)
         picked = [p for p in tree if any(f.lower() in p.lower() for f in name_filters)]

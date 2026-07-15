@@ -48,29 +48,29 @@ async def test_streaming_display():
             content="This is a test reasoning step",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=1
+            sequence_number=1,
         ),
         StreamChunk(
             type="code",
             content="def test_function():\n    return 'Hello World'",
             metadata={"language": "python"},
             timestamp=datetime.now(),
-            sequence_number=2
+            sequence_number=2,
         ),
         StreamChunk(
             type="test",
             content="Test passed: test_function() works correctly",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=3
+            sequence_number=3,
         ),
         StreamChunk(
             type="error",
             content="This is a test error message",
             metadata={"severity": "error"},
             timestamp=datetime.now(),
-            sequence_number=4
-        )
+            sequence_number=4,
+        ),
     ]
 
     # Test chunk processing by manually calling _handle_chunk
@@ -118,7 +118,7 @@ async def test_error_display():
         content="This is a test error message",
         metadata={"severity": "error"},
         timestamp=datetime.now(),
-        sequence_number=0
+        sequence_number=0,
     )
 
     await ui._handle_chunk(error_chunk)
@@ -167,6 +167,7 @@ async def test_content_formatting():
 
     # Should return a Syntax object for highlighted content
     from rich.syntax import Syntax
+
     assert isinstance(formatted_content, Syntax)
 
     print("✅ Content formatting: PASSED")
@@ -179,7 +180,14 @@ async def test_progress_display():
     ui = create_terminal_ui("Progress Test")
 
     # Initialize progress system manually
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
+    from rich.progress import (
+        Progress,
+        SpinnerColumn,
+        TextColumn,
+        BarColumn,
+        TimeRemainingColumn,
+    )
+
     ui.progress = Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -187,7 +195,7 @@ async def test_progress_display():
         "[progress.percentage]{task.percentage:>3.1f}%",
         TimeRemainingColumn(),
         console=ui.console,
-        transient=True
+        transient=True,
     )
     ui.progress.start()
 
@@ -214,8 +222,12 @@ async def test_interface_compliance():
 
     # Test that all required methods exist
     required_methods = [
-        'start_ui', 'display_stream', 'get_user_input',
-        'show_progress', 'clear_screen', 'show_error'
+        "start_ui",
+        "display_stream",
+        "get_user_input",
+        "show_progress",
+        "clear_screen",
+        "show_error",
     ]
 
     for method in required_methods:
@@ -237,8 +249,10 @@ async def test_keyboard_shortcuts():
 
     # Check for important key bindings
     binding_keys = [binding.keys for binding in ui.kb.bindings]
-    key_sequences = [tuple(key.value if hasattr(key, 'value') else key for key in keys)
-                    for keys in binding_keys]
+    key_sequences = [
+        tuple(key.value if hasattr(key, "value") else key for key in keys)
+        for keys in binding_keys
+    ]
 
     print("✅ Keyboard shortcuts: PASSED")
 
@@ -265,14 +279,14 @@ async def run_full_ui_test():
                 content="🧠 Analyzing your request...",
                 metadata={},
                 timestamp=datetime.now(),
-                sequence_number=1
+                sequence_number=1,
             ),
             StreamChunk(
                 type="action",
                 content="Creating Python function",
                 metadata={},
                 timestamp=datetime.now(),
-                sequence_number=2
+                sequence_number=2,
             ),
             StreamChunk(
                 type="code",
@@ -286,15 +300,15 @@ result = fibonacci(10)
 print(f"Fibonacci(10) = {result}")""",
                 metadata={"language": "python"},
                 timestamp=datetime.now(),
-                sequence_number=3
+                sequence_number=3,
             ),
             StreamChunk(
                 type="test",
                 content="✅ Function test passed - fibonacci(10) = 55",
                 metadata={},
                 timestamp=datetime.now(),
-                sequence_number=4
-            )
+                sequence_number=4,
+            ),
         ]
 
         # Stream chunks with delays
@@ -336,7 +350,7 @@ async def main():
         test_content_formatting,
         test_progress_display,
         test_interface_compliance,
-        test_keyboard_shortcuts
+        test_keyboard_shortcuts,
     ]
 
     # Run unit tests

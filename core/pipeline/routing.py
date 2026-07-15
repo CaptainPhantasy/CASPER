@@ -51,7 +51,7 @@ class RouteDecision:
     model_class: ModelClass
     provider: str
     model: str
-    tier: str                 # the tier string passed to LLMService
+    tier: str  # the tier string passed to LLMService
     escalated_from: Optional[ModelClass] = None
     downgraded_from: Optional[ModelClass] = None
     rationale: str = ""
@@ -75,6 +75,7 @@ class RouteDecision:
 @dataclass
 class BudgetState:
     """Soft token budget. `limit_tokens=None` means unlimited."""
+
     limit_tokens: Optional[int] = None
     spent_tokens: int = 0
 
@@ -90,7 +91,9 @@ class BudgetState:
 class TaskAwareRouter:
     """Resolves the model class + concrete model for a unit of work."""
 
-    def __init__(self, provider: str = "anthropic", budget: Optional[BudgetState] = None):
+    def __init__(
+        self, provider: str = "anthropic", budget: Optional[BudgetState] = None
+    ):
         self.provider = provider
         self.budget = budget or BudgetState()
 
@@ -144,9 +147,13 @@ class TaskAwareRouter:
 
         rationale_bits = [f"{kind.value} → {base_class.value}"]
         if escalated != base_class:
-            rationale_bits.append(f"escalated to {escalated.value} after {unit.attempts} failed attempt(s)")
+            rationale_bits.append(
+                f"escalated to {escalated.value} after {unit.attempts} failed attempt(s)"
+            )
         if final != escalated:
-            rationale_bits.append(f"downgraded to {final.value} (budget {int(self.budget.fraction_spent()*100)}% spent)")
+            rationale_bits.append(
+                f"downgraded to {final.value} (budget {int(self.budget.fraction_spent()*100)}% spent)"
+            )
 
         return RouteDecision(
             task_kind=kind,

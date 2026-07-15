@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 class PTYSession:
     """Represents a single PTY session with a shell process."""
 
-    def __init__(self, session_id: str, master_fd: int, slave_fd: int, process: subprocess.Popen):
+    def __init__(
+        self, session_id: str, master_fd: int, slave_fd: int, process: subprocess.Popen
+    ):
         self.session_id = session_id
         self.master_fd = master_fd
         self.slave_fd = slave_fd
@@ -41,7 +43,7 @@ class PTYSession:
         """Write data to the terminal."""
         if self.is_active:
             try:
-                os.write(self.master_fd, data.encode('utf-8'))
+                os.write(self.master_fd, data.encode("utf-8"))
                 self.last_activity = asyncio.get_event_loop().time()
             except OSError as e:
                 logger.error(f"Failed to write to PTY {self.session_id}: {e}")
@@ -59,7 +61,7 @@ class PTYSession:
                 data = os.read(self.master_fd, 1024)
                 if data:
                     self.last_activity = asyncio.get_event_loop().time()
-                    return data.decode('utf-8', errors='ignore')
+                    return data.decode("utf-8", errors="ignore")
         except OSError as e:
             logger.error(f"Failed to read from PTY {self.session_id}: {e}")
             self.is_active = False
@@ -74,7 +76,7 @@ class PTYSession:
                 fcntl.ioctl(
                     self.master_fd,
                     termios.TIOCSWINSZ,
-                    struct.pack('HHHH', rows, cols, 0, 0)
+                    struct.pack("HHHH", rows, cols, 0, 0),
                 )
             except OSError as e:
                 logger.error(f"Failed to resize PTY {self.session_id}: {e}")
@@ -97,7 +99,9 @@ class PTYSession:
                     except subprocess.TimeoutExpired:
                         pass  # Process is stuck, move on
             except Exception as e:
-                logger.error(f"Error terminating process for PTY {self.session_id}: {e}")
+                logger.error(
+                    f"Error terminating process for PTY {self.session_id}: {e}"
+                )
 
             try:
                 os.close(self.master_fd)
@@ -115,7 +119,7 @@ class PTYManager:
 
     def __init__(self, shell_command: str = None):
         self.sessions: Dict[str, PTYSession] = {}
-        self.shell_command = shell_command or os.environ.get('SHELL', '/bin/bash')
+        self.shell_command = shell_command or os.environ.get("SHELL", "/bin/bash")
         self._cleanup_task: Optional[asyncio.Task] = None
         self._running = False
 
@@ -142,7 +146,9 @@ class PTYManager:
 
         logger.info("PTY Manager stopped")
 
-    async def create_session(self, working_dir: str = None, env: Dict[str, str] = None) -> str:
+    async def create_session(
+        self, working_dir: str = None, env: Dict[str, str] = None
+    ) -> str:
         """Create a new PTY session and return the session ID."""
         session_id = str(uuid4())
 
@@ -156,9 +162,9 @@ class PTYManager:
                 session_env.update(env)
 
             # Set terminal environment variables
-            session_env['TERM'] = 'xterm-256color'
-            session_env['COLUMNS'] = '80'
-            session_env['LINES'] = '24'
+            session_env["TERM"] = "xterm-256color"
+            session_env["COLUMNS"] = "80"
+            session_env["LINES"] = "24"
 
             # Start the shell process
             process = subprocess.Popen(
@@ -169,7 +175,7 @@ class PTYManager:
                 env=session_env,
                 cwd=working_dir or str(Path.cwd()),
                 preexec_fn=os.setsid,  # Create new process group
-                close_fds=True
+                close_fds=True,
             )
 
             # Create session object
@@ -215,7 +221,9 @@ class PTYManager:
         session.resize(rows, cols)
         return True
 
-    def set_output_callback(self, session_id: str, callback: Callable[[str], None]) -> bool:
+    def set_output_callback(
+        self, session_id: str, callback: Callable[[str], None]
+    ) -> bool:
         """Set output callback for a session."""
         session = self.sessions.get(session_id)
         if not session:
@@ -231,10 +239,10 @@ class PTYManager:
             return None
 
         return {
-            'session_id': session.session_id,
-            'is_active': session.is_active,
-            'last_activity': session.last_activity,
-            'process_pid': session.process.pid if session.process else None
+            "session_id": session.session_id,
+            "is_active": session.is_active,
+            "last_activity": session.last_activity,
+            "process_pid": session.process.pid if session.process else None,
         }
 
     def list_sessions(self) -> List[Dict[str, Any]]:
@@ -250,7 +258,9 @@ class PTYManager:
                     try:
                         session.output_callback(data)
                     except Exception as e:
-                        logger.error(f"Error in output callback for session {session.session_id}: {e}")
+                        logger.error(
+                            f"Error in output callback for session {session.session_id}: {e}"
+                        )
 
                 # Small delay to prevent busy waiting
                 await asyncio.sleep(0.01)
@@ -268,8 +278,10 @@ class PTYManager:
 
                 for session_id, session in self.sessions.items():
                     # Check if session is inactive (no activity for 30 minutes)
-                    if (not session.is_active or
-                        current_time - session.last_activity > 1800):
+                    if (
+                        not session.is_active
+                        or current_time - session.last_activity > 1800
+                    ):
                         inactive_sessions.append(session_id)
 
                 # Clean up inactive sessions

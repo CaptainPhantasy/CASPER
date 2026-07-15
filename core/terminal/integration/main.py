@@ -14,8 +14,13 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from ..interfaces import (
-    IIntegration, ISession, IStreaming, IParser, ITerminalUI,
-    SessionState, TerminalError
+    IIntegration,
+    ISession,
+    IStreaming,
+    IParser,
+    ITerminalUI,
+    SessionState,
+    TerminalError,
 )
 from ..pty_manager import PTYManager
 from ..websocket_handler import TerminalWebSocketHandler
@@ -61,8 +66,14 @@ except ImportError as exc:
 
 AGENTS_AVAILABLE = any(
     component is not None
-    for component in (CodingSession, StreamingOrchestrator, IntentParser, AgentTerminalUI)
+    for component in (
+        CodingSession,
+        StreamingOrchestrator,
+        IntentParser,
+        AgentTerminalUI,
+    )
 )
+
 
 class TerminalIntegration(IIntegration):
     """
@@ -110,7 +121,7 @@ class TerminalIntegration(IIntegration):
             "log_level": "INFO",
             "security_enabled": True,
             "persistence_path": ".casper/terminal_sessions",
-            "temp_dir": "/tmp/casper/terminal"
+            "temp_dir": "/tmp/casper/terminal",
         }
 
     async def initialize_terminal(self) -> None:
@@ -156,14 +167,20 @@ class TerminalIntegration(IIntegration):
             self.agent_initializer = AgentLayerInitializer()
 
             # Initialize all agent layers with proper prompting
-            self.agent_session = await self.agent_initializer.initialize_casper_session()
+            self.agent_session = (
+                await self.agent_initializer.initialize_casper_session()
+            )
 
-            logger.info(f"Agent layers initialized successfully: {self.agent_session['status']}")
+            logger.info(
+                f"Agent layers initialized successfully: {self.agent_session['status']}"
+            )
             logger.info(f"Session ID: {self.agent_session['session_id']}")
 
             # Log layer initialization results
             for layer_name, layer_info in self.agent_session.get("layers", {}).items():
-                logger.info(f"  {layer_name}: {layer_info.get('agents_count', 0)} agents initialized")
+                logger.info(
+                    f"  {layer_name}: {layer_info.get('agents_count', 0)} agents initialized"
+                )
 
         except Exception as e:
             logger.error(f"Failed to initialize agent layers: {e}")
@@ -175,7 +192,7 @@ class TerminalIntegration(IIntegration):
             self.config["persistence_path"],
             self.config["temp_dir"],
             os.path.join(self.config["temp_dir"], "sessions"),
-            os.path.join(self.config["temp_dir"], "streams")
+            os.path.join(self.config["temp_dir"], "streams"),
         ]
 
         for directory in dirs:
@@ -196,8 +213,7 @@ class TerminalIntegration(IIntegration):
             self.security = SecurityMiddleware()
 
         # WebSocket handler for real-time communication
-        jwt_secret = os.environ.get("JWT_SECRET", "casper-terminal-integration")
-        self.websocket_handler = TerminalWebSocketHandler(jwt_secret=jwt_secret)
+        self.websocket_handler = TerminalWebSocketHandler()
         await self.websocket_handler.start()
 
         logger.info("Infrastructure components initialized")
@@ -224,7 +240,7 @@ class TerminalIntegration(IIntegration):
             FallbackSessionManager,
             FallbackStreamingProcessor,
             FallbackNLParser,
-            FallbackTerminalUI
+            FallbackTerminalUI,
         )
 
         if not self.session_manager:
@@ -248,9 +264,10 @@ class TerminalIntegration(IIntegration):
             if AGENTS_AVAILABLE and CodingSession:
                 # Use agent implementation - adapt to ISession interface
                 from .adapters import CodingSessionAdapter
+
                 self.session_manager = CodingSessionAdapter(
                     persistence_path=self.config["persistence_path"],
-                    session_timeout=self.config["session_timeout_minutes"]
+                    session_timeout=self.config["session_timeout_minutes"],
                 )
                 logger.info("Using agent-based session manager")
             else:
@@ -267,6 +284,7 @@ class TerminalIntegration(IIntegration):
             if AGENTS_AVAILABLE and StreamingOrchestrator:
                 # Use agent implementation - adapt to IStreaming interface
                 from .adapters import StreamingOrchestratorAdapter
+
                 self.streaming_processor = StreamingOrchestratorAdapter(
                     max_concurrent_streams=self.config.get("max_concurrent_streams", 10)
                 )
@@ -285,6 +303,7 @@ class TerminalIntegration(IIntegration):
             if AGENTS_AVAILABLE and IntentParser:
                 # Use agent implementation - adapt to IParser interface
                 from .adapters import IntentParserAdapter
+
                 self.nlp_parser = IntentParserAdapter()
                 logger.info("Using agent-based NLP parser")
             else:
@@ -300,15 +319,19 @@ class TerminalIntegration(IIntegration):
         try:
             if AGENTS_AVAILABLE and AgentTerminalUI:
                 # Use agent implementation if it implements ITerminalUI
-                if hasattr(AgentTerminalUI, 'start_ui'):
+                if hasattr(AgentTerminalUI, "start_ui"):
                     self.terminal_ui = AgentTerminalUI()
-                    bind_integration = getattr(self.terminal_ui, "bind_integration", None)
+                    bind_integration = getattr(
+                        self.terminal_ui, "bind_integration", None
+                    )
                     if bind_integration:
                         bind_integration(self)
                     await self.terminal_ui.start_ui()
                     logger.info("Using agent-based terminal UI")
                 else:
-                    raise AttributeError("Agent UI doesn't implement ITerminalUI interface")
+                    raise AttributeError(
+                        "Agent UI doesn't implement ITerminalUI interface"
+                    )
             else:
                 raise ImportError("Agent terminal UI not available")
 
@@ -323,8 +346,7 @@ class TerminalIntegration(IIntegration):
         from .mcp_server import MCPServer
 
         self.mcp_server = MCPServer(
-            port=self.config["mcp_server_port"],
-            integration=self
+            port=self.config["mcp_server_port"], integration=self
         )
         await self.mcp_server.start()
         logger.info(f"MCP server started on port {self.config['mcp_server_port']}")
@@ -354,7 +376,7 @@ class TerminalIntegration(IIntegration):
                     if not user_input.strip():
                         continue
 
-                    if user_input.lower() in ['exit', 'quit', 'bye']:
+                    if user_input.lower() in ["exit", "quit", "bye"]:
                         break
 
                     # Process the input
@@ -392,7 +414,9 @@ class TerminalIntegration(IIntegration):
             session_context = await self.session_manager.get_context()
 
             # Stream the response
-            async for chunk in self.streaming_processor.stream_response(intent, session_context):
+            async for chunk in self.streaming_processor.stream_response(
+                intent, session_context
+            ):
                 await self.terminal_ui.display_stream(chunk)
 
             # Add interaction to session
@@ -415,17 +439,19 @@ class TerminalIntegration(IIntegration):
             logger.info(f"MCP connection established: {connection_id}")
 
             # Send welcome message
-            await websocket.send_json({
-                "type": "mcp_welcome",
-                "server": "CASPER Prime Terminal",
-                "version": "1.0",
-                "capabilities": [
-                    "code_completion",
-                    "code_analysis",
-                    "project_context",
-                    "terminal_integration"
-                ]
-            })
+            await websocket.send_json(
+                {
+                    "type": "mcp_welcome",
+                    "server": "CASPER Prime Terminal",
+                    "version": "1.0",
+                    "capabilities": [
+                        "code_completion",
+                        "code_analysis",
+                        "project_context",
+                        "terminal_integration",
+                    ],
+                }
+            )
 
             # Handle MCP messages
             while True:
@@ -437,10 +463,7 @@ class TerminalIntegration(IIntegration):
                     break
                 except Exception as e:
                     logger.error(f"MCP message error: {e}")
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": str(e)
-                    })
+                    await websocket.send_json({"type": "error", "message": str(e)})
 
         except Exception as e:
             logger.error(f"MCP connection error: {e}")
@@ -449,7 +472,9 @@ class TerminalIntegration(IIntegration):
                 del self.mcp_connections[connection_id]
             logger.info(f"MCP connection closed: {connection_id}")
 
-    async def _handle_mcp_message(self, connection_id: str, data: Dict[str, Any]) -> None:
+    async def _handle_mcp_message(
+        self, connection_id: str, data: Dict[str, Any]
+    ) -> None:
         """Handle individual MCP protocol messages."""
         message_type = data.get("type")
         websocket = self.mcp_connections[connection_id]
@@ -460,11 +485,13 @@ class TerminalIntegration(IIntegration):
             context = data.get("context", {})
             suggestions = await self.nlp_parser.suggest_completion(partial, context)
 
-            await websocket.send_json({
-                "type": "completion_response",
-                "request_id": data.get("request_id"),
-                "suggestions": suggestions
-            })
+            await websocket.send_json(
+                {
+                    "type": "completion_response",
+                    "request_id": data.get("request_id"),
+                    "suggestions": suggestions,
+                }
+            )
 
         elif message_type == "code_analysis":
             # Handle code analysis request
@@ -472,12 +499,14 @@ class TerminalIntegration(IIntegration):
             language = await self.nlp_parser.detect_language(code)
             entities = await self.nlp_parser.extract_entities(code)
 
-            await websocket.send_json({
-                "type": "analysis_response",
-                "request_id": data.get("request_id"),
-                "language": language,
-                "entities": entities
-            })
+            await websocket.send_json(
+                {
+                    "type": "analysis_response",
+                    "request_id": data.get("request_id"),
+                    "language": language,
+                    "entities": entities,
+                }
+            )
 
         elif message_type == "terminal_command":
             # Handle terminal command through MCP
@@ -557,7 +586,7 @@ async def main():
     """Main entry point for the CASPER Prime Terminal."""
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     integration = None

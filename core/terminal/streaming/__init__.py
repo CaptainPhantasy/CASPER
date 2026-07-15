@@ -9,7 +9,7 @@ from .streaming_orchestrator import (
     BackpressureHandler,
     SyntaxToken,
     SyntaxType,
-    get_streaming_orchestrator
+    get_streaming_orchestrator,
 )
 
 from .processor import StreamingProcessor
@@ -17,7 +17,7 @@ from .processor import StreamingProcessor
 from .websocket_integration import (
     StreamingWebSocketHandler,
     enhanced_handle_message,
-    create_enhanced_websocket_handler
+    create_enhanced_websocket_handler,
 )
 
 __all__ = [
@@ -30,5 +30,5 @@ __all__ = [
     "StreamingProcessor",
     "StreamingWebSocketHandler",
     "enhanced_handle_message",
-    "create_enhanced_websocket_handler"
+    "create_enhanced_websocket_handler",
 ]

@@ -71,8 +71,13 @@ class CommandProxy:
         self._initialized = False
         logger.info("Command proxy shutdown complete")
 
-    async def execute_casper_command(self, command: str, args: List[str] = None,
-                                   user_id: Optional[str] = None, session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def execute_casper_command(
+        self,
+        command: str,
+        args: List[str] = None,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Execute a CASPER CLI command with security validation and return the result.
 
@@ -100,30 +105,51 @@ class CommandProxy:
         try:
             # Check rate limits
             if not await self._check_rate_limits(command, user_id):
-                raise SecurityViolation(f"Rate limit exceeded for command: {command}",
-                                       full_command, CommandRisk.MEDIUM)
+                raise SecurityViolation(
+                    f"Rate limit exceeded for command: {command}",
+                    full_command,
+                    CommandRisk.MEDIUM,
+                )
 
             # Check concurrent task limits
-            if command == "task" and len(self.active_tasks) >= self.max_concurrent_tasks:
-                raise SecurityViolation(f"Maximum concurrent tasks ({self.max_concurrent_tasks}) exceeded",
-                                       full_command, CommandRisk.HIGH)
+            if (
+                command == "task"
+                and len(self.active_tasks) >= self.max_concurrent_tasks
+            ):
+                raise SecurityViolation(
+                    f"Maximum concurrent tasks ({self.max_concurrent_tasks}) exceeded",
+                    full_command,
+                    CommandRisk.HIGH,
+                )
 
             # Log security event
             self.security._log_security_event(
-                "CASPER_COMMAND_EXECUTION", full_command, session_id, user_id,
-                CommandRisk.LOW, True, f"Executing CASPER command: {command}"
+                "CASPER_COMMAND_EXECUTION",
+                full_command,
+                session_id,
+                user_id,
+                CommandRisk.LOW,
+                True,
+                f"Executing CASPER command: {command}",
             )
 
         except SecurityViolation as e:
             # Log security violation
             self.security._log_security_event(
-                "CASPER_COMMAND_BLOCKED", full_command, session_id, user_id,
-                e.risk_level, False, str(e)
+                "CASPER_COMMAND_BLOCKED",
+                full_command,
+                session_id,
+                user_id,
+                e.risk_level,
+                False,
+                str(e),
             )
             raise e
 
         try:
-            logger.info(f"Executing CASPER command: {command} {' '.join(args)} (user: {user_id}, session: {session_id})")
+            logger.info(
+                f"Executing CASPER command: {command} {' '.join(args)} (user: {user_id}, session: {session_id})"
+            )
 
             result = None
             task_id = None
@@ -147,7 +173,7 @@ class CommandProxy:
                 result = {
                     "success": False,
                     "error": f"Unknown command: {command}",
-                    "message": f"'{command}' is not a recognized CASPER command. Use 'casper help' for available commands."
+                    "message": f"'{command}' is not a recognized CASPER command. Use 'casper help' for available commands.",
                 }
 
             execution_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -155,8 +181,13 @@ class CommandProxy:
             # Log successful execution
             if result.get("success", False):
                 self.security._log_security_event(
-                    "CASPER_COMMAND_SUCCESS", full_command, session_id, user_id,
-                    CommandRisk.LOW, True, f"Command executed successfully in {execution_time:.2f}ms"
+                    "CASPER_COMMAND_SUCCESS",
+                    full_command,
+                    session_id,
+                    user_id,
+                    CommandRisk.LOW,
+                    True,
+                    f"Command executed successfully in {execution_time:.2f}ms",
                 )
 
             return {
@@ -167,7 +198,7 @@ class CommandProxy:
                 "user_id": user_id,
                 "session_id": session_id,
                 "task_id": task_id,
-                **result
+                **result,
             }
 
         except Exception as e:
@@ -176,8 +207,13 @@ class CommandProxy:
 
             # Log execution error
             self.security._log_security_event(
-                "CASPER_COMMAND_ERROR", full_command, session_id, user_id,
-                CommandRisk.MEDIUM, False, f"Command execution failed: {str(e)}"
+                "CASPER_COMMAND_ERROR",
+                full_command,
+                session_id,
+                user_id,
+                CommandRisk.MEDIUM,
+                False,
+                f"Command execution failed: {str(e)}",
             )
 
             return {
@@ -189,7 +225,7 @@ class CommandProxy:
                 "session_id": session_id,
                 "success": False,
                 "error": str(e),
-                "message": "Command execution failed"
+                "message": "Command execution failed",
             }
 
     async def _check_rate_limits(self, command: str, user_id: Optional[str]) -> bool:
@@ -203,8 +239,7 @@ class CommandProxy:
 
         # Clean old requests
         rate_limit["requests"] = [
-            req_time for req_time in rate_limit["requests"]
-            if req_time > cutoff_time
+            req_time for req_time in rate_limit["requests"] if req_time > cutoff_time
         ]
 
         # Check if under limit
@@ -219,14 +254,18 @@ class CommandProxy:
         """Remove completed task from active tasks tracking."""
         self.active_tasks.discard(task_id)
 
-    async def _handle_task_command(self, args: List[str], user_id: Optional[str] = None,
-                                  session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def _handle_task_command(
+        self,
+        args: List[str],
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Handle 'casper task' command."""
         if not args:
             return {
                 "success": False,
                 "error": "Missing task description",
-                "message": "Usage: casper task <description> [--priority high|medium|low]"
+                "message": "Usage: casper task <description> [--priority high|medium|low]",
             }
 
         # Parse arguments
@@ -240,7 +279,7 @@ class CommandProxy:
                 if priority_index + 1 < len(args):
                     priority = args[priority_index + 1]
                     # Remove priority args from task description
-                    task_args = args[:priority_index] + args[priority_index + 2:]
+                    task_args = args[:priority_index] + args[priority_index + 2 :]
                     task_description = " ".join(task_args)
             except (ValueError, IndexError):
                 pass
@@ -249,16 +288,20 @@ class CommandProxy:
         priority_map = {
             "high": TaskPriority.HIGH,
             "medium": TaskPriority.MEDIUM,
-            "low": TaskPriority.LOW
+            "low": TaskPriority.LOW,
         }
         task_priority = priority_map.get(priority.lower(), TaskPriority.MEDIUM)
 
         try:
             # Analyze task
-            metrics, required_agents, suggested_priority = self.task_analyzer.analyze_task(task_description)
+            metrics, required_agents, suggested_priority = (
+                self.task_analyzer.analyze_task(task_description)
+            )
 
             # Submit task
-            task_id = await self.coordinator.submit_task(task_description, task_priority)
+            task_id = await self.coordinator.submit_task(
+                task_description, task_priority
+            )
 
             return {
                 "success": True,
@@ -274,20 +317,24 @@ class CommandProxy:
                         "integration_points": metrics.integration_points,
                         "external_dependencies": metrics.external_dependencies,
                         "required_agents": [agent.value for agent in required_agents],
-                        "suggested_priority": suggested_priority.value
-                    }
-                }
+                        "suggested_priority": suggested_priority.value,
+                    },
+                },
             }
 
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Failed to submit task"
+                "message": "Failed to submit task",
             }
 
-    async def _handle_status_command(self, args: List[str], user_id: Optional[str] = None,
-                                    session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def _handle_status_command(
+        self,
+        args: List[str],
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Handle 'casper status' command."""
         try:
             stats = self.coordinator.get_coordinator_stats()
@@ -299,40 +346,44 @@ class CommandProxy:
                     "system_status": {
                         "active_tasks": stats["active_tasks"],
                         "queued_tasks": stats["queued_tasks"],
-                        "context_sessions": stats["context_sessions"]
+                        "context_sessions": stats["context_sessions"],
                     },
                     "agent_pool": {
                         "total_agents": stats["agent_pool"]["total_agents"],
                         "busy_agents": stats["agent_pool"]["busy_agents"],
-                        "available_by_role": stats["agent_pool"]["available_by_role"]
+                        "available_by_role": stats["agent_pool"]["available_by_role"],
                     },
-                    "token_usage": {
-                        "total": stats.get("token_usage_total", 0)
-                    }
-                }
+                    "token_usage": {"total": stats.get("token_usage_total", 0)},
+                },
             }
 
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Failed to retrieve system status"
+                "message": "Failed to retrieve system status",
             }
 
-    async def _handle_analyze_command(self, args: List[str], user_id: Optional[str] = None,
-                                     session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def _handle_analyze_command(
+        self,
+        args: List[str],
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Handle 'casper analyze' command."""
         if not args:
             return {
                 "success": False,
                 "error": "Missing task description",
-                "message": "Usage: casper analyze <description>"
+                "message": "Usage: casper analyze <description>",
             }
 
         task_description = " ".join(args)
 
         try:
-            metrics, required_agents, priority = self.task_analyzer.analyze_task(task_description)
+            metrics, required_agents, priority = self.task_analyzer.analyze_task(
+                task_description
+            )
 
             return {
                 "success": True,
@@ -340,7 +391,9 @@ class CommandProxy:
                 "data": {
                     "task_description": task_description,
                     "analysis": {
-                        "complexity_score": self.task_analyzer._calculate_complexity_score(task_description.lower()),
+                        "complexity_score": self.task_analyzer._calculate_complexity_score(
+                            task_description.lower()
+                        ),
                         "lines_of_code_estimate": metrics.lines_of_code_estimate,
                         "file_count_estimate": metrics.file_count_estimate,
                         "component_count": metrics.component_count,
@@ -348,20 +401,26 @@ class CommandProxy:
                         "external_dependencies": metrics.external_dependencies,
                         "required_agents": [agent.value for agent in required_agents],
                         "suggested_priority": priority.value,
-                        "estimated_time_minutes": TaskAnalyzer.estimate_completion_time(metrics)
-                    }
-                }
+                        "estimated_time_minutes": TaskAnalyzer.estimate_completion_time(
+                            metrics
+                        ),
+                    },
+                },
             }
 
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Failed to analyze task"
+                "message": "Failed to analyze task",
             }
 
-    async def _handle_list_command(self, args: List[str], user_id: Optional[str] = None,
-                                  session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def _handle_list_command(
+        self,
+        args: List[str],
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Handle 'casper list' command."""
         try:
             limit = 10
@@ -372,33 +431,40 @@ class CommandProxy:
 
             task_list = []
             for result in results:
-                task_list.append({
-                    "task_id": str(result.task_id)[:8],
-                    "agent_role": result.agent_role.value,
-                    "status": result.status.value,
-                    "token_usage": result.token_usage.get("total", 0),
-                    "output_preview": result.output[:100] + "..." if len(result.output) > 100 else result.output,
-                    "errors": result.errors
-                })
+                task_list.append(
+                    {
+                        "task_id": str(result.task_id)[:8],
+                        "agent_role": result.agent_role.value,
+                        "status": result.status.value,
+                        "token_usage": result.token_usage.get("total", 0),
+                        "output_preview": (
+                            result.output[:100] + "..."
+                            if len(result.output) > 100
+                            else result.output
+                        ),
+                        "errors": result.errors,
+                    }
+                )
 
             return {
                 "success": True,
                 "message": f"Retrieved {len(task_list)} recent tasks",
-                "data": {
-                    "tasks": task_list,
-                    "count": len(task_list)
-                }
+                "data": {"tasks": task_list, "count": len(task_list)},
             }
 
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Failed to retrieve task list"
+                "message": "Failed to retrieve task list",
             }
 
-    async def _handle_help_command(self, args: List[str], user_id: Optional[str] = None,
-                                  session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def _handle_help_command(
+        self,
+        args: List[str],
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Handle 'casper help' command."""
         help_text = {
             "commands": {
@@ -407,29 +473,29 @@ class CommandProxy:
                 "status": "Show current system status and agent pool",
                 "list [count]": "List recent tasks (default: 10)",
                 "init [--project <dir>]": "Initialize CASPER in a project directory",
-                "help [command]": "Show help information"
+                "help [command]": "Show help information",
             },
             "options": {
                 "--priority": "Set task priority (high, medium, low)",
-                "--project": "Specify project directory for initialization"
+                "--project": "Specify project directory for initialization",
             },
             "examples": [
                 "casper task 'Create a new API endpoint for user management'",
                 "casper task 'Fix login bug' --priority high",
                 "casper analyze 'Implement user authentication system'",
                 "casper status",
-                "casper list 20"
-            ]
+                "casper list 20",
+            ],
         }
 
-        return {
-            "success": True,
-            "message": "CASPER CLI Help",
-            "data": help_text
-        }
+        return {"success": True, "message": "CASPER CLI Help", "data": help_text}
 
-    async def _handle_init_command(self, args: List[str], user_id: Optional[str] = None,
-                                  session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def _handle_init_command(
+        self,
+        args: List[str],
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Handle 'casper init' command."""
         try:
             # Parse project directory argument
@@ -472,12 +538,9 @@ class CommandProxy:
                 },
                 "terminal": {
                     "enabled": True,
-                    "shell": os.environ.get('SHELL', '/bin/bash'),
-                    "security": {
-                        "command_filtering": True,
-                        "sandbox_mode": False
-                    }
-                }
+                    "shell": os.environ.get("SHELL", "/bin/bash"),
+                    "security": {"command_filtering": True, "sandbox_mode": False},
+                },
             }
 
             config_path = project_dir / ".casper/config/casper.json"
@@ -490,15 +553,15 @@ class CommandProxy:
                     "project_directory": str(project_dir),
                     "config_file": str(config_path),
                     "created_directories": created_dirs,
-                    "output_directory": str(project_dir / ".casper" / "output")
-                }
+                    "output_directory": str(project_dir / ".casper" / "output"),
+                },
             }
 
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Failed to initialize CASPER project"
+                "message": "Failed to initialize CASPER project",
             }
 
     def get_available_commands(self) -> List[str]:

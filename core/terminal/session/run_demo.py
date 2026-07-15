@@ -25,7 +25,9 @@ async def demo_session_lifecycle():
     # Initialize session manager
     demo_path = "/tmp/claude/casper_session_demo"
     context_manager = ContextManager(demo_path + "/.casper")
-    session_manager = CodingSession(storage_path=demo_path, context_manager=context_manager)
+    session_manager = CodingSession(
+        storage_path=demo_path, context_manager=context_manager
+    )
 
     print(f"✅ Session Manager initialized at: {demo_path}")
 
@@ -46,19 +48,27 @@ async def demo_session_lifecycle():
         # 2. Add coding interactions
         print("\n💬 2. Adding Coding Interactions...")
         interactions = [
-            ("Create a Python class for managing user accounts",
-             "Here's a Python class for user account management:\n\nclass UserAccount:\n    def __init__(self, username, email):\n        self.username = username\n        self.email = email\n        self.created_at = datetime.now()\n        self.active = True"),
-
-            ("Add password hashing to the UserAccount class",
-             "Here's the updated UserAccount class with password hashing:\n\nimport hashlib\n\nclass UserAccount:\n    def __init__(self, username, email, password):\n        self.username = username\n        self.email = email\n        self.password_hash = self._hash_password(password)\n        self.created_at = datetime.now()\n        self.active = True"),
-
-            ("Create unit tests for the UserAccount class",
-             "Here are comprehensive unit tests for the UserAccount class:\n\nimport unittest\nfrom datetime import datetime\n\nclass TestUserAccount(unittest.TestCase):\n    def setUp(self):\n        self.user = UserAccount('testuser', 'test@example.com', 'password123')")
+            (
+                "Create a Python class for managing user accounts",
+                "Here's a Python class for user account management:\n\nclass UserAccount:\n    def __init__(self, username, email):\n        self.username = username\n        self.email = email\n        self.created_at = datetime.now()\n        self.active = True",
+            ),
+            (
+                "Add password hashing to the UserAccount class",
+                "Here's the updated UserAccount class with password hashing:\n\nimport hashlib\n\nclass UserAccount:\n    def __init__(self, username, email, password):\n        self.username = username\n        self.email = email\n        self.password_hash = self._hash_password(password)\n        self.created_at = datetime.now()\n        self.active = True",
+            ),
+            (
+                "Create unit tests for the UserAccount class",
+                "Here are comprehensive unit tests for the UserAccount class:\n\nimport unittest\nfrom datetime import datetime\n\nclass TestUserAccount(unittest.TestCase):\n    def setUp(self):\n        self.user = UserAccount('testuser', 'test@example.com', 'password123')",
+            ),
         ]
 
         for i, (user_input, response) in enumerate(interactions, 1):
-            await session_manager.add_interaction(session_id, user_input, response,
-                                                metadata={"interaction_type": "coding", "step": i})
+            await session_manager.add_interaction(
+                session_id,
+                user_input,
+                response,
+                metadata={"interaction_type": "coding", "step": i},
+            )
             print(f"   Added interaction {i}: {user_input[:50]}...")
 
         results["interactions"] = "✅ SUCCESS"
@@ -68,7 +78,7 @@ async def demo_session_lifecycle():
         files = [
             "/project/models/user_account.py",
             "/project/tests/test_user_account.py",
-            "/project/utils/auth_helpers.py"
+            "/project/utils/auth_helpers.py",
         ]
 
         for file_path in files:
@@ -110,7 +120,9 @@ async def demo_session_lifecycle():
         recovered_state = await session_manager.recover(session_id)
         print(f"   Recovered session: {recovered_state.session_id}")
         print(f"   Session active: {recovered_state.active}")
-        print(f"   Conversation history: {len(recovered_state.conversation_history)} items")
+        print(
+            f"   Conversation history: {len(recovered_state.conversation_history)} items"
+        )
         print(f"   Files modified: {len(recovered_state.files_modified)} files")
         results["session_recovery"] = "✅ SUCCESS"
 
@@ -120,20 +132,23 @@ async def demo_session_lifecycle():
         final_stats = await session_manager.get_session_stats()
 
         verification_checks = [
-            final_stats['total_sessions'] >= 1,
-            final_stats['active_sessions'] >= 1,
-            final_stats['total_interactions'] >= 3,
-            len(final_context['session_state']['files_modified']) >= 3,
-            final_context['session_state']['context_tokens'] > 0
+            final_stats["total_sessions"] >= 1,
+            final_stats["active_sessions"] >= 1,
+            final_stats["total_interactions"] >= 3,
+            len(final_context["session_state"]["files_modified"]) >= 3,
+            final_context["session_state"]["context_tokens"] > 0,
         ]
 
         all_passed = all(verification_checks)
-        print(f"   Verification checks: {sum(verification_checks)}/{len(verification_checks)} passed")
+        print(
+            f"   Verification checks: {sum(verification_checks)}/{len(verification_checks)} passed"
+        )
         results["verification"] = "✅ SUCCESS" if all_passed else "❌ FAILED"
 
     except Exception as e:
         print(f"❌ Error during demo: {e}")
         import traceback
+
         traceback.print_exc()
         results["error"] = f"❌ FAILED: {e}"
 
@@ -155,10 +170,14 @@ def print_results_summary(results):
             success_count += 1
         print(f"{status} {test_name.replace('_', ' ').title()}: {result}")
 
-    print(f"\n📊 Success Rate: {success_count}/{total_count} ({success_count/total_count*100:.1f}%)")
+    print(
+        f"\n📊 Success Rate: {success_count}/{total_count} ({success_count/total_count*100:.1f}%)"
+    )
 
     overall_success = success_count == total_count
-    print(f"🎉 Overall Result: {'PRODUCTION READY ✅' if overall_success else 'NEEDS FIXES ❌'}")
+    print(
+        f"🎉 Overall Result: {'PRODUCTION READY ✅' if overall_success else 'NEEDS FIXES ❌'}"
+    )
 
     return overall_success
 
@@ -176,7 +195,9 @@ async def main():
 
     duration = time.time() - start_time
     print(f"\n⏱️  Demo completed in {duration:.2f} seconds")
-    print(f"🎯 Production readiness: {'CONFIRMED' if overall_success else 'REQUIRES FIXES'}")
+    print(
+        f"🎯 Production readiness: {'CONFIRMED' if overall_success else 'REQUIRES FIXES'}"
+    )
 
     return overall_success
 

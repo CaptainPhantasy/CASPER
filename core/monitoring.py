@@ -11,7 +11,15 @@ import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
-from prometheus_client import Counter, Histogram, Gauge, Info, CollectorRegistry, CONTENT_TYPE_LATEST, generate_latest
+from prometheus_client import (
+    Counter,
+    Histogram,
+    Gauge,
+    Info,
+    CollectorRegistry,
+    CONTENT_TYPE_LATEST,
+    generate_latest,
+)
 from fastapi import APIRouter, Response
 from contextlib import asynccontextmanager
 import logging
@@ -23,104 +31,97 @@ REGISTRY = CollectorRegistry()
 
 # Terminal metrics
 TERMINAL_SESSIONS_ACTIVE = Gauge(
-    'casper_terminal_active_sessions_total',
-    'Number of active terminal sessions',
-    registry=REGISTRY
+    "casper_terminal_active_sessions_total",
+    "Number of active terminal sessions",
+    registry=REGISTRY,
 )
 
 TERMINAL_COMMANDS_EXECUTED = Counter(
-    'casper_terminal_commands_executed_total',
-    'Total number of commands executed',
-    ['session_id', 'status'],
-    registry=REGISTRY
+    "casper_terminal_commands_executed_total",
+    "Total number of commands executed",
+    ["session_id", "status"],
+    registry=REGISTRY,
 )
 
 TERMINAL_COMMAND_DURATION = Histogram(
-    'casper_terminal_command_duration_seconds',
-    'Command execution duration in seconds',
-    ['session_id'],
+    "casper_terminal_command_duration_seconds",
+    "Command execution duration in seconds",
+    ["session_id"],
     buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
-    registry=REGISTRY
+    registry=REGISTRY,
 )
 
 TERMINAL_MEMORY_USAGE = Gauge(
-    'casper_terminal_memory_usage_bytes',
-    'Memory usage by terminal sessions in bytes',
-    ['session_id'],
-    registry=REGISTRY
+    "casper_terminal_memory_usage_bytes",
+    "Memory usage by terminal sessions in bytes",
+    ["session_id"],
+    registry=REGISTRY,
 )
 
 # WebSocket metrics
 WEBSOCKET_CONNECTIONS = Gauge(
-    'casper_websocket_connections_total',
-    'Number of active WebSocket connections',
-    registry=REGISTRY
+    "casper_websocket_connections_total",
+    "Number of active WebSocket connections",
+    registry=REGISTRY,
 )
 
 WEBSOCKET_MESSAGES_SENT = Counter(
-    'casper_websocket_messages_sent_total',
-    'Total number of WebSocket messages sent',
-    ['connection_id', 'message_type'],
-    registry=REGISTRY
+    "casper_websocket_messages_sent_total",
+    "Total number of WebSocket messages sent",
+    ["connection_id", "message_type"],
+    registry=REGISTRY,
 )
 
 WEBSOCKET_MESSAGES_RECEIVED = Counter(
-    'casper_websocket_messages_received_total',
-    'Total number of WebSocket messages received',
-    ['connection_id', 'message_type'],
-    registry=REGISTRY
+    "casper_websocket_messages_received_total",
+    "Total number of WebSocket messages received",
+    ["connection_id", "message_type"],
+    registry=REGISTRY,
 )
 
 WEBSOCKET_ERRORS = Counter(
-    'casper_websocket_errors_total',
-    'Total number of WebSocket errors',
-    ['error_type'],
-    registry=REGISTRY
+    "casper_websocket_errors_total",
+    "Total number of WebSocket errors",
+    ["error_type"],
+    registry=REGISTRY,
 )
 
 # System metrics
 SYSTEM_CPU_USAGE = Gauge(
-    'casper_system_cpu_usage_percent',
-    'System CPU usage percentage',
-    registry=REGISTRY
+    "casper_system_cpu_usage_percent", "System CPU usage percentage", registry=REGISTRY
 )
 
 SYSTEM_MEMORY_USAGE = Gauge(
-    'casper_system_memory_usage_bytes',
-    'System memory usage in bytes',
-    registry=REGISTRY
+    "casper_system_memory_usage_bytes",
+    "System memory usage in bytes",
+    registry=REGISTRY,
 )
 
 SYSTEM_DISK_USAGE = Gauge(
-    'casper_system_disk_usage_percent',
-    'System disk usage percentage',
-    registry=REGISTRY
+    "casper_system_disk_usage_percent",
+    "System disk usage percentage",
+    registry=REGISTRY,
 )
 
 # Application metrics
 APP_REQUEST_DURATION = Histogram(
-    'casper_app_request_duration_seconds',
-    'Application request duration in seconds',
-    ['method', 'endpoint', 'status_code'],
-    registry=REGISTRY
+    "casper_app_request_duration_seconds",
+    "Application request duration in seconds",
+    ["method", "endpoint", "status_code"],
+    registry=REGISTRY,
 )
 
 APP_ACTIVE_USERS = Gauge(
-    'casper_app_active_users_total',
-    'Number of active users',
-    registry=REGISTRY
+    "casper_app_active_users_total", "Number of active users", registry=REGISTRY
 )
 
-APP_INFO = Info(
-    'casper_app_info',
-    'Application information',
-    registry=REGISTRY
-)
+APP_INFO = Info("casper_app_info", "Application information", registry=REGISTRY)
 
 
 @dataclass
 class SystemMetrics:
     """System performance metrics"""
+
     cpu_percent: float
     memory_used: int
     memory_total: int
@@ -136,6 +137,7 @@ class SystemMetrics:
 @dataclass
 class TerminalMetrics:
     """Terminal-specific metrics"""
+
     active_sessions: int
     total_commands: int
     average_execution_time: float
@@ -147,6 +149,7 @@ class TerminalMetrics:
 @dataclass
 class WebSocketMetrics:
     """WebSocket connection metrics"""
+
     active_connections: int
     messages_sent: int
     messages_received: int
@@ -173,10 +176,12 @@ class MetricsCollector:
             memory = psutil.virtual_memory()
 
             # Disk usage
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
 
             # Load average
-            load_avg = psutil.getloadavg() if hasattr(psutil, 'getloadavg') else (0, 0, 0)
+            load_avg = (
+                psutil.getloadavg() if hasattr(psutil, "getloadavg") else (0, 0, 0)
+            )
 
             # Uptime
             uptime = time.time() - self.start_time
@@ -191,7 +196,7 @@ class MetricsCollector:
                 disk_percent=(disk.used / disk.total) * 100,
                 load_average=load_avg,
                 uptime_seconds=uptime,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
             # Update Prometheus metrics
@@ -221,7 +226,7 @@ class MetricsCollector:
                 average_execution_time=0.0,  # Calculated from recent commands
                 memory_usage=0,  # Sum of all session memory usage
                 error_rate=0.0,  # Error rate calculation
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
             return metrics
@@ -244,7 +249,7 @@ class MetricsCollector:
                 messages_received=0,
                 connection_errors=0,
                 average_latency=0.0,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
             return metrics
@@ -275,16 +280,22 @@ class MetricsCollector:
 
     def record_command_execution(self, session_id: str, duration: float, success: bool):
         """Record terminal command execution metrics"""
-        status = 'success' if success else 'error'
+        status = "success" if success else "error"
         TERMINAL_COMMANDS_EXECUTED.labels(session_id=session_id, status=status).inc()
         TERMINAL_COMMAND_DURATION.labels(session_id=session_id).observe(duration)
 
-    def record_websocket_message(self, connection_id: str, message_type: str, direction: str):
+    def record_websocket_message(
+        self, connection_id: str, message_type: str, direction: str
+    ):
         """Record WebSocket message metrics"""
-        if direction == 'sent':
-            WEBSOCKET_MESSAGES_SENT.labels(connection_id=connection_id, message_type=message_type).inc()
+        if direction == "sent":
+            WEBSOCKET_MESSAGES_SENT.labels(
+                connection_id=connection_id, message_type=message_type
+            ).inc()
         else:
-            WEBSOCKET_MESSAGES_RECEIVED.labels(connection_id=connection_id, message_type=message_type).inc()
+            WEBSOCKET_MESSAGES_RECEIVED.labels(
+                connection_id=connection_id, message_type=message_type
+            ).inc()
 
     def record_websocket_error(self, error_type: str):
         """Record WebSocket error"""
@@ -307,13 +318,10 @@ class HealthChecker:
                 "status": "healthy",
                 "response_time_ms": 5.2,
                 "connections": 10,
-                "max_connections": 100
+                "max_connections": 100,
             }
         except Exception as e:
-            return {
-                "status": "unhealthy",
-                "error": str(e)
-            }
+            return {"status": "unhealthy", "error": str(e)}
 
     async def check_redis_health(self) -> Dict[str, Any]:
         """Check Redis connectivity and performance"""
@@ -322,13 +330,10 @@ class HealthChecker:
             return {
                 "status": "healthy",
                 "memory_usage_mb": 45.2,
-                "connected_clients": 5
+                "connected_clients": 5,
             }
         except Exception as e:
-            return {
-                "status": "unhealthy",
-                "error": str(e)
-            }
+            return {"status": "unhealthy", "error": str(e)}
 
     async def check_terminal_health(self) -> Dict[str, Any]:
         """Check terminal system health"""
@@ -337,20 +342,17 @@ class HealthChecker:
             return {
                 "status": "healthy" if metrics.active_sessions < 100 else "degraded",
                 "active_sessions": metrics.active_sessions,
-                "memory_usage_mb": metrics.memory_usage / (1024 * 1024)
+                "memory_usage_mb": metrics.memory_usage / (1024 * 1024),
             }
         except Exception as e:
-            return {
-                "status": "unhealthy",
-                "error": str(e)
-            }
+            return {"status": "unhealthy", "error": str(e)}
 
     async def comprehensive_health_check(self) -> Dict[str, Any]:
         """Perform comprehensive health check"""
         health_status = {
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
-            "checks": {}
+            "checks": {},
         }
 
         # Run all health checks
@@ -361,10 +363,15 @@ class HealthChecker:
         # Check system resources
         system_metrics = self.metrics_collector.collect_system_metrics()
         health_status["checks"]["system"] = {
-            "status": "healthy" if system_metrics.cpu_percent < 80 and system_metrics.memory_percent < 85 else "degraded",
+            "status": (
+                "healthy"
+                if system_metrics.cpu_percent < 80
+                and system_metrics.memory_percent < 85
+                else "degraded"
+            ),
             "cpu_percent": system_metrics.cpu_percent,
             "memory_percent": system_metrics.memory_percent,
-            "disk_percent": system_metrics.disk_percent
+            "disk_percent": system_metrics.disk_percent,
         }
 
         # Determine overall status
@@ -400,10 +407,7 @@ async def get_metrics():
     metrics_collector.collect_websocket_metrics()
 
     # Generate Prometheus format
-    return Response(
-        content=generate_latest(REGISTRY),
-        media_type=CONTENT_TYPE_LATEST
-    )
+    return Response(content=generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)
 
 
 @router.get("/metrics/system")
@@ -436,9 +440,7 @@ async def request_timer(method: str, endpoint: str, status_code: int):
     finally:
         duration = time.time() - start_time
         APP_REQUEST_DURATION.labels(
-            method=method,
-            endpoint=endpoint,
-            status_code=str(status_code)
+            method=method, endpoint=endpoint, status_code=str(status_code)
         ).observe(duration)
 
 
@@ -457,9 +459,11 @@ async def periodic_metrics_collection():
 
 
 # Initialize application info
-APP_INFO.info({
-    'version': '1.0.0',
-    'name': 'CASPER Prime',
-    'description': 'Autonomous AI Development Platform',
-    'build_date': datetime.utcnow().isoformat()
-})
+APP_INFO.info(
+    {
+        "version": "1.0.0",
+        "name": "CASPER Prime",
+        "description": "Autonomous AI Development Platform",
+        "build_date": datetime.utcnow().isoformat(),
+    }
+)

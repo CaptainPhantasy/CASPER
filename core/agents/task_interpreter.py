@@ -52,15 +52,13 @@ class TaskInterpreter:
         """
 
         try:
-            response = await llm_service.complete(
-                prompt=prompt,
-                max_tokens=500
-            )
+            response = await llm_service.complete(prompt=prompt, max_tokens=500)
 
             if response:
                 # Extract JSON from response
                 import re
-                json_match = re.search(r'\{.*\}', response, re.DOTALL)
+
+                json_match = re.search(r"\{.*\}", response, re.DOTALL)
                 if json_match:
                     return json.loads(json_match.group())
 
@@ -90,17 +88,17 @@ class TaskInterpreter:
 
         # Try to extract name
         import re
-        name_match = re.search(r'(?:called|named)\s+([a-zA-Z0-9_\-\.]+)', task, re.IGNORECASE)
+
+        name_match = re.search(
+            r"(?:called|named)\s+([a-zA-Z0-9_\-\.]+)", task, re.IGNORECASE
+        )
         name = name_match.group(1) if name_match else "unknown"
 
         return {
             "operation": operation,
-            "targets": [{
-                "type": target_type,
-                "name": name,
-                "path": name,
-                "content": None
-            }]
+            "targets": [
+                {"type": target_type, "name": name, "path": name, "content": None}
+            ],
         }
 
 

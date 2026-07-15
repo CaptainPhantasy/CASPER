@@ -18,7 +18,6 @@ from typing import Any, Callable, Optional
 
 from .feature_manager import LocalCommandResult, TranscriptEntry
 
-
 MAX_OUTPUT = 16_000
 PERMISSION_MODES = {"default", "accept-edits", "plan", "bypass"}
 

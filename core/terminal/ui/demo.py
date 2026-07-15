@@ -75,22 +75,22 @@ async def simulate_task_analysis(ui):
             content="🎯 Analyzing user request: 'Create a Python function to calculate Fibonacci numbers'",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=1
+            sequence_number=1,
         ),
         StreamChunk(
             type="thought",
             content="📝 Task breakdown:\n  1. Implement recursive Fibonacci function\n  2. Add memoization for optimization\n  3. Include error handling for negative inputs\n  4. Create comprehensive test cases",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=2
+            sequence_number=2,
         ),
         StreamChunk(
             type="thought",
             content="🧠 Complexity: MEDIUM - Single file, multiple functions, testing required",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=3
-        )
+            sequence_number=3,
+        ),
     ]
 
     # Stream analysis with delays for realism
@@ -109,7 +109,7 @@ async def simulate_code_generation(ui):
         content="Implementing Fibonacci calculator with memoization",
         metadata={},
         timestamp=datetime.now(),
-        sequence_number=4
+        sequence_number=4,
     )
     await ui.display_stream(action_chunk)
     await ui.show_progress("Generating code...", 40)
@@ -126,7 +126,6 @@ class FibonacciCalculator:
 
     def __init__(self):
         self._memo: Dict[int, int] = {}""",
-
         """
     @lru_cache(maxsize=None)
     def recursive_memoized(self, n: int) -> int:
@@ -136,7 +135,6 @@ class FibonacciCalculator:
         if n <= 1:
             return n
         return self.recursive_memoized(n-1) + self.recursive_memoized(n-2)""",
-
         """
     def iterative(self, n: int) -> int:
         \"\"\"Calculate Fibonacci using iterative approach\"\"\"
@@ -149,7 +147,6 @@ class FibonacciCalculator:
         for _ in range(2, n + 1):
             a, b = b, a + b
         return b""",
-
         """
     def get_sequence(self, length: int) -> List[int]:
         \"\"\"Generate Fibonacci sequence of given length\"\"\"
@@ -163,7 +160,7 @@ if __name__ == "__main__":
     n = 10
     print(f"Fibonacci({n}) recursive: {calc.recursive_memoized(n)}")
     print(f"Fibonacci({n}) iterative: {calc.iterative(n)}")
-    print(f"First 10 numbers: {calc.get_sequence(10)}")"""
+    print(f"First 10 numbers: {calc.get_sequence(10)}")""",
     ]
 
     full_code = ""
@@ -175,7 +172,7 @@ if __name__ == "__main__":
             content=full_code,
             metadata={"language": "python"},
             timestamp=datetime.now(),
-            sequence_number=5 + i
+            sequence_number=5 + i,
         )
 
         await ui.display_stream(code_chunk)
@@ -194,43 +191,43 @@ async def simulate_testing(ui):
             content="🧪 Running unit tests for FibonacciCalculator...",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=10
+            sequence_number=10,
         ),
         StreamChunk(
             type="test",
             content="✅ test_recursive_memoized_basic: PASSED\n   Fibonacci(5) = 5",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=11
+            sequence_number=11,
         ),
         StreamChunk(
             type="test",
             content="✅ test_iterative_basic: PASSED\n   Fibonacci(10) = 55",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=12
+            sequence_number=12,
         ),
         StreamChunk(
             type="test",
             content="✅ test_negative_input_handling: PASSED\n   ValueError raised for negative input",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=13
+            sequence_number=13,
         ),
         StreamChunk(
             type="test",
             content="✅ test_sequence_generation: PASSED\n   Generated sequence: [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=14
+            sequence_number=14,
         ),
         StreamChunk(
             type="test",
             content="📊 Test Summary:\n   • Total tests: 4\n   • Passed: 4\n   • Failed: 0\n   • Coverage: 100%",
             metadata={},
             timestamp=datetime.now(),
-            sequence_number=15
-        )
+            sequence_number=15,
+        ),
     ]
 
     for chunk in test_chunks:
@@ -248,7 +245,7 @@ async def simulate_completion(ui):
         content="🎉 Task completed successfully!\n\n✨ Deliverables:\n   • FibonacciCalculator class with recursive and iterative methods\n   • Comprehensive error handling for edge cases\n   • Memoization for optimal performance\n   • Full test coverage with all tests passing\n   • Clean, documented, production-ready code",
         metadata={},
         timestamp=datetime.now(),
-        sequence_number=16
+        sequence_number=16,
     )
 
     await ui.display_stream(completion_chunk)
@@ -260,7 +257,7 @@ async def simulate_completion(ui):
         content="✅ Task execution complete. Generated efficient Fibonacci calculator with multiple implementation strategies and comprehensive testing.",
         metadata={},
         timestamp=datetime.now(),
-        sequence_number=17
+        sequence_number=17,
     )
 
     await ui.display_stream(final_thought)
@@ -284,29 +281,29 @@ async def demo_error_handling():
                 content="Import error: Module 'nonexistent_module' not found",
                 metadata={"severity": "error", "type": "import_error"},
                 timestamp=datetime.now(),
-                sequence_number=1
+                sequence_number=1,
             ),
             StreamChunk(
                 type="error",
                 content="Syntax error in generated code: Expected ':' after function definition",
                 metadata={"severity": "error", "type": "syntax_error"},
                 timestamp=datetime.now(),
-                sequence_number=2
+                sequence_number=2,
             ),
             StreamChunk(
                 type="thought",
                 content="🔧 Attempting to fix syntax error by regenerating function...",
                 metadata={},
                 timestamp=datetime.now(),
-                sequence_number=3
+                sequence_number=3,
             ),
             StreamChunk(
                 type="result",
                 content="✅ Error resolved! Code now compiles successfully.",
                 metadata={},
                 timestamp=datetime.now(),
-                sequence_number=4
-            )
+                sequence_number=4,
+            ),
         ]
 
         for chunk in error_chunks:

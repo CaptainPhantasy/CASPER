@@ -20,9 +20,11 @@ from core.services.user_config import user_config
 
 console = Console()
 
+
 @dataclass
 class CustomCommand:
     """Represents a custom user command."""
+
     name: str
     description: str
     command_sequence: List[str]  # List of slash commands to execute
@@ -37,9 +39,11 @@ class CustomCommand:
         if not self.created_at:
             self.created_at = datetime.now().isoformat()
 
+
 @dataclass
 class Theme:
     """User interface theme configuration."""
+
     name: str
     primary_color: str = "cyan"
     secondary_color: str = "bright_green"
@@ -49,9 +53,11 @@ class Theme:
     prompt_style: str = "bold"
     banner_style: str = "cyan"
 
+
 @dataclass
 class WorkflowPreferences:
     """User workflow and behavior preferences."""
+
     default_ai_provider: str = "anthropic"
     auto_save_sessions: bool = True
     session_backup_frequency: int = 5  # minutes
@@ -62,9 +68,11 @@ class WorkflowPreferences:
     enable_notifications: bool = True
     auto_sync_git: bool = False
 
+
 @dataclass
 class CodeGenPreferences:
     """Code generation and development preferences."""
+
     default_component_type: str = "react"
     naming_convention: str = "PascalCase"  # PascalCase, camelCase, snake_case
     test_framework: str = "jest"
@@ -74,15 +82,18 @@ class CodeGenPreferences:
     author_name: str = ""
     author_email: str = ""
 
+
 @dataclass
 class ProjectProfile:
     """Project-specific configuration profile."""
+
     name: str
     type: str  # react, python, nodejs, etc.
     ai_provider: str
     code_preferences: CodeGenPreferences
     custom_commands: List[str]  # List of command names specific to this profile
     git_config: Dict[str, str]
+
 
 class PersonalizationManager:
     """Manages all user personalization features."""
@@ -126,7 +137,9 @@ class PersonalizationManager:
 
             # Load preferences
             if "workflow_preferences" in data:
-                self.workflow_prefs = WorkflowPreferences(**data["workflow_preferences"])
+                self.workflow_prefs = WorkflowPreferences(
+                    **data["workflow_preferences"]
+                )
 
             if "codegen_preferences" in data:
                 self.codegen_prefs = CodeGenPreferences(**data["codegen_preferences"])
@@ -134,8 +147,12 @@ class PersonalizationManager:
             # Load project profiles
             for profile_data in data.get("project_profiles", []):
                 profile = ProjectProfile(
-                    **{k: v for k, v in profile_data.items() if k != "code_preferences"},
-                    code_preferences=CodeGenPreferences(**profile_data.get("code_preferences", {}))
+                    **{
+                        k: v for k, v in profile_data.items() if k != "code_preferences"
+                    },
+                    code_preferences=CodeGenPreferences(
+                        **profile_data.get("code_preferences", {})
+                    ),
                 )
                 self.project_profiles[profile.name] = profile
 
@@ -154,33 +171,46 @@ class PersonalizationManager:
             "workflow_preferences": asdict(self.workflow_prefs),
             "codegen_preferences": asdict(self.codegen_prefs),
             "project_profiles": [
-                {**asdict(profile), "code_preferences": asdict(profile.code_preferences)}
+                {
+                    **asdict(profile),
+                    "code_preferences": asdict(profile.code_preferences),
+                }
                 for profile in self.project_profiles.values()
             ],
             "favorites": self.favorites,
             "quick_actions": self.quick_actions,
-            "last_updated": datetime.now().isoformat()
+            "last_updated": datetime.now().isoformat(),
         }
 
-        with open(self.personalization_file, 'w') as f:
+        with open(self.personalization_file, "w") as f:
             json.dump(data, f, indent=2)
 
     def _initialize_default_themes(self):
         """Initialize default themes if none exist."""
         if not self.themes:
-            self.themes.update({
-                "default": Theme("default"),
-                "dark": Theme("dark", "bright_blue", "bright_green", "bright_yellow"),
-                "minimal": Theme("minimal", "white", "bright_white", "bright_cyan"),
-                "hacker": Theme("hacker", "bright_green", "green", "bright_yellow"),
-                "corporate": Theme("corporate", "blue", "bright_blue", "cyan")
-            })
+            self.themes.update(
+                {
+                    "default": Theme("default"),
+                    "dark": Theme(
+                        "dark", "bright_blue", "bright_green", "bright_yellow"
+                    ),
+                    "minimal": Theme("minimal", "white", "bright_white", "bright_cyan"),
+                    "hacker": Theme("hacker", "bright_green", "green", "bright_yellow"),
+                    "corporate": Theme("corporate", "blue", "bright_blue", "cyan"),
+                }
+            )
 
     # === CUSTOM COMMANDS ===
 
-    def create_custom_command(self, name: str, description: str, command_sequence: List[str], parameters: List[str] = None):
+    def create_custom_command(
+        self,
+        name: str,
+        description: str,
+        command_sequence: List[str],
+        parameters: List[str] = None,
+    ):
         """Create a new custom command."""
-        if name.startswith('#'):
+        if name.startswith("#"):
             name = name[1:]  # Remove # prefix
 
         if name in self.custom_commands:
@@ -191,7 +221,7 @@ class PersonalizationManager:
             name=name,
             description=description,
             command_sequence=command_sequence,
-            parameters=parameters or []
+            parameters=parameters or [],
         )
 
         self.custom_commands[name] = cmd
@@ -202,7 +232,7 @@ class PersonalizationManager:
 
     def delete_custom_command(self, name: str):
         """Delete a custom command."""
-        if name.startswith('#'):
+        if name.startswith("#"):
             name = name[1:]
 
         if name in self.custom_commands:
@@ -216,20 +246,24 @@ class PersonalizationManager:
 
     def get_custom_command(self, name: str) -> Optional[CustomCommand]:
         """Get a custom command by name."""
-        if name.startswith('#'):
+        if name.startswith("#"):
             name = name[1:]
         return self.custom_commands.get(name)
 
-    def list_custom_commands(self, category: Optional[str] = None) -> List[CustomCommand]:
+    def list_custom_commands(
+        self, category: Optional[str] = None
+    ) -> List[CustomCommand]:
         """List custom commands, optionally filtered by category."""
         commands = list(self.custom_commands.values())
         if category:
             commands = [cmd for cmd in commands if cmd.category == category]
         return sorted(commands, key=lambda x: (x.category, x.usage_count), reverse=True)
 
-    async def execute_custom_command(self, name: str, args: List[str] = None, slash_commands=None):
+    async def execute_custom_command(
+        self, name: str, args: List[str] = None, slash_commands=None
+    ):
         """Execute a custom command with parameter substitution."""
-        if name.startswith('#'):
+        if name.startswith("#"):
             name = name[1:]
 
         cmd = self.get_custom_command(name)
@@ -291,7 +325,7 @@ class PersonalizationManager:
             ai_provider=self.workflow_prefs.default_ai_provider,
             code_preferences=self.codegen_prefs,
             custom_commands=[],
-            git_config={}
+            git_config={},
         )
 
         self.project_profiles[name] = profile
@@ -327,18 +361,26 @@ class PersonalizationManager:
 
         if not commands:
             console.print("[yellow]No custom commands defined[/yellow]")
-            console.print("[dim]Create one with: /custom-add <name> <description> <commands>[/dim]")
+            console.print(
+                "[dim]Create one with: /custom-add <name> <description> <commands>[/dim]"
+            )
             return
 
-        table = Table(title="Custom Commands", show_header=True, header_style="bold cyan")
+        table = Table(
+            title="Custom Commands", show_header=True, header_style="bold cyan"
+        )
         table.add_column("Command", style="bright_green", width=15)
         table.add_column("Description", style="bright_white", width=30)
         table.add_column("Parameters", style="yellow", width=20)
         table.add_column("Uses", style="dim", width=8)
 
         for cmd in commands:
-            params_str = ", ".join(f"${p}" for p in cmd.parameters) if cmd.parameters else "None"
-            table.add_row(f"#{cmd.name}", cmd.description, params_str, str(cmd.usage_count))
+            params_str = (
+                ", ".join(f"${p}" for p in cmd.parameters) if cmd.parameters else "None"
+            )
+            table.add_row(
+                f"#{cmd.name}", cmd.description, params_str, str(cmd.usage_count)
+            )
 
         console.print(table)
 
@@ -347,22 +389,28 @@ class PersonalizationManager:
         console.print("\n[bold cyan]CASPER Personalization Settings[/bold cyan]")
 
         # Workflow preferences
-        workflow_table = Table(title="Workflow Preferences", show_header=True, header_style="bold green")
+        workflow_table = Table(
+            title="Workflow Preferences", show_header=True, header_style="bold green"
+        )
         workflow_table.add_column("Setting", style="bright_white", width=25)
         workflow_table.add_column("Value", style="bright_yellow", width=20)
 
         for key, value in asdict(self.workflow_prefs).items():
-            workflow_table.add_row(key.replace('_', ' ').title(), str(value))
+            workflow_table.add_row(key.replace("_", " ").title(), str(value))
 
         console.print(workflow_table)
 
         # Code generation preferences
-        codegen_table = Table(title="Code Generation Preferences", show_header=True, header_style="bold blue")
+        codegen_table = Table(
+            title="Code Generation Preferences",
+            show_header=True,
+            header_style="bold blue",
+        )
         codegen_table.add_column("Setting", style="bright_white", width=25)
         codegen_table.add_column("Value", style="bright_yellow", width=20)
 
         for key, value in asdict(self.codegen_prefs).items():
-            codegen_table.add_row(key.replace('_', ' ').title(), str(value))
+            codegen_table.add_row(key.replace("_", " ").title(), str(value))
 
         console.print(codegen_table)
 
@@ -371,6 +419,7 @@ class PersonalizationManager:
             console.print(f"\n[bold yellow]⭐ Favorite Commands:[/bold yellow]")
             for fav in self.favorites:
                 console.print(f"  • {fav}")
+
 
 # Global instance
 personalization_manager = PersonalizationManager()

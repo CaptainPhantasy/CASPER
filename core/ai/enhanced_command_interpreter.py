@@ -18,6 +18,7 @@ from core.services.llm import llm_service
 
 class CommandType(Enum):
     """Extended command types based on logic plan"""
+
     FILE_OPERATION = "file_operation"
     CODE_GENERATION = "code_generation"
     TESTING = "testing"
@@ -35,32 +36,36 @@ class CommandType(Enum):
 
 class ConfidenceLevel(Enum):
     """Confidence levels for command interpretation"""
+
     DIRECT_MATCH = 100  # Explicit command match
-    HIGH = 80          # Partial match with clear intent
-    MEDIUM = 60        # Natural language with probable intent
-    LOW = 40           # Ambiguous, needs clarification
-    UNCERTAIN = 20     # Multiple interpretations possible
+    HIGH = 80  # Partial match with clear intent
+    MEDIUM = 60  # Natural language with probable intent
+    LOW = 40  # Ambiguous, needs clarification
+    UNCERTAIN = 20  # Multiple interpretations possible
 
 
 class Priority(Enum):
     """Decision priority levels with timing constraints"""
-    IMMEDIATE = "immediate"      # < 100ms
-    QUICK = "quick"              # 100ms - 1s
-    CONSIDERED = "considered"    # 1s - 5s
-    COMPLEX = "complex"          # > 5s
+
+    IMMEDIATE = "immediate"  # < 100ms
+    QUICK = "quick"  # 100ms - 1s
+    CONSIDERED = "considered"  # 1s - 5s
+    COMPLEX = "complex"  # > 5s
 
 
 class ErrorSeverity(Enum):
     """Error severity classification"""
-    CRITICAL = "critical"    # Blocks all progress
-    HIGH = "high"           # Blocks feature
-    MEDIUM = "medium"       # Degraded function
-    LOW = "low"            # Cosmetic/minor
+
+    CRITICAL = "critical"  # Blocks all progress
+    HIGH = "high"  # Blocks feature
+    MEDIUM = "medium"  # Degraded function
+    LOW = "low"  # Cosmetic/minor
 
 
 @dataclass
 class InterpretedCommand:
     """Enhanced command interpretation with confidence and priority"""
+
     command_type: CommandType
     action: str
     targets: List[Dict[str, Any]]
@@ -79,6 +84,7 @@ class InterpretedCommand:
 @dataclass
 class ProjectContext:
     """Enhanced project context with multi-language support"""
+
     project_root: str
     project_type: Optional[str]
     languages: List[str]
@@ -117,7 +123,7 @@ class EnhancedCasperInterpreter:
             existing_files=[],
             recent_operations=[],
             git_status=None,
-            dependencies={}
+            dependencies={},
         )
 
         # Detect languages and frameworks
@@ -195,7 +201,7 @@ class EnhancedCasperInterpreter:
                 "initialized": True,
                 "branch": "unknown",  # Would need git command to get actual
                 "has_changes": False,
-                "last_commit": None
+                "last_commit": None,
             }
 
     async def interpret(self, user_input: str) -> InterpretedCommand:
@@ -220,17 +226,28 @@ class EnhancedCasperInterpreter:
         try:
             if confidence_data["level"] == ConfidenceLevel.DIRECT_MATCH:
                 # Direct execution path
-                return self._direct_interpretation(user_input, classification, confidence_data, safety_checks)
-            elif confidence_data["level"] in [ConfidenceLevel.HIGH, ConfidenceLevel.MEDIUM]:
+                return self._direct_interpretation(
+                    user_input, classification, confidence_data, safety_checks
+                )
+            elif confidence_data["level"] in [
+                ConfidenceLevel.HIGH,
+                ConfidenceLevel.MEDIUM,
+            ]:
                 # AI-assisted interpretation
-                return await self._ai_interpretation(user_input, classification, confidence_data, safety_checks)
+                return await self._ai_interpretation(
+                    user_input, classification, confidence_data, safety_checks
+                )
             else:
                 # Clarification needed
-                return self._request_clarification(user_input, classification, confidence_data)
+                return self._request_clarification(
+                    user_input, classification, confidence_data
+                )
 
         except Exception as e:
             print(f"Interpretation failed: {e}")
-            return self._fallback_interpretation(user_input, classification, safety_checks)
+            return self._fallback_interpretation(
+                user_input, classification, safety_checks
+            )
 
     def _classify_input(self, user_input: str) -> Dict:
         """Classify input according to logic plan patterns"""
@@ -238,28 +255,34 @@ class EnhancedCasperInterpreter:
             "type": None,
             "patterns_matched": [],
             "keywords": [],
-            "structure": None
+            "structure": None,
         }
 
         input_lower = user_input.lower()
 
         # Character analysis
-        if user_input.startswith('/'):
+        if user_input.startswith("/"):
             classification["type"] = "slash_command"
             classification["structure"] = "command"
-        elif any(word in input_lower for word in ['init', 'initialize', 'setup']):
+        elif any(word in input_lower for word in ["init", "initialize", "setup"]):
             classification["type"] = "initialization"
             classification["keywords"].append("init")
-        elif any(word in input_lower for word in ['create', 'make', 'new', 'add', 'generate']):
+        elif any(
+            word in input_lower for word in ["create", "make", "new", "add", "generate"]
+        ):
             classification["type"] = "creation"
             classification["keywords"].append("create")
-        elif any(word in input_lower for word in ['fix', 'debug', 'error', 'bug', 'issue']):
+        elif any(
+            word in input_lower for word in ["fix", "debug", "error", "bug", "issue"]
+        ):
             classification["type"] = "debugging"
             classification["keywords"].append("fix")
-        elif 'git' in input_lower or any(word in input_lower for word in ['commit', 'push', 'pull']):
+        elif "git" in input_lower or any(
+            word in input_lower for word in ["commit", "push", "pull"]
+        ):
             classification["type"] = "git_operation"
             classification["keywords"].append("git")
-        elif any(word in input_lower for word in ['test', 'testing', 'tests']):
+        elif any(word in input_lower for word in ["test", "testing", "tests"]):
             classification["type"] = "testing"
             classification["keywords"].append("test")
         else:
@@ -272,16 +295,16 @@ class EnhancedCasperInterpreter:
         confidence_data = {
             "score": 0.0,
             "level": ConfidenceLevel.UNCERTAIN,
-            "reasons": []
+            "reasons": [],
         }
 
         # Direct command patterns (100% confidence)
         direct_patterns = [
-            r'^create file \S+',
-            r'^delete (file|folder) \S+',
-            r'^run tests?$',
-            r'^git commit',
-            r'^npm install',
+            r"^create file \S+",
+            r"^delete (file|folder) \S+",
+            r"^run tests?$",
+            r"^git commit",
+            r"^npm install",
         ]
 
         for pattern in direct_patterns:
@@ -302,7 +325,9 @@ class EnhancedCasperInterpreter:
         if classification["keywords"]:
             confidence_data["score"] = 60.0
             confidence_data["level"] = ConfidenceLevel.MEDIUM
-            confidence_data["reasons"].append("Natural language with identifiable intent")
+            confidence_data["reasons"].append(
+                "Natural language with identifiable intent"
+            )
             return confidence_data
 
         # Low confidence
@@ -315,10 +340,12 @@ class EnhancedCasperInterpreter:
         """Evaluate context for better interpretation"""
         context = {
             "current_directory": os.getcwd(),
-            "recent_commands": self.context_history[-5:] if self.context_history else [],
+            "recent_commands": (
+                self.context_history[-5:] if self.context_history else []
+            ),
             "project_info": self.project_context,
             "timestamp": datetime.now().isoformat(),
-            "session_duration": time.time() - self.start_time
+            "session_duration": time.time() - self.start_time,
         }
 
         # Add specific context based on classification
@@ -351,8 +378,13 @@ class EnhancedCasperInterpreter:
 
         return safety_checks
 
-    def _direct_interpretation(self, user_input: str, classification: Dict,
-                              confidence_data: Dict, safety_checks: List[str]) -> InterpretedCommand:
+    def _direct_interpretation(
+        self,
+        user_input: str,
+        classification: Dict,
+        confidence_data: Dict,
+        safety_checks: List[str],
+    ) -> InterpretedCommand:
         """Handle direct command interpretation"""
 
         # Map classification to command type
@@ -398,14 +430,21 @@ class EnhancedCasperInterpreter:
             execution_strategy=execution_strategy,
             safety_checks=safety_checks,
             fallback_options=self._generate_fallbacks(command_type),
-            estimated_time_ms=self._estimate_execution_time(command_type, len(targets))
+            estimated_time_ms=self._estimate_execution_time(command_type, len(targets)),
         )
 
-    async def _ai_interpretation(self, user_input: str, classification: Dict,
-                                 confidence_data: Dict, safety_checks: List[str]) -> InterpretedCommand:
+    async def _ai_interpretation(
+        self,
+        user_input: str,
+        classification: Dict,
+        confidence_data: Dict,
+        safety_checks: List[str],
+    ) -> InterpretedCommand:
         """AI-powered interpretation for medium/high confidence cases"""
 
-        prompt = self._build_enhanced_prompt(user_input, classification, confidence_data)
+        prompt = self._build_enhanced_prompt(
+            user_input, classification, confidence_data
+        )
 
         try:
             response = await llm_service.complete(prompt=prompt, max_tokens=1000)
@@ -417,13 +456,19 @@ class EnhancedCasperInterpreter:
                 parsed.confidence_level = confidence_data["level"]
                 return parsed
             else:
-                return self._fallback_interpretation(user_input, classification, safety_checks)
+                return self._fallback_interpretation(
+                    user_input, classification, safety_checks
+                )
 
         except Exception as e:
             print(f"AI interpretation failed: {e}")
-            return self._fallback_interpretation(user_input, classification, safety_checks)
+            return self._fallback_interpretation(
+                user_input, classification, safety_checks
+            )
 
-    def _build_enhanced_prompt(self, user_input: str, classification: Dict, confidence_data: Dict) -> str:
+    def _build_enhanced_prompt(
+        self, user_input: str, classification: Dict, confidence_data: Dict
+    ) -> str:
         """Build enhanced prompt with comprehensive context"""
 
         recent_context = ""
@@ -476,7 +521,8 @@ class EnhancedCasperInterpreter:
         """Parse enhanced AI response"""
         try:
             import re
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if not json_match:
                 return self._fallback_interpretation(user_input, {}, [])
 
@@ -508,18 +554,21 @@ class EnhancedCasperInterpreter:
                 execution_strategy=data.get("execution_strategy", "sequential"),
                 safety_checks=data.get("safety_checks", []),
                 fallback_options=data.get("fallback_options", []),
-                estimated_time_ms=data.get("estimated_time_ms", 1000)
+                estimated_time_ms=data.get("estimated_time_ms", 1000),
             )
 
         except Exception as e:
             print(f"Failed to parse AI response: {e}")
             return self._fallback_interpretation(user_input, {}, [])
 
-    def _request_clarification(self, user_input: str, classification: Dict,
-                              confidence_data: Dict) -> InterpretedCommand:
+    def _request_clarification(
+        self, user_input: str, classification: Dict, confidence_data: Dict
+    ) -> InterpretedCommand:
         """Request clarification for low confidence inputs"""
 
-        possible_interpretations = self._generate_interpretations(user_input, classification)
+        possible_interpretations = self._generate_interpretations(
+            user_input, classification
+        )
 
         return InterpretedCommand(
             command_type=CommandType.UNKNOWN,
@@ -528,7 +577,7 @@ class EnhancedCasperInterpreter:
             context={
                 "original_input": user_input,
                 "possible_interpretations": possible_interpretations,
-                "confidence_reasons": confidence_data["reasons"]
+                "confidence_reasons": confidence_data["reasons"],
             },
             confidence=confidence_data["score"],
             confidence_level=confidence_data["level"],
@@ -538,11 +587,12 @@ class EnhancedCasperInterpreter:
             execution_strategy="interactive",
             safety_checks=[],
             fallback_options=possible_interpretations,
-            estimated_time_ms=100
+            estimated_time_ms=100,
         )
 
-    def _fallback_interpretation(self, user_input: str, classification: Dict,
-                                 safety_checks: List[str]) -> InterpretedCommand:
+    def _fallback_interpretation(
+        self, user_input: str, classification: Dict, safety_checks: List[str]
+    ) -> InterpretedCommand:
         """Fallback interpretation with best-effort approach"""
 
         user_lower = user_input.lower()
@@ -570,7 +620,7 @@ class EnhancedCasperInterpreter:
             execution_strategy="sequential",
             safety_checks=safety_checks,
             fallback_options=["ask_user", "show_help"],
-            estimated_time_ms=500
+            estimated_time_ms=500,
         )
 
     # Helper methods
@@ -600,27 +650,39 @@ class EnhancedCasperInterpreter:
 
         # File/folder patterns - handle "named X" and "called X" formats
         # Match: "create folder named src" or "create file called test.py"
-        file_pattern = r'(?:file|folder|directory)\s+(?:named|called)\s+([\w./]+)'
+        file_pattern = r"(?:file|folder|directory)\s+(?:named|called)\s+([\w./]+)"
         matches = re.findall(file_pattern, user_input, re.IGNORECASE)
 
         for match in matches:
-            targets.append({
-                "type": "file" if "file" in user_input.lower() else "folder",
-                "name": match,
-                "path": match
-            })
+            targets.append(
+                {
+                    "type": "file" if "file" in user_input.lower() else "folder",
+                    "name": match,
+                    "path": match,
+                }
+            )
 
         # Fallback: simple "file X" or "folder X" pattern without named/called
         if not targets:
-            simple_pattern = r'(?:file|folder|directory)\s+([\w./]+)'
+            simple_pattern = r"(?:file|folder|directory)\s+([\w./]+)"
             simple_matches = re.findall(simple_pattern, user_input, re.IGNORECASE)
             for match in simple_matches:
-                if match.lower() not in ['named', 'called', 'file', 'folder', 'directory']:
-                    targets.append({
-                        "type": "file" if "file" in user_input.lower() else "folder",
-                        "name": match,
-                        "path": match
-                    })
+                if match.lower() not in [
+                    "named",
+                    "called",
+                    "file",
+                    "folder",
+                    "directory",
+                ]:
+                    targets.append(
+                        {
+                            "type": (
+                                "file" if "file" in user_input.lower() else "folder"
+                            ),
+                            "name": match,
+                            "path": match,
+                        }
+                    )
 
         # If no specific targets found, use raw input
         if not targets and classification["type"] != "general":
@@ -635,7 +697,7 @@ class EnhancedCasperInterpreter:
             CommandType.CODE_GENERATION: {
                 "frontend": "frontend_prime",
                 "backend": "backend_prime",
-                "default": "worker"
+                "default": "worker",
             },
             CommandType.TESTING: "testing_prime",
             CommandType.DEBUGGING: "backend_prime",
@@ -651,7 +713,9 @@ class EnhancedCasperInterpreter:
 
         return agent_mapping.get(command_type, "master_prime")
 
-    def _determine_priority(self, command_type: CommandType, target_count: int) -> Priority:
+    def _determine_priority(
+        self, command_type: CommandType, target_count: int
+    ) -> Priority:
         """Determine execution priority based on command type and complexity"""
         if command_type in [CommandType.FILE_OPERATION, CommandType.SYSTEM_QUERY]:
             if target_count == 1:
@@ -676,7 +740,9 @@ class EnhancedCasperInterpreter:
 
         return fallbacks.get(command_type, ["ask_user", "show_documentation"])
 
-    def _estimate_execution_time(self, command_type: CommandType, target_count: int) -> int:
+    def _estimate_execution_time(
+        self, command_type: CommandType, target_count: int
+    ) -> int:
         """Estimate execution time in milliseconds"""
         base_times = {
             CommandType.FILE_OPERATION: 100,
@@ -695,13 +761,11 @@ class EnhancedCasperInterpreter:
     def _get_directory_structure(self) -> Dict:
         """Get current directory structure for context"""
         # Simplified - would implement full tree in production
-        return {
-            "current_dir": os.getcwd(),
-            "subdirs": [],
-            "files": []
-        }
+        return {"current_dir": os.getcwd(), "subdirs": [], "files": []}
 
-    def _generate_interpretations(self, user_input: str, classification: Dict) -> List[str]:
+    def _generate_interpretations(
+        self, user_input: str, classification: Dict
+    ) -> List[str]:
         """Generate possible interpretations for ambiguous input"""
         interpretations = []
 
@@ -717,7 +781,9 @@ class EnhancedCasperInterpreter:
 
         return interpretations[:3]  # Limit to 3 options
 
-    async def handle_cascading_failure(self, error: Exception, command: InterpretedCommand) -> Dict:
+    async def handle_cascading_failure(
+        self, error: Exception, command: InterpretedCommand
+    ) -> Dict:
         """
         Handle cascading failures according to the comprehensive plan.
         Implements failure chain analysis and containment strategies.
@@ -727,26 +793,37 @@ class EnhancedCasperInterpreter:
             "affected_components": [],
             "propagation_path": [],
             "containment_strategy": None,
-            "recovery_plan": []
+            "recovery_plan": [],
         }
 
         # Analyze failure chain
         if command.command_type == CommandType.MULTI_AGENT:
             failure_analysis["affected_components"] = command.targets
             failure_analysis["containment_strategy"] = "isolate_failed_agent"
-            failure_analysis["recovery_plan"] = ["retry_with_single_agent", "fallback_to_sequential"]
+            failure_analysis["recovery_plan"] = [
+                "retry_with_single_agent",
+                "fallback_to_sequential",
+            ]
 
-        elif command.command_type in [CommandType.FILE_OPERATION, CommandType.CODE_GENERATION]:
+        elif command.command_type in [
+            CommandType.FILE_OPERATION,
+            CommandType.CODE_GENERATION,
+        ]:
             failure_analysis["containment_strategy"] = "rollback_changes"
-            failure_analysis["recovery_plan"] = ["restore_backup", "manual_intervention"]
+            failure_analysis["recovery_plan"] = [
+                "restore_backup",
+                "manual_intervention",
+            ]
 
         # Log pattern for learning
-        self.error_patterns.append({
-            "timestamp": datetime.now().isoformat(),
-            "command_type": command.command_type.value,
-            "error": str(error),
-            "recovery": failure_analysis["recovery_plan"]
-        })
+        self.error_patterns.append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "command_type": command.command_type.value,
+                "error": str(error),
+                "recovery": failure_analysis["recovery_plan"],
+            }
+        )
 
         return failure_analysis
 

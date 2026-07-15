@@ -11,11 +11,7 @@ Agent: PHI - Natural Language Parser
 
 from .intent_parser import IntentParser, EntityMatch, ParsedContext
 
-__all__ = [
-    'IntentParser',
-    'EntityMatch',
-    'ParsedContext'
-]
+__all__ = ["IntentParser", "EntityMatch", "ParsedContext"]
 
 # Module version
 __version__ = "1.0.0"

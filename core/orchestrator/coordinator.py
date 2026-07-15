@@ -13,8 +13,13 @@ from typing import Dict, List, Optional, Set, Tuple
 from uuid import UUID, uuid4
 
 from core.agents.base import (
-    AgentRole, AgentStatus, BaseAgent, AgentResult,
-    TaskDelegation, ProgressUpdate, TaskPriority
+    AgentRole,
+    AgentStatus,
+    BaseAgent,
+    AgentResult,
+    TaskDelegation,
+    ProgressUpdate,
+    TaskPriority,
 )
 from core.context.manager import ContextManager
 from core.context.reducer import ContextReducer
@@ -24,6 +29,7 @@ from core.orchestrator.task_analyzer import TaskAnalyzer
 @dataclass
 class AgentInstance:
     """Represents a running agent instance."""
+
     agent_id: UUID
     agent_role: AgentRole
     agent: BaseAgent
@@ -48,7 +54,9 @@ class AgentPool:
         self.busy_agents: Dict[UUID, AgentInstance] = {}
         self.agent_stats: Dict[UUID, Dict] = {}
 
-    async def get_agent(self, role: AgentRole, create_if_needed: bool = True) -> Optional[BaseAgent]:
+    async def get_agent(
+        self, role: AgentRole, create_if_needed: bool = True
+    ) -> Optional[BaseAgent]:
         """
         Get an available agent from the pool or create new one.
         """
@@ -59,7 +67,10 @@ class AgentPool:
 
         # Create new agent if allowed
         if create_if_needed:
-            if len([a for a in self.busy_agents.values() if a.agent_role == role]) < self.max_agents_per_role:
+            if (
+                len([a for a in self.busy_agents.values() if a.agent_role == role])
+                < self.max_agents_per_role
+            ):
                 agent = await self._create_agent(role)
                 return agent
 
@@ -72,21 +83,27 @@ class AgentPool:
         # Import dynamically to avoid circular imports
         if role == AgentRole.MASTER:
             from core.agents.master_prime import MasterPrimeAgent
+
             return MasterPrimeAgent()
         elif role == AgentRole.BACKEND_PRIME:
             from core.agents.backend_prime import BackendPrimeAgent
+
             return BackendPrimeAgent()
         elif role == AgentRole.FRONTEND_PRIME:
             from core.agents.frontend_prime import FrontendPrimeAgent
+
             return FrontendPrimeAgent()
         elif role == AgentRole.TESTING_PRIME:
             from core.agents.testing_prime import TestingPrimeAgent
+
             return TestingPrimeAgent()
         elif role == AgentRole.DEVOPS_PRIME:
             from core.agents.devops_prime import DevOpsPrimeAgent
+
             return DevOpsPrimeAgent()
         else:
             from core.agents.worker import WorkerAgent
+
             return WorkerAgent()
 
     def mark_busy(self, agent: BaseAgent, task_id: UUID):
@@ -98,7 +115,7 @@ class AgentPool:
             agent_role=agent.role,
             agent=agent,
             status=AgentStatus.IDLE,
-            task_id=task_id
+            task_id=task_id,
         )
         self.busy_agents[agent.agent_id] = instance
 
@@ -115,15 +132,20 @@ class AgentPool:
                 self.agent_stats[agent_id] = {
                     "tasks_completed": 0,
                     "total_time": 0,
-                    "errors": 0
+                    "errors": 0,
                 }
 
             stats = self.agent_stats[agent_id]
             stats["tasks_completed"] += 1
-            stats["total_time"] += (instance.completed_at - instance.started_at).total_seconds()
+            stats["total_time"] += (
+                instance.completed_at - instance.started_at
+            ).total_seconds()
 
             # Return to available pool
-            if len(self.available_agents[instance.agent_role]) < self.max_agents_per_role:
+            if (
+                len(self.available_agents[instance.agent_role])
+                < self.max_agents_per_role
+            ):
                 self.available_agents[instance.agent_role].append(instance.agent)
 
     def get_pool_stats(self) -> Dict:
@@ -131,10 +153,16 @@ class AgentPool:
         Get statistics about the agent pool.
         """
         stats = {
-            "total_agents": sum(len(agents) for agents in self.available_agents.values()) + len(self.busy_agents),
+            "total_agents": sum(
+                len(agents) for agents in self.available_agents.values()
+            )
+            + len(self.busy_agents),
             "busy_agents": len(self.busy_agents),
-            "available_by_role": {role.value: len(agents) for role, agents in self.available_agents.items()},
-            "performance": self.agent_stats
+            "available_by_role": {
+                role.value: len(agents)
+                for role, agents in self.available_agents.items()
+            },
+            "performance": self.agent_stats,
         }
         return stats
 
@@ -178,7 +206,9 @@ class AgentCoordinator:
             self.task_children[root_id].add(child_id)
             self.child_to_root[child_id] = root_id
 
-    def _merge_child_into_root(self, root_result: Optional[AgentResult], child_result: AgentResult):
+    def _merge_child_into_root(
+        self, root_result: Optional[AgentResult], child_result: AgentResult
+    ):
         """Accumulate child context and tokens into the pending root result."""
         if not root_result or not hasattr(root_result, "context_bundle"):
             return
@@ -186,7 +216,9 @@ class AgentCoordinator:
             for key, value in child_result.token_usage.items():
                 if value is None:
                     continue
-                root_result.token_usage[key] = root_result.token_usage.get(key, 0) + value
+                root_result.token_usage[key] = (
+                    root_result.token_usage.get(key, 0) + value
+                )
         child_context = getattr(child_result, "context_bundle", None)
         root_context = root_result.context_bundle
         if child_context and root_context:
@@ -196,7 +228,11 @@ class AgentCoordinator:
             for decision in getattr(child_context, "decisions_made", []):
                 root_context.decisions_made.append(decision)
         # Append textual summary for traceability
-        snippet = (child_result.output or "").strip().splitlines()[0] if child_result.output else ""
+        snippet = (
+            (child_result.output or "").strip().splitlines()[0]
+            if child_result.output
+            else ""
+        )
         summary_line = f"{child_result.agent_role.value} ({child_result.status.value})"
         if snippet:
             summary_line += f": {snippet[:120]}"
@@ -210,7 +246,9 @@ class AgentCoordinator:
         self._running = False
         self.executor.shutdown(wait=False)
 
-    async def submit_task(self, task: str, priority: TaskPriority = TaskPriority.MEDIUM) -> UUID:
+    async def submit_task(
+        self, task: str, priority: TaskPriority = TaskPriority.MEDIUM
+    ) -> UUID:
         """
         Submit a new task to the coordinator.
         Returns task ID for tracking.
@@ -221,7 +259,10 @@ class AgentCoordinator:
         metrics, required_agents, suggested_priority = TaskAnalyzer.analyze_task(task)
 
         # Use suggested priority if no explicit priority provided
-        if priority == TaskPriority.MEDIUM and suggested_priority != TaskPriority.MEDIUM:
+        if (
+            priority == TaskPriority.MEDIUM
+            and suggested_priority != TaskPriority.MEDIUM
+        ):
             priority = suggested_priority
 
         # Always initialize a typed ContextBundle for agent compatibility
@@ -229,6 +270,7 @@ class AgentCoordinator:
         if isinstance(context_bundle, dict):
             # Convert to ContextBundle if an older dict exists
             from core.agents.base import ContextBundle as _CB
+
             cb = _CB()
             cb.session_id = task_id
             cb.root_task_id = context_bundle.get("root_task_id") or task_id
@@ -236,7 +278,11 @@ class AgentCoordinator:
             cb.structural_pointers = context_bundle.get("structural_pointers", {})
             for d in context_bundle.get("decisions_made", []):
                 try:
-                    cb.add_decision(d.get("decision", ""), d.get("rationale", ""), d.get("alternatives", []))
+                    cb.add_decision(
+                        d.get("decision", ""),
+                        d.get("rationale", ""),
+                        d.get("alternatives", []),
+                    )
                 except Exception:
                     pass
             cb.next_actions = context_bundle.get("next_actions", [])
@@ -245,6 +291,7 @@ class AgentCoordinator:
             context_bundle = cb
         elif context_bundle is None:
             from core.agents.base import ContextBundle as _CB
+
             context_bundle = _CB()
             context_bundle.session_id = task_id
             context_bundle.root_task_id = task_id
@@ -258,12 +305,12 @@ class AgentCoordinator:
             target_agent = AgentRole.MASTER
 
         delegation = TaskDelegation(
-            source_agent_id=UUID('00000000-0000-0000-0000-000000000000'),  # System
+            source_agent_id=UUID("00000000-0000-0000-0000-000000000000"),  # System
             target_specialization=target_agent,
             task_description=task,
             context_bundle=context_bundle,
             priority=priority,
-            root_task_id=task_id
+            root_task_id=task_id,
         )
 
         # Add to queue
@@ -295,13 +342,15 @@ class AgentCoordinator:
         agent = await self.agent_pool.get_agent(delegation.target_specialization)
         if not agent:
             # Add retry counter to prevent infinite retries
-            retry_count = getattr(delegation, '_retry_count', 0)
+            retry_count = getattr(delegation, "_retry_count", 0)
             if retry_count < 3:  # Max 3 retries
                 delegation._retry_count = retry_count + 1
                 await self.task_queue.put((delegation.priority.value, delegation))
                 await asyncio.sleep(1)
             else:
-                print(f"Failed to get agent for {delegation.target_specialization} after 3 retries")
+                print(
+                    f"Failed to get agent for {delegation.target_specialization} after 3 retries"
+                )
             return
 
         # Track delegation relationships
@@ -321,12 +370,19 @@ class AgentCoordinator:
             result = await agent.receive_handoff(delegation)
 
             # Check for new delegations from this agent before handling the result
-            if hasattr(agent, 'active_delegations') and agent.active_delegations:
-                for delegation_id, new_delegation in list(agent.active_delegations.items()):
-                    new_delegation.root_task_id = new_delegation.root_task_id or delegation.context_bundle.ensure_root()
+            if hasattr(agent, "active_delegations") and agent.active_delegations:
+                for delegation_id, new_delegation in list(
+                    agent.active_delegations.items()
+                ):
+                    new_delegation.root_task_id = (
+                        new_delegation.root_task_id
+                        or delegation.context_bundle.ensure_root()
+                    )
                     self._register_delegation(new_delegation)
                     if delegation_id not in self.active_tasks:
-                        await self.task_queue.put((new_delegation.priority.value, new_delegation))
+                        await self.task_queue.put(
+                            (new_delegation.priority.value, new_delegation)
+                        )
                         self.active_tasks[delegation_id] = new_delegation
                 agent.active_delegations.clear()
 
@@ -341,7 +397,7 @@ class AgentCoordinator:
                 task_id=delegation.context_bundle.session_id,
                 status=AgentStatus.FAILED,
                 context_bundle=delegation.context_bundle,
-                errors=[str(e)]
+                errors=[str(e)],
             )
             await self._handle_agent_result(result)
 
@@ -357,7 +413,11 @@ class AgentCoordinator:
 
         # Determine root relationship
         try:
-            root_id = result.context_bundle.ensure_root() if hasattr(result.context_bundle, "ensure_root") else self.child_to_root.get(result.task_id, result.task_id)
+            root_id = (
+                result.context_bundle.ensure_root()
+                if hasattr(result.context_bundle, "ensure_root")
+                else self.child_to_root.get(result.task_id, result.task_id)
+            )
         except Exception:
             root_id = self.child_to_root.get(result.task_id, result.task_id)
 
@@ -369,9 +429,13 @@ class AgentCoordinator:
                 if result.status == AgentStatus.COMPLETED:
                     result.status = AgentStatus.REVIEWING
                 self.pending_root_results[root_id] = result
-                queue_payloads.append((result, f"Waiting on {len(children_pending)} delegated agent(s)"))
+                queue_payloads.append(
+                    (result, f"Waiting on {len(children_pending)} delegated agent(s)")
+                )
             else:
-                queue_payloads.append((result, f"Task completed by {result.agent_role.value}"))
+                queue_payloads.append(
+                    (result, f"Task completed by {result.agent_role.value}")
+                )
                 self.task_children.pop(root_id, None)
                 self.pending_root_results.pop(root_id, None)
         else:
@@ -381,7 +445,9 @@ class AgentCoordinator:
             if child_set and result.task_id in child_set:
                 child_set.discard(result.task_id)
             self.child_to_root.pop(result.task_id, None)
-            queue_payloads.append((result, f"Task completed by {result.agent_role.value}"))
+            queue_payloads.append(
+                (result, f"Task completed by {result.agent_role.value}")
+            )
 
             # Finalize root when all children resolved
             if child_set is not None and len(child_set) == 0:
@@ -392,8 +458,15 @@ class AgentCoordinator:
                     if hasattr(root_result.context_bundle, "compress_if_needed"):
                         root_result.context_bundle.compress_if_needed()
                         root_bundle_dict = root_result.context_bundle.to_dict()
-                        self.context_manager.store_context(root_result.task_id, root_bundle_dict)
-                    queue_payloads.append((root_result, f"Task completed by {root_result.agent_role.value}"))
+                        self.context_manager.store_context(
+                            root_result.task_id, root_bundle_dict
+                        )
+                    queue_payloads.append(
+                        (
+                            root_result,
+                            f"Task completed by {root_result.agent_role.value}",
+                        )
+                    )
 
         # Update metrics for the direct agent result
         self.token_usage_total += result.token_usage.get("total", 0)
@@ -416,21 +489,30 @@ class AgentCoordinator:
         for emitted_result, message in queue_payloads:
             await self.results_queue.put(emitted_result)
             progress_status = emitted_result.status
-            progress_value = 100 if progress_status == AgentStatus.COMPLETED else (90 if progress_status == AgentStatus.REVIEWING else 0)
+            progress_value = (
+                100
+                if progress_status == AgentStatus.COMPLETED
+                else (90 if progress_status == AgentStatus.REVIEWING else 0)
+            )
             note = message or f"Task completed by {emitted_result.agent_role.value}"
 
-            if emitted_result is not result and emitted_result.status == AgentStatus.COMPLETED:
+            if (
+                emitted_result is not result
+                and emitted_result.status == AgentStatus.COMPLETED
+            ):
                 self.completed_task_count += 1
 
             for callback in self.progress_callbacks:
                 try:
-                    await callback(ProgressUpdate(
-                        agent_id=emitted_result.agent_id,
-                        status=progress_status,
-                        progress=progress_value,
-                        message=note,
-                        token_usage=emitted_result.token_usage
-                    ))
+                    await callback(
+                        ProgressUpdate(
+                            agent_id=emitted_result.agent_id,
+                            status=progress_status,
+                            progress=progress_value,
+                            message=note,
+                            token_usage=emitted_result.token_usage,
+                        )
+                    )
                 except Exception as e:
                     print(f"Callback error: {e}")
 
@@ -462,7 +544,9 @@ class AgentCoordinator:
                 # Log pool stats periodically
                 stats = self.agent_pool.get_pool_stats()
                 if stats["busy_agents"] > 0:
-                    print(f"Agent pool: {stats['busy_agents']} busy, {stats['total_agents']} total")
+                    print(
+                        f"Agent pool: {stats['busy_agents']} busy, {stats['total_agents']} total"
+                    )
 
                 await asyncio.sleep(10)  # Check every 10 seconds
 
@@ -485,7 +569,7 @@ class AgentCoordinator:
                 "task_id": str(task_id),
                 "status": "active",
                 "task": delegation.task_description,
-                "assigned_to": delegation.target_specialization.value
+                "assigned_to": delegation.target_specialization.value,
             }
 
         # Check completed tasks in context
@@ -502,8 +586,9 @@ class AgentCoordinator:
             results.append(result)
         return results
 
-    async def coordinate_parallel_execution(self,
-                                           delegations: List[TaskDelegation]) -> List[AgentResult]:
+    async def coordinate_parallel_execution(
+        self, delegations: List[TaskDelegation]
+    ) -> List[AgentResult]:
         """
         Coordinate parallel execution of multiple delegations.
         """
@@ -519,8 +604,9 @@ class AgentCoordinator:
         results = await self.get_results(len(delegations))
         return results
 
-    async def coordinate_sequential_execution(self,
-                                             delegations: List[TaskDelegation]) -> List[AgentResult]:
+    async def coordinate_sequential_execution(
+        self, delegations: List[TaskDelegation]
+    ) -> List[AgentResult]:
         """
         Coordinate sequential execution respecting dependencies.
         """
@@ -530,8 +616,10 @@ class AgentCoordinator:
         while delegations:
             # Find delegations with satisfied dependencies
             ready = [
-                d for d in delegations
-                if not d.dependencies or all(dep in completed_tasks for dep in d.dependencies)
+                d
+                for d in delegations
+                if not d.dependencies
+                or all(dep in completed_tasks for dep in d.dependencies)
             ]
 
             if not ready:

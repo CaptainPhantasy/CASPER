@@ -28,12 +28,13 @@ _MAX_FILE_BYTES = 16_000
 @dataclass
 class WorkerContext:
     """The complete, minimal context handed to a single worker for one unit."""
+
     unit: TaskUnit
     spec_summary: str
-    requirements: List[SpecRequirement]          # only the unit's slice
+    requirements: List[SpecRequirement]  # only the unit's slice
     constraints: List[str]
-    files: Dict[str, str] = field(default_factory=dict)   # path -> contents (truncated)
-    notes: List[str] = field(default_factory=list)        # durable upstream decisions
+    files: Dict[str, str] = field(default_factory=dict)  # path -> contents (truncated)
+    notes: List[str] = field(default_factory=list)  # durable upstream decisions
 
     def render_prompt(self) -> str:
         """Render the slice as a compact prompt block for the worker."""
@@ -68,6 +69,7 @@ class WorkerContext:
 @dataclass
 class UnitOutcome:
     """Durable record of a finished unit — the ONLY thing that survives back to the plan."""
+
     unit_id: str
     success: bool
     artifacts: List[str] = field(default_factory=list)
@@ -78,6 +80,7 @@ class UnitOutcome:
 @dataclass
 class GlobalPlan:
     """Planner-held state. Holds the whole picture so workers don't have to."""
+
     spec: FrozenSpec
     units: List[TaskUnit] = field(default_factory=list)
     outcomes: Dict[str, UnitOutcome] = field(default_factory=dict)
@@ -97,7 +100,9 @@ class GlobalPlan:
         self.outcomes[outcome.unit_id] = outcome
 
     def is_complete(self) -> bool:
-        return all(o.success for o in self.outcomes.values()) and len(self.outcomes) == len(self.units)
+        return all(o.success for o in self.outcomes.values()) and len(
+            self.outcomes
+        ) == len(self.units)
 
 
 class ContextManager:
@@ -146,7 +151,9 @@ class ContextManager:
     def _read_relevant_files(self, paths: List[str]) -> Dict[str, str]:
         out: Dict[str, str] = {}
         for rel in paths:
-            full = os.path.join(self.project_root, rel) if not os.path.isabs(rel) else rel
+            full = (
+                os.path.join(self.project_root, rel) if not os.path.isabs(rel) else rel
+            )
             try:
                 if os.path.isfile(full):
                     with open(full, "r", encoding="utf-8", errors="replace") as f:

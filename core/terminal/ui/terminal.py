@@ -15,7 +15,14 @@ import logging
 try:
     from rich.console import Console
     from rich.panel import Panel
-    from rich.progress import Progress, TaskID, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+    from rich.progress import (
+        Progress,
+        TaskID,
+        SpinnerColumn,
+        TextColumn,
+        BarColumn,
+        TimeElapsedColumn,
+    )
     from rich.syntax import Syntax
     from rich.markdown import Markdown
     from rich.table import Table
@@ -23,6 +30,7 @@ try:
     from rich.live import Live
     from rich.text import Text
     from rich.prompt import Prompt
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -53,7 +61,7 @@ class TerminalUI(ITerminalUI):
             "started": False,
             "current_prompt": "casper> ",
             "streaming": False,
-            "last_chunk_type": None
+            "last_chunk_type": None,
         }
 
         # UI Layout components
@@ -69,7 +77,7 @@ class TerminalUI(ITerminalUI):
             "warning": "yellow",
             "error": "red",
             "info": "white",
-            "code": "bright_black"
+            "code": "bright_black",
         }
 
     async def start_ui(self) -> None:
@@ -105,7 +113,7 @@ class TerminalUI(ITerminalUI):
             "• [green]review my code for security issues[/green]\n\n"
             "[dim]Type 'help' for more commands or 'exit' to quit[/dim]",
             title="Welcome",
-            border_style="cyan"
+            border_style="cyan",
         )
 
         self.console.print(welcome_panel)
@@ -119,12 +127,12 @@ class TerminalUI(ITerminalUI):
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             TimeElapsedColumn(),
             console=self.console,
-            transient=True
+            transient=True,
         )
 
     async def _start_basic_ui(self) -> None:
         """Start basic terminal interface without rich."""
-        os.system('clear' if os.name == 'posix' else 'cls')
+        print("\033[2J\033[H", end="")
         print("=" * 60)
         print("CASPER Prime Terminal - AI-Powered Coding Assistant")
         print("=" * 60)
@@ -160,7 +168,7 @@ class TerminalUI(ITerminalUI):
                 f"[dim]{chunk.content}[/dim]",
                 title=f"[cyan]💭 Thinking[/cyan] [{timestamp}]",
                 border_style="dim cyan",
-                padding=(0, 1)
+                padding=(0, 1),
             )
             self.console.print(panel)
 
@@ -177,13 +185,13 @@ class TerminalUI(ITerminalUI):
                     language,
                     theme="monokai",
                     line_numbers=True,
-                    background_color="default"
+                    background_color="default",
                 )
                 panel = Panel(
                     syntax,
                     title=f"[green]💻 Code[/green] [{timestamp}]",
                     border_style="green",
-                    padding=(0, 1)
+                    padding=(0, 1),
                 )
                 self.console.print(panel)
             except Exception:
@@ -196,13 +204,13 @@ class TerminalUI(ITerminalUI):
                 chunk.content,
                 "python",  # Assume Python tests
                 theme="monokai",
-                line_numbers=True
+                line_numbers=True,
             )
             panel = Panel(
                 syntax,
                 title=f"[blue]🧪 Test[/blue] [{timestamp}]",
                 border_style="blue",
-                padding=(0, 1)
+                padding=(0, 1),
             )
             self.console.print(panel)
 
@@ -212,7 +220,7 @@ class TerminalUI(ITerminalUI):
                 f"[bold green]✅ {chunk.content}[/bold green]",
                 title=f"[green]Result[/green] [{timestamp}]",
                 border_style="green",
-                padding=(0, 1)
+                padding=(0, 1),
             )
             self.console.print(panel)
 
@@ -222,7 +230,7 @@ class TerminalUI(ITerminalUI):
                 f"[bold red]❌ {chunk.content}[/bold red]",
                 title=f"[red]Error[/red] [{timestamp}]",
                 border_style="red",
-                padding=(0, 1)
+                padding=(0, 1),
             )
             self.console.print(panel)
 
@@ -243,7 +251,7 @@ class TerminalUI(ITerminalUI):
             "code": "💻 CODE:\n",
             "test": "🧪 TEST:\n",
             "result": "✅ RESULT: ",
-            "error": "❌ ERROR: "
+            "error": "❌ ERROR: ",
         }
 
         prefix = type_prefixes.get(chunk.type, f"[{chunk.type.upper()}] ")
@@ -251,7 +259,7 @@ class TerminalUI(ITerminalUI):
         if chunk.type in ["code", "test"]:
             print(f"\n{prefix}")
             # Basic code formatting
-            lines = chunk.content.split('\n')
+            lines = chunk.content.split("\n")
             for i, line in enumerate(lines, 1):
                 print(f"{i:2d} | {line}")
             print()
@@ -293,7 +301,9 @@ class TerminalUI(ITerminalUI):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
             None,
-            lambda: Prompt.ask(f"[cyan]{prompt}[/cyan]", default="", show_default=False)
+            lambda: Prompt.ask(
+                f"[cyan]{prompt}[/cyan]", default="", show_default=False
+            ),
         )
 
     async def _get_basic_input(self, prompt: str) -> str:
@@ -301,7 +311,9 @@ class TerminalUI(ITerminalUI):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, input, prompt)
 
-    async def show_progress(self, message: str, percentage: Optional[float] = None) -> None:
+    async def show_progress(
+        self, message: str, percentage: Optional[float] = None
+    ) -> None:
         """Show progress indicator with optional percentage."""
         try:
             if RICH_AVAILABLE and self.progress:
@@ -313,7 +325,9 @@ class TerminalUI(ITerminalUI):
             logger.error(f"Error showing progress: {e}")
             print(f"Progress: {message}" + (f" ({percentage}%)" if percentage else ""))
 
-    async def _show_rich_progress(self, message: str, percentage: Optional[float]) -> None:
+    async def _show_rich_progress(
+        self, message: str, percentage: Optional[float]
+    ) -> None:
         """Show progress using rich progress display."""
         if not self.progress:
             return
@@ -323,8 +337,7 @@ class TerminalUI(ITerminalUI):
                 self.progress.remove_task(self.current_task)
 
             self.current_task = self.progress.add_task(
-                message,
-                total=100 if percentage is not None else None
+                message, total=100 if percentage is not None else None
             )
 
             if percentage is not None:
@@ -333,11 +346,17 @@ class TerminalUI(ITerminalUI):
             # Brief display
             await asyncio.sleep(0.5)
 
-    async def _show_basic_progress(self, message: str, percentage: Optional[float]) -> None:
+    async def _show_basic_progress(
+        self, message: str, percentage: Optional[float]
+    ) -> None:
         """Show progress using basic text display."""
         if percentage is not None:
             progress_bar = "█" * int(percentage / 5) + "░" * (20 - int(percentage / 5))
-            print(f"\rProgress: [{progress_bar}] {percentage:.1f}% - {message}", end="", flush=True)
+            print(
+                f"\rProgress: [{progress_bar}] {percentage:.1f}% - {message}",
+                end="",
+                flush=True,
+            )
         else:
             print(f"Progress: {message}")
 
@@ -347,7 +366,7 @@ class TerminalUI(ITerminalUI):
             if RICH_AVAILABLE and self.console:
                 self.console.clear()
             else:
-                os.system('clear' if os.name == 'posix' else 'cls')
+                print("\033[2J\033[H", end="")
 
         except Exception as e:
             logger.error(f"Error clearing screen: {e}")
@@ -360,7 +379,7 @@ class TerminalUI(ITerminalUI):
                     f"[bold red]{error}[/bold red]",
                     title="[red]Error[/red]",
                     border_style="red",
-                    padding=(0, 1)
+                    padding=(0, 1),
                 )
                 self.console.print(error_panel)
             else:
@@ -407,10 +426,7 @@ class TerminalUI(ITerminalUI):
 
         if RICH_AVAILABLE and self.console:
             help_panel = Panel(
-                help_content,
-                title="Help",
-                border_style="cyan",
-                padding=(1, 2)
+                help_content, title="Help", border_style="cyan", padding=(1, 2)
             )
             self.console.print(help_panel)
         else:
@@ -434,7 +450,7 @@ class TerminalUI(ITerminalUI):
         table.add_column("Value", style="white")
 
         for key, value in status_info.items():
-            table.add_row(str(key).replace('_', ' ').title(), str(value))
+            table.add_row(str(key).replace("_", " ").title(), str(value))
 
         self.console.print(table)
 
@@ -467,14 +483,18 @@ class TerminalUI(ITerminalUI):
                 self.console.clear()
                 goodbye_panel = Panel(
                     "[bold cyan]Thank you for using CASPER Prime Terminal![/bold cyan]\n"
-                    "[dim]Session ended at " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "[/dim]",
+                    "[dim]Session ended at "
+                    + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    + "[/dim]",
                     title="Goodbye",
-                    border_style="cyan"
+                    border_style="cyan",
                 )
                 self.console.print(goodbye_panel)
             else:
                 print("\nThank you for using CASPER Prime Terminal!")
-                print(f"Session ended at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                print(
+                    f"Session ended at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                )
 
             self.ui_state["started"] = False
             logger.info("Terminal UI shutdown complete")
@@ -491,7 +511,7 @@ class BasicTerminalUI(ITerminalUI):
         self.started = False
 
     async def start_ui(self) -> None:
-        os.system('clear' if os.name == 'posix' else 'cls')
+        print("\033[2J\033[H", end="")
         print("CASPER Prime Terminal (Basic Mode)")
         print("=" * 50)
         self.started = True
@@ -503,14 +523,16 @@ class BasicTerminalUI(ITerminalUI):
     async def get_user_input(self, prompt: str = "casper> ") -> str:
         return input(prompt)
 
-    async def show_progress(self, message: str, percentage: Optional[float] = None) -> None:
+    async def show_progress(
+        self, message: str, percentage: Optional[float] = None
+    ) -> None:
         if percentage:
             print(f"Progress: {message} ({percentage:.1f}%)")
         else:
             print(f"Progress: {message}")
 
     async def clear_screen(self) -> None:
-        os.system('clear' if os.name == 'posix' else 'cls')
+        print("\033[2J\033[H", end="")
 
     async def show_error(self, error: str) -> None:
         print(f"ERROR: {error}")

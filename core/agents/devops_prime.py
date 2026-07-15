@@ -50,7 +50,10 @@ class DevOpsPrimeAgent(BaseAgent):
         task_lower = task.lower()
         matches = [kw for kw in self.keywords if kw in task_lower]
         if matches:
-            return True, f"DevOps indicators detected: {', '.join(sorted(set(matches)))}"
+            return (
+                True,
+                f"DevOps indicators detected: {', '.join(sorted(set(matches)))}",
+            )
         if any(token in task_lower for token in ("ops", "site reliability", "rollout")):
             return True, "Operational keyword detected"
         return False, "Task does not appear to require DevOps expertise"
@@ -58,17 +61,27 @@ class DevOpsPrimeAgent(BaseAgent):
     async def execute_task(self, task: str, context: ContextBundle) -> AgentResult:
         try:
             self.current_context = context
-            await self._update_progress(AgentStatus.PLANNING, 10, "Assessing DevOps requirements...")
+            await self._update_progress(
+                AgentStatus.PLANNING, 10, "Assessing DevOps requirements..."
+            )
 
             category = self._categorize_task(task)
             plan = self._create_plan(task, category)
-            await self._update_progress(AgentStatus.PLANNING, 30, f"Planning {category.replace('_', ' ')} workflow...")
+            await self._update_progress(
+                AgentStatus.PLANNING,
+                30,
+                f"Planning {category.replace('_', ' ')} workflow...",
+            )
 
             result_text = await self._implement_plan(task, category, plan)
-            await self._update_progress(AgentStatus.REVIEWING, 85, "Validating generated DevOps assets...")
+            await self._update_progress(
+                AgentStatus.REVIEWING, 85, "Validating generated DevOps assets..."
+            )
 
             self._track_tokens(plan["token_estimate"], max(len(result_text) // 4, 200))
-            await self._update_progress(AgentStatus.COMPLETED, 100, f"DevOps workflow for {category} completed")
+            await self._update_progress(
+                AgentStatus.COMPLETED, 100, f"DevOps workflow for {category} completed"
+            )
 
             return AgentResult(
                 agent_id=self.agent_id,
@@ -139,7 +152,9 @@ class DevOpsPrimeAgent(BaseAgent):
                 "Template secrets",
                 "Document kubectl rollout",
             ]
-            plan["artifacts"].extend(["ops/k8s/deployment.yaml", "ops/k8s/service.yaml"])
+            plan["artifacts"].extend(
+                ["ops/k8s/deployment.yaml", "ops/k8s/service.yaml"]
+            )
             plan["token_estimate"] = 800
         elif category == "iac":
             plan["steps"] = [
@@ -172,7 +187,9 @@ class DevOpsPrimeAgent(BaseAgent):
         )
         return plan
 
-    async def _implement_plan(self, task: str, category: str, plan: Dict[str, any]) -> str:
+    async def _implement_plan(
+        self, task: str, category: str, plan: Dict[str, any]
+    ) -> str:
         os.environ.setdefault("CASPER_OUTPUT_DIR", ".casper/output")
         output_dir = os.environ.get("CASPER_OUTPUT_DIR", ".casper/output")
         session_id = str(self.current_context.session_id)
@@ -185,7 +202,9 @@ class DevOpsPrimeAgent(BaseAgent):
         for artifact, content in content_map.items():
             if not content.strip():
                 continue
-            path = write_artifact(output_dir, session_id, artifact, content.rstrip() + "\n")
+            path = write_artifact(
+                output_dir, session_id, artifact, content.rstrip() + "\n"
+            )
             self._add_artifact(path)
             self._add_pointer(artifact.replace("/", "_"), path)
             generated_files.append(path)
@@ -194,9 +213,14 @@ class DevOpsPrimeAgent(BaseAgent):
             [
                 f"Generated {len(generated_files)} artifact(s) for category '{category}'.",
                 "Artifacts:",
-            ] + [f"- {path}" for path in generated_files]
+            ]
+            + [f"- {path}" for path in generated_files]
         )
-        return summary if generated_files else "No DevOps artifacts generated; please review task description."
+        return (
+            summary
+            if generated_files
+            else "No DevOps artifacts generated; please review task description."
+        )
 
     def _build_prompt(self, task: str, category: str, artifacts: List[str]) -> str:
         artifact_list = "\n".join(f"- {name}" for name in artifacts)

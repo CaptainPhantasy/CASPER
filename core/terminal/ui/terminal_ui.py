@@ -15,7 +15,14 @@ from rich.console import Console, RenderableType
 from rich.layout import Layout
 from rich.panel import Panel
 from rich.live import Live
-from rich.progress import Progress, TaskID, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
+from rich.progress import (
+    Progress,
+    TaskID,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TimeRemainingColumn,
+)
 from rich.syntax import Syntax
 from rich.text import Text
 
@@ -29,13 +36,13 @@ from ..interfaces import ITerminalUI, StreamChunk
 from .coding_commands import CodingCommandDispatcher
 from .feature_manager import COMMAND_HELP, LocalCommandResult, TerminalFeatureManager
 
-
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class PaneState:
     """State for individual UI panes"""
+
     title: str
     content: str
     visible: bool = True
@@ -59,7 +66,8 @@ class TerminalUI(ITerminalUI):
         self.features = TerminalFeatureManager(state_root)
         self.project_root = Path(project_root or Path.cwd()).expanduser().resolve()
         self.coding_commands = CodingCommandDispatcher(
-            self.project_root, self.features,
+            self.project_root,
+            self.features,
         )
         COMMAND_HELP.update(self.coding_commands.help_entries())
         self.console = console or Console(
@@ -79,26 +87,26 @@ class TerminalUI(ITerminalUI):
                 title="🧠 Reasoning Chain",
                 content="Ready to process your request...",
                 height=15,
-                syntax_language="text"
+                syntax_language="text",
             ),
             "input": PaneState(
                 title="📝 Input/Commands",
                 content="casper> ",
                 height=5,
-                syntax_language="bash"
+                syntax_language="bash",
             ),
             "code": PaneState(
                 title="💻 Generated Code",
                 content="# Code output will appear here",
                 height=20,
-                syntax_language="python"
+                syntax_language="python",
             ),
             "tests": PaneState(
                 title="🧪 Tests & Results",
                 content="# Test results and logs",
                 height=10,
-                syntax_language="text"
-            )
+                syntax_language="text",
+            ),
         }
 
         # Progress tracking
@@ -122,42 +130,42 @@ class TerminalUI(ITerminalUI):
     def _setup_key_bindings(self):
         """Setup keyboard shortcuts for terminal interaction"""
 
-        @self.kb.add('c-c')  # Ctrl+C
+        @self.kb.add("c-c")  # Ctrl+C
         def _(event):
             """Cancel current operation"""
             event.app.exit(exception=KeyboardInterrupt)
 
-        @self.kb.add('c-d')  # Ctrl+D
+        @self.kb.add("c-d")  # Ctrl+D
         def _(event):
             """Exit application"""
             event.app.exit()
 
-        @self.kb.add('c-l')  # Ctrl+L
+        @self.kb.add("c-l")  # Ctrl+L
         def _(event):
             """Clear screen"""
             asyncio.create_task(self.clear_screen())
 
-        @self.kb.add('c-r')  # Ctrl+R
+        @self.kb.add("c-r")  # Ctrl+R
         def _(event):
             """Refresh layout"""
             self._refresh_layout()
 
-        @self.kb.add('f1')  # F1
+        @self.kb.add("f1")  # F1
         def _(event):
             """Show help"""
             self._show_help_overlay()
 
-        @self.kb.add('f5')  # F5
+        @self.kb.add("f5")  # F5
         def _(event):
             """Toggle reasoning pane"""
             self._toggle_pane("reasoning")
 
-        @self.kb.add('f6')  # F6
+        @self.kb.add("f6")  # F6
         def _(event):
             """Toggle code pane"""
             self._toggle_pane("code")
 
-        @self.kb.add('f7')  # F7
+        @self.kb.add("f7")  # F7
         def _(event):
             """Toggle tests pane"""
             self._toggle_pane("tests")
@@ -177,7 +185,7 @@ class TerminalUI(ITerminalUI):
             "[progress.percentage]{task.percentage:>3.1f}%",
             TimeRemainingColumn(),
             console=self.console,
-            transient=True
+            transient=True,
         )
 
         # Setup layout
@@ -186,7 +194,9 @@ class TerminalUI(ITerminalUI):
         # Start the live display in a background task so initialization can
         # continue into the interactive prompt loop.
         self.live = Live(self.layout, console=self.console, refresh_per_second=10)
-        self._runner_task = asyncio.create_task(self._run_ui(), name="casper-tui-renderer")
+        self._runner_task = asyncio.create_task(
+            self._run_ui(), name="casper-tui-renderer"
+        )
         await asyncio.sleep(0)
 
     async def _run_ui(self) -> None:
@@ -224,14 +234,16 @@ class TerminalUI(ITerminalUI):
         self.layout.split(
             Layout(name="header", size=3),
             Layout(name="main", ratio=1),
-            Layout(name="footer", size=2)
+            Layout(name="footer", size=2),
         )
 
         # Split main into panes based on current visibility
         main_panes = []
 
         if self.panes["reasoning"].visible:
-            main_panes.append(Layout(name="reasoning", size=self.panes["reasoning"].height))
+            main_panes.append(
+                Layout(name="reasoning", size=self.panes["reasoning"].height)
+            )
 
         if self.panes["input"].visible:
             main_panes.append(Layout(name="input", size=self.panes["input"].height))
@@ -255,25 +267,32 @@ class TerminalUI(ITerminalUI):
         try:
             # Header
             if "header" in self.layout:
-                self.layout["header"].update(Panel(
-                    Text(f"{self.title} - Interactive Coding Terminal", style="bold"),
-                    style=self.features.theme["border"],
-                    padding=(0, 1)
-                ))
+                self.layout["header"].update(
+                    Panel(
+                        Text(
+                            f"{self.title} - Interactive Coding Terminal", style="bold"
+                        ),
+                        style=self.features.theme["border"],
+                        padding=(0, 1),
+                    )
+                )
 
             # Update visible panes
             for pane_name, pane in self.panes.items():
                 if pane.visible and pane_name in self.layout:
                     content = self._format_pane_content(pane)
-                    self.layout[pane_name].update(Panel(
-                        content,
-                        title=f"[bold]{pane.title}[/bold]",
-                        border_style=(
-                            self.features.theme["border"]
-                            if pane_name == "input" else "dim"
-                        ),
-                        padding=(0, 1)
-                    ))
+                    self.layout[pane_name].update(
+                        Panel(
+                            content,
+                            title=f"[bold]{pane.title}[/bold]",
+                            border_style=(
+                                self.features.theme["border"]
+                                if pane_name == "input"
+                                else "dim"
+                            ),
+                            padding=(0, 1),
+                        )
+                    )
 
             # Footer with shortcuts
             if "footer" in self.layout:
@@ -283,11 +302,9 @@ class TerminalUI(ITerminalUI):
                 )
                 if self.features.notifications:
                     shortcuts += f" | {self.features.notifications[-1]}"
-                self.layout["footer"].update(Panel(
-                    Text(shortcuts, style="dim"),
-                    style="dim",
-                    padding=(0, 1)
-                ))
+                self.layout["footer"].update(
+                    Panel(Text(shortcuts, style="dim"), style="dim", padding=(0, 1))
+                )
         except Exception as exc:
             logger.debug("TUI layout refresh failed: %s", exc)
 
@@ -299,8 +316,13 @@ class TerminalUI(ITerminalUI):
                     pane.content,
                     pane.syntax_language,
                     theme=self.features.theme["syntax"],
-                    line_numbers=True if pane.syntax_language in ["python", "javascript", "typescript"] else False,
-                    word_wrap=True
+                    line_numbers=(
+                        True
+                        if pane.syntax_language
+                        in ["python", "javascript", "typescript"]
+                        else False
+                    ),
+                    word_wrap=True,
                 )
             except Exception:
                 # Fallback to plain text
@@ -427,10 +449,12 @@ class TerminalUI(ITerminalUI):
                 history=history,
                 auto_suggest=AutoSuggestFromHistory(),
                 key_bindings=self.kb,
-                style=PTStyle.from_dict({
-                    'prompt': '#ansibrightcyan bold',
-                    'input': '#ansiwhite',
-                })
+                style=PTStyle.from_dict(
+                    {
+                        "prompt": "#ansibrightcyan bold",
+                        "input": "#ansiwhite",
+                    }
+                ),
             )
 
             self.features.record_history(result)
@@ -450,10 +474,10 @@ class TerminalUI(ITerminalUI):
             current = self.panes["reasoning"].content
             if current == "Ready to process your request...":
                 current = ""
-            self.panes["reasoning"].content = (
-                f"{current}\n{result.message}".strip()
+            self.panes["reasoning"].content = f"{current}\n{result.message}".strip()
+            self.features.append_transcript(
+                "reasoning", "local-command", result.message
             )
-            self.features.append_transcript("reasoning", "local-command", result.message)
             self.features.autosave(self.panes)
             self._refresh_layout()
         return result
@@ -462,7 +486,9 @@ class TerminalUI(ITerminalUI):
         """Expose live MCP, agent, session, and pipeline state to commands."""
         self.coding_commands.bind_integration(integration)
 
-    async def show_progress(self, message: str, percentage: Optional[float] = None) -> None:
+    async def show_progress(
+        self, message: str, percentage: Optional[float] = None
+    ) -> None:
         """Show progress indicator with optional percentage"""
         if not self.progress:
             return
@@ -504,7 +530,7 @@ class TerminalUI(ITerminalUI):
             content=error,
             metadata={"severity": "error"},
             timestamp=datetime.now(),
-            sequence_number=0
+            sequence_number=0,
         )
 
         await self.display_stream(error_chunk)
@@ -626,7 +652,9 @@ def create_terminal_ui(
 ) -> TerminalUI:
     """Factory function to create a configured TerminalUI instance"""
     return TerminalUI(
-        title=title, state_root=state_root, project_root=project_root,
+        title=title,
+        state_root=state_root,
+        project_root=project_root,
     )
 
 
@@ -643,22 +671,22 @@ async def main():
                 content="Analyzing the user request...",
                 metadata={},
                 timestamp=datetime.now(),
-                sequence_number=1
+                sequence_number=1,
             ),
             StreamChunk(
                 type="code",
                 content="def hello_world():\n    print('Hello from CASPER!')\n    return True",
                 metadata={"language": "python"},
                 timestamp=datetime.now(),
-                sequence_number=2
+                sequence_number=2,
             ),
             StreamChunk(
                 type="test",
                 content="Running tests... All passed! ✅",
                 metadata={},
                 timestamp=datetime.now(),
-                sequence_number=3
-            )
+                sequence_number=3,
+            ),
         ]
 
         # Stream the chunks

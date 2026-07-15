@@ -22,7 +22,12 @@ from uuid import uuid4
 
 # Import our modules
 from core.terminal.session.coding_session import CodingSession, TokenizedInteraction
-from core.terminal.interfaces import ISession, SessionState, SessionError, MAX_CONTEXT_TOKENS
+from core.terminal.interfaces import (
+    ISession,
+    SessionState,
+    SessionError,
+    MAX_CONTEXT_TOKENS,
+)
 from core.context.manager import ContextManager
 
 
@@ -40,6 +45,7 @@ class TestCodingSession(unittest.TestCase):
         """Clean up test environment"""
         # Clean up temp directory
         import shutil
+
         shutil.rmtree(self.test_dir, ignore_errors=True)
         self.loop.close()
 
@@ -63,9 +69,9 @@ class TestCodingSession(unittest.TestCase):
                 WHERE type='table' AND name IN ('sessions', 'interactions', 'session_snapshots')
             """)
             tables = [row[0] for row in cursor.fetchall()]
-            self.assertIn('sessions', tables)
-            self.assertIn('interactions', tables)
-            self.assertIn('session_snapshots', tables)
+            self.assertIn("sessions", tables)
+            self.assertIn("interactions", tables)
+            self.assertIn("session_snapshots", tables)
 
     def test_start_session(self):
         """Test session creation"""
@@ -81,7 +87,10 @@ class TestCodingSession(unittest.TestCase):
         # Verify in database
         with sqlite3.connect(self.session_manager.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM sessions WHERE session_id = ?", (session_state.session_id,))
+            cursor.execute(
+                "SELECT * FROM sessions WHERE session_id = ?",
+                (session_state.session_id,),
+            )
             row = cursor.fetchone()
             self.assertIsNotNone(row)
 
@@ -98,7 +107,9 @@ class TestCodingSession(unittest.TestCase):
         user_input = "Write a Python function to calculate fibonacci numbers"
         response = "Here's a Python function that calculates fibonacci numbers:\n\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)"
 
-        self.run_async(self.session_manager.add_interaction(session_id, user_input, response))
+        self.run_async(
+            self.session_manager.add_interaction(session_id, user_input, response)
+        )
 
         # Verify in session state
         updated_state = self.session_manager._active_sessions[session_id]
@@ -108,11 +119,13 @@ class TestCodingSession(unittest.TestCase):
         # Verify in database
         with sqlite3.connect(self.session_manager.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM interactions WHERE session_id = ?", (session_id,))
+            cursor.execute(
+                "SELECT * FROM interactions WHERE session_id = ?", (session_id,)
+            )
             row = cursor.fetchone()
             self.assertIsNotNone(row)
             self.assertEqual(row[3], user_input)  # user_input column
-            self.assertEqual(row[4], response)    # response column
+            self.assertEqual(row[4], response)  # response column
 
     def test_get_context(self):
         """Test context retrieval"""
@@ -122,7 +135,9 @@ class TestCodingSession(unittest.TestCase):
 
         user_input = "Test input"
         response = "Test response"
-        self.run_async(self.session_manager.add_interaction(session_id, user_input, response))
+        self.run_async(
+            self.session_manager.add_interaction(session_id, user_input, response)
+        )
 
         # Get context
         context = self.run_async(self.session_manager.get_context(session_id))
@@ -146,7 +161,9 @@ class TestCodingSession(unittest.TestCase):
         session_state = self.run_async(self.session_manager.start_session())
         session_id = session_state.session_id
 
-        self.run_async(self.session_manager.add_interaction(session_id, "test", "response"))
+        self.run_async(
+            self.session_manager.add_interaction(session_id, "test", "response")
+        )
 
         # Persist session
         self.run_async(self.session_manager.persist(session_id))
@@ -154,7 +171,9 @@ class TestCodingSession(unittest.TestCase):
         # Verify snapshot created
         with sqlite3.connect(self.session_manager.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM session_snapshots WHERE session_id = ?", (session_id,))
+            cursor.execute(
+                "SELECT * FROM session_snapshots WHERE session_id = ?", (session_id,)
+            )
             row = cursor.fetchone()
             self.assertIsNotNone(row)
 
@@ -166,8 +185,12 @@ class TestCodingSession(unittest.TestCase):
 
         user_input = "Recovery test input"
         response = "Recovery test response"
-        self.run_async(self.session_manager.add_interaction(session_id, user_input, response))
-        self.run_async(self.session_manager.add_file_modification(session_id, "/test/file.py"))
+        self.run_async(
+            self.session_manager.add_interaction(session_id, user_input, response)
+        )
+        self.run_async(
+            self.session_manager.add_file_modification(session_id, "/test/file.py")
+        )
 
         # Close session (remove from memory)
         self.run_async(self.session_manager.close_session(session_id))
@@ -217,7 +240,9 @@ def run_tests():
     print(f"  Tests Run: {result.testsRun}")
     print(f"  Failures: {len(result.failures)}")
     print(f"  Errors: {len(result.errors)}")
-    print(f"  Success Rate: {((result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100):.1f}%")
+    print(
+        f"  Success Rate: {((result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100):.1f}%"
+    )
 
     if result.failures:
         print(f"\n❌ Failures:")

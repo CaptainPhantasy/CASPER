@@ -16,7 +16,13 @@ from enum import Enum
 from uuid import uuid4
 from pathlib import Path
 
-from ..interfaces import IStreaming, StreamChunk, CodingIntent, WSMessageType, StreamingError
+from ..interfaces import (
+    IStreaming,
+    StreamChunk,
+    CodingIntent,
+    WSMessageType,
+    StreamingError,
+)
 from ...reasoning.react_engine import get_react_engine, ReActStep
 from ...services.llm import llm_service
 
@@ -25,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 class SyntaxType(Enum):
     """Token syntax types for highlighting"""
+
     KEYWORD = "keyword"
     STRING = "string"
     NUMBER = "number"
@@ -45,6 +52,7 @@ class SyntaxType(Enum):
 @dataclass
 class SyntaxToken:
     """Token with syntax highlighting information"""
+
     content: str
     type: SyntaxType
     color: str
@@ -56,6 +64,7 @@ class SyntaxToken:
 @dataclass
 class StreamingContext:
     """Context for active streaming session"""
+
     stream_id: str
     intent: CodingIntent
     session_context: Dict[str, Any]
@@ -72,6 +81,7 @@ class StreamingContext:
 @dataclass
 class StreamingMetrics:
     """Performance metrics for streaming"""
+
     active_streams: int = 0
     total_streams: int = 0
     tokens_per_second: float = 0.0
@@ -93,103 +103,104 @@ class SyntaxHighlighter:
         return {
             "python": {
                 SyntaxType.KEYWORD: [
-                    r'\b(def|class|if|else|elif|for|while|try|except|finally|with|import|from|as|return|yield|lambda|and|or|not|in|is|None|True|False|async|await)\b'
+                    r"\b(def|class|if|else|elif|for|while|try|except|finally|with|import|from|as|return|yield|lambda|and|or|not|in|is|None|True|False|async|await)\b"
                 ],
                 SyntaxType.STRING: [
                     r'(""".*?""")',  # Triple quotes
                     r"('''.*?''')",
-                    r'(".*?")',      # Double quotes
-                    r"('.*?')",      # Single quotes
-                    r'(f".*?")',     # f-strings
-                    r"(f'.*?')"
+                    r'(".*?")',  # Double quotes
+                    r"('.*?')",  # Single quotes
+                    r'(f".*?")',  # f-strings
+                    r"(f'.*?')",
                 ],
-                SyntaxType.NUMBER: [
-                    r'\b(\d+\.?\d*([eE][+-]?\d+)?)\b'
-                ],
-                SyntaxType.COMMENT: [
-                    r'(#.*$)'
-                ],
-                SyntaxType.FUNCTION: [
-                    r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?=\()'
-                ],
-                SyntaxType.CLASS: [
-                    r'\b(class\s+[a-zA-Z_][a-zA-Z0-9_]*)'
-                ],
-                SyntaxType.DECORATOR: [
-                    r'(@[a-zA-Z_][a-zA-Z0-9_.]*)'
-                ],
+                SyntaxType.NUMBER: [r"\b(\d+\.?\d*([eE][+-]?\d+)?)\b"],
+                SyntaxType.COMMENT: [r"(#.*$)"],
+                SyntaxType.FUNCTION: [r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?=\()"],
+                SyntaxType.CLASS: [r"\b(class\s+[a-zA-Z_][a-zA-Z0-9_]*)"],
+                SyntaxType.DECORATOR: [r"(@[a-zA-Z_][a-zA-Z0-9_.]*)"],
                 SyntaxType.OPERATOR: [
-                    r'([+\-*/%=<>!&|^~]|==|!=|<=|>=|<<|>>|\*\*|//|\.\.\.)'
+                    r"([+\-*/%=<>!&|^~]|==|!=|<=|>=|<<|>>|\*\*|//|\.\.\.)"
                 ],
-                SyntaxType.PUNCTUATION: [
-                    r'([{}()\[\],.;:])'
-                ]
+                SyntaxType.PUNCTUATION: [r"([{}()\[\],.;:])"],
             },
             "javascript": {
                 SyntaxType.KEYWORD: [
-                    r'\b(function|var|let|const|if|else|for|while|do|break|continue|return|try|catch|finally|throw|new|this|typeof|instanceof|in|of|class|extends|super|import|export|default|async|await)\b'
+                    r"\b(function|var|let|const|if|else|for|while|do|break|continue|return|try|catch|finally|throw|new|this|typeof|instanceof|in|of|class|extends|super|import|export|default|async|await)\b"
                 ],
                 SyntaxType.STRING: [
-                    r'(`.*?`)',      # Template literals
+                    r"(`.*?`)",  # Template literals
                     r'(".*?")',
-                    r"('.*?')"
+                    r"('.*?')",
                 ],
-                SyntaxType.NUMBER: [
-                    r'\b(\d+\.?\d*([eE][+-]?\d+)?)\b'
-                ],
-                SyntaxType.COMMENT: [
-                    r'(//.*$)',
-                    r'(/\*.*?\*/)'
-                ]
+                SyntaxType.NUMBER: [r"\b(\d+\.?\d*([eE][+-]?\d+)?)\b"],
+                SyntaxType.COMMENT: [r"(//.*$)", r"(/\*.*?\*/)"],
             },
             "typescript": {
                 SyntaxType.KEYWORD: [
-                    r'\b(interface|type|enum|namespace|declare|abstract|implements|private|public|protected|readonly|static|export|import|from|as|default|async|await)\b'
+                    r"\b(interface|type|enum|namespace|declare|abstract|implements|private|public|protected|readonly|static|export|import|from|as|default|async|await)\b"
                 ]
-            }
+            },
         }
 
     def _load_color_scheme(self) -> Dict[SyntaxType, str]:
         """Load ANSI color codes for syntax types"""
         return {
-            SyntaxType.KEYWORD: "\033[38;5;33m",      # Blue
-            SyntaxType.STRING: "\033[38;5;10m",       # Green
-            SyntaxType.NUMBER: "\033[38;5;208m",      # Orange
-            SyntaxType.COMMENT: "\033[38;5;244m",     # Gray
-            SyntaxType.FUNCTION: "\033[38;5;220m",    # Yellow
-            SyntaxType.CLASS: "\033[38;5;196m",       # Red
-            SyntaxType.VARIABLE: "\033[38;5;15m",     # White
-            SyntaxType.OPERATOR: "\033[38;5;201m",    # Magenta
-            SyntaxType.PUNCTUATION: "\033[38;5;245m", # Light Gray
-            SyntaxType.DECORATOR: "\033[38;5;166m",   # Dark Orange
-            SyntaxType.IMPORT: "\033[38;5;51m",       # Cyan
-            SyntaxType.IDENTIFIER: "\033[38;5;15m",   # White
-            SyntaxType.WHITESPACE: "",                # No color
-            SyntaxType.NEWLINE: "",                   # No color
-            SyntaxType.UNKNOWN: "\033[38;5;15m"       # White
+            SyntaxType.KEYWORD: "\033[38;5;33m",  # Blue
+            SyntaxType.STRING: "\033[38;5;10m",  # Green
+            SyntaxType.NUMBER: "\033[38;5;208m",  # Orange
+            SyntaxType.COMMENT: "\033[38;5;244m",  # Gray
+            SyntaxType.FUNCTION: "\033[38;5;220m",  # Yellow
+            SyntaxType.CLASS: "\033[38;5;196m",  # Red
+            SyntaxType.VARIABLE: "\033[38;5;15m",  # White
+            SyntaxType.OPERATOR: "\033[38;5;201m",  # Magenta
+            SyntaxType.PUNCTUATION: "\033[38;5;245m",  # Light Gray
+            SyntaxType.DECORATOR: "\033[38;5;166m",  # Dark Orange
+            SyntaxType.IMPORT: "\033[38;5;51m",  # Cyan
+            SyntaxType.IDENTIFIER: "\033[38;5;15m",  # White
+            SyntaxType.WHITESPACE: "",  # No color
+            SyntaxType.NEWLINE: "",  # No color
+            SyntaxType.UNKNOWN: "\033[38;5;15m",  # White
         }
 
     def detect_language(self, code_snippet: str) -> str:
         """Detect programming language from code snippet"""
         # Simple heuristics for language detection
         # Check TypeScript first (more specific patterns)
-        if any(keyword in code_snippet for keyword in ['interface ', ': string', ': number', 'type ', 'namespace ']):
+        if any(
+            keyword in code_snippet
+            for keyword in ["interface ", ": string", ": number", "type ", "namespace "]
+        ):
             return "typescript"
-        elif any(keyword in code_snippet for keyword in ['def ', 'import ', 'from ', '__init__']):
+        elif any(
+            keyword in code_snippet
+            for keyword in ["def ", "import ", "from ", "__init__"]
+        ):
             return "python"
-        elif any(keyword in code_snippet for keyword in ['function', 'const ', 'let ', 'var ']):
+        elif any(
+            keyword in code_snippet
+            for keyword in ["function", "const ", "let ", "var "]
+        ):
             return "javascript"
-        elif any(keyword in code_snippet for keyword in ['public class', 'private ', 'public static']):
+        elif any(
+            keyword in code_snippet
+            for keyword in ["public class", "private ", "public static"]
+        ):
             return "java"
-        elif any(keyword in code_snippet for keyword in ['fn ', 'struct ', 'impl ', 'use ']):
+        elif any(
+            keyword in code_snippet for keyword in ["fn ", "struct ", "impl ", "use "]
+        ):
             return "rust"
         else:
             return "python"  # Default fallback
 
-    def tokenize_and_highlight(self, text: str, language: str = "python") -> List[SyntaxToken]:
+    def tokenize_and_highlight(
+        self, text: str, language: str = "python"
+    ) -> List[SyntaxToken]:
         """Tokenize text and apply syntax highlighting"""
         tokens = []
-        patterns = self.language_patterns.get(language, self.language_patterns["python"])
+        patterns = self.language_patterns.get(
+            language, self.language_patterns["python"]
+        )
         position = 0
         line_number = 1
         column = 1
@@ -212,19 +223,19 @@ class SyntaxHighlighter:
                             color=self.color_scheme.get(syntax_type, ""),
                             position=position,
                             line_number=line_number,
-                            column=column
+                            column=column,
                         )
                         tokens.append(token)
 
                         # Update position tracking
                         position += len(content)
-                        if '\n' in content:
-                            line_number += content.count('\n')
-                            column = len(content) - content.rfind('\n')
+                        if "\n" in content:
+                            line_number += content.count("\n")
+                            column = len(content) - content.rfind("\n")
                         else:
                             column += len(content)
 
-                        remaining_text = remaining_text[len(content):]
+                        remaining_text = remaining_text[len(content) :]
                         matched = True
                         break
 
@@ -234,7 +245,7 @@ class SyntaxHighlighter:
             # If no pattern matched, treat as single character
             if not matched:
                 char = remaining_text[0]
-                if char == '\n':
+                if char == "\n":
                     syntax_type = SyntaxType.NEWLINE
                     line_number += 1
                     column = 1
@@ -251,7 +262,7 @@ class SyntaxHighlighter:
                     color=self.color_scheme.get(syntax_type, ""),
                     position=position,
                     line_number=line_number,
-                    column=column
+                    column=column,
                 )
                 tokens.append(token)
 
@@ -275,10 +286,12 @@ class BackpressureHandler:
     async def handle_backpressure(self, context: StreamingContext) -> None:
         """Handle backpressure by pausing stream"""
         context.backpressure_count += 1
-        logger.warning(f"Backpressure applied to stream {context.stream_id}, buffer size: {context.buffer_size_bytes}")
+        logger.warning(
+            f"Backpressure applied to stream {context.stream_id}, buffer size: {context.buffer_size_bytes}"
+        )
 
         # Exponential backoff with jitter
-        delay = min(0.1 * (2 ** context.backpressure_count), 2.0)
+        delay = min(0.1 * (2**context.backpressure_count), 2.0)
         jitter = delay * 0.1 * (time.time() % 1.0)  # Up to 10% jitter
 
         await asyncio.sleep(delay + jitter)
@@ -291,15 +304,19 @@ class BackpressureHandler:
             try:
                 chunk = context.buffer.pop(0)
                 await self._send_chunk_to_client(context, chunk)
-                context.buffer_size_bytes -= len(chunk.content.encode('utf-8'))
+                context.buffer_size_bytes -= len(chunk.content.encode("utf-8"))
                 sent_count += 1
             except Exception as e:
-                logger.error(f"Failed to flush buffer chunk for stream {context.stream_id}: {e}")
+                logger.error(
+                    f"Failed to flush buffer chunk for stream {context.stream_id}: {e}"
+                )
                 break
 
         return sent_count
 
-    async def _send_chunk_to_client(self, context: StreamingContext, chunk: StreamChunk) -> None:
+    async def _send_chunk_to_client(
+        self, context: StreamingContext, chunk: StreamChunk
+    ) -> None:
         """Send chunk to WebSocket client"""
         try:
             message = {
@@ -308,7 +325,7 @@ class BackpressureHandler:
                 "metadata": chunk.metadata,
                 "timestamp": chunk.timestamp.isoformat(),
                 "sequence": chunk.sequence_number,
-                "stream_id": context.stream_id
+                "stream_id": context.stream_id,
             }
             await context.websocket.send_json(message)
             context.last_sent_at = datetime.utcnow()
@@ -339,9 +356,7 @@ class StreamingOrchestrator(IStreaming):
         logger.info("StreamingOrchestrator initialized")
 
     async def stream_response(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any]
+        self, intent: CodingIntent, session_context: Dict[str, Any]
     ) -> AsyncIterator[StreamChunk]:
         """Stream response chunks for the given intent"""
 
@@ -349,7 +364,7 @@ class StreamingOrchestrator(IStreaming):
             raise StreamingError("Maximum concurrent streams exceeded")
 
         stream_id = str(uuid4())
-        websocket = session_context.get('websocket')
+        websocket = session_context.get("websocket")
         if not websocket:
             raise StreamingError("No WebSocket connection in session context")
 
@@ -358,7 +373,7 @@ class StreamingOrchestrator(IStreaming):
             stream_id=stream_id,
             intent=intent,
             session_context=session_context,
-            websocket=websocket
+            websocket=websocket,
         )
         self.active_streams[stream_id] = context
         self.metrics.active_streams += 1
@@ -384,7 +399,7 @@ class StreamingOrchestrator(IStreaming):
                 content=f"Streaming error: {str(e)}",
                 metadata={"error_type": "streaming_error", "stream_id": stream_id},
                 timestamp=datetime.utcnow(),
-                sequence_number=context.tokens_sent + 1
+                sequence_number=context.tokens_sent + 1,
             )
         finally:
             # Cleanup
@@ -392,7 +407,9 @@ class StreamingOrchestrator(IStreaming):
                 del self.active_streams[stream_id]
             self.metrics.active_streams -= 1
 
-    async def _execute_streaming_task(self, context: StreamingContext) -> AsyncIterator[StreamChunk]:
+    async def _execute_streaming_task(
+        self, context: StreamingContext
+    ) -> AsyncIterator[StreamChunk]:
         """Execute the coding task and stream results"""
 
         # Send initial task analysis
@@ -402,15 +419,17 @@ class StreamingOrchestrator(IStreaming):
             metadata={
                 "intent_action": context.intent.action.value,
                 "targets": context.intent.targets,
-                "scope": context.intent.scope
+                "scope": context.intent.scope,
             },
             timestamp=datetime.utcnow(),
-            sequence_number=1
+            sequence_number=1,
         )
 
         # Stream ReAct reasoning
         sequence_num = 2
-        async for reasoning_chunk in self.react_engine.stream_reasoning(context.intent.original_request):
+        async for reasoning_chunk in self.react_engine.stream_reasoning(
+            context.intent.original_request
+        ):
             if context.is_cancelled:
                 break
 
@@ -423,7 +442,9 @@ class StreamingOrchestrator(IStreaming):
                 chunk_type = WSMessageType.CODE.value
                 # Apply syntax highlighting to code content
                 content = reasoning_chunk.get("content", "")
-                async for highlighted_chunk in self._stream_highlighted_code(content, sequence_num):
+                async for highlighted_chunk in self._stream_highlighted_code(
+                    content, sequence_num
+                ):
                     yield highlighted_chunk
                     sequence_num += 1
                 continue
@@ -433,7 +454,7 @@ class StreamingOrchestrator(IStreaming):
                 content=reasoning_chunk.get("content", ""),
                 metadata=reasoning_chunk,
                 timestamp=datetime.utcnow(),
-                sequence_number=sequence_num
+                sequence_number=sequence_num,
             )
             sequence_num += 1
 
@@ -443,10 +464,12 @@ class StreamingOrchestrator(IStreaming):
             content="Task execution completed",
             metadata={"status": "completed", "tokens_sent": context.tokens_sent},
             timestamp=datetime.utcnow(),
-            sequence_number=sequence_num
+            sequence_number=sequence_num,
         )
 
-    async def _stream_highlighted_code(self, code: str, start_sequence: int) -> AsyncIterator[StreamChunk]:
+    async def _stream_highlighted_code(
+        self, code: str, start_sequence: int
+    ) -> AsyncIterator[StreamChunk]:
         """Stream code with syntax highlighting applied token by token"""
 
         # Detect language
@@ -467,10 +490,10 @@ class StreamingOrchestrator(IStreaming):
                     "position": token.position,
                     "line": token.line_number,
                     "column": token.column,
-                    "language": language
+                    "language": language,
                 },
                 timestamp=datetime.utcnow(),
-                sequence_number=sequence_num
+                sequence_number=sequence_num,
             )
 
             yield chunk
@@ -504,18 +527,22 @@ class StreamingOrchestrator(IStreaming):
                 content="Stream cancelled by client",
                 metadata={"stream_id": stream_id},
                 timestamp=datetime.utcnow(),
-                sequence_number=context.tokens_sent + 1
+                sequence_number=context.tokens_sent + 1,
             )
 
-            await context.websocket.send_json({
-                "type": cancel_chunk.type,
-                "content": cancel_chunk.content,
-                "metadata": cancel_chunk.metadata,
-                "timestamp": cancel_chunk.timestamp.isoformat(),
-                "sequence": cancel_chunk.sequence_number
-            })
+            await context.websocket.send_json(
+                {
+                    "type": cancel_chunk.type,
+                    "content": cancel_chunk.content,
+                    "metadata": cancel_chunk.metadata,
+                    "timestamp": cancel_chunk.timestamp.isoformat(),
+                    "sequence": cancel_chunk.sequence_number,
+                }
+            )
         except Exception as e:
-            logger.error(f"Failed to send cancellation notice for stream {stream_id}: {e}")
+            logger.error(
+                f"Failed to send cancellation notice for stream {stream_id}: {e}"
+            )
 
         logger.info(f"Stream {stream_id} cancelled")
         return True
@@ -528,16 +555,24 @@ class StreamingOrchestrator(IStreaming):
 
         # Calculate tokens per second
         if runtime_seconds > 0:
-            total_tokens = sum(context.tokens_sent for context in self.active_streams.values())
+            total_tokens = sum(
+                context.tokens_sent for context in self.active_streams.values()
+            )
             self.metrics.tokens_per_second = total_tokens / runtime_seconds
 
         # Calculate average latency
         if self._token_timestamps:
-            recent_timestamps = [t for t in self._token_timestamps if current_time - t < 60]  # Last minute
+            recent_timestamps = [
+                t for t in self._token_timestamps if current_time - t < 60
+            ]  # Last minute
             if len(recent_timestamps) > 1:
-                latencies = [recent_timestamps[i] - recent_timestamps[i-1]
-                           for i in range(1, len(recent_timestamps))]
-                self.metrics.average_latency_ms = (sum(latencies) / len(latencies)) * 1000
+                latencies = [
+                    recent_timestamps[i] - recent_timestamps[i - 1]
+                    for i in range(1, len(recent_timestamps))
+                ]
+                self.metrics.average_latency_ms = (
+                    sum(latencies) / len(latencies)
+                ) * 1000
 
         return {
             "active_streams": self.metrics.active_streams,
@@ -548,7 +583,7 @@ class StreamingOrchestrator(IStreaming):
             "cancelled_streams": self.metrics.cancelled_streams,
             "error_count": self.metrics.error_count,
             "max_concurrent_streams": self.max_concurrent_streams,
-            "runtime_seconds": round(runtime_seconds, 2)
+            "runtime_seconds": round(runtime_seconds, 2),
         }
 
     def get_active_stream_ids(self) -> List[str]:
@@ -589,7 +624,7 @@ class StreamingOrchestrator(IStreaming):
                 "type": WSMessageType.HEARTBEAT.value,
                 "timestamp": datetime.utcnow().isoformat(),
                 "stream_id": stream_id,
-                "tokens_sent": context.tokens_sent
+                "tokens_sent": context.tokens_sent,
             }
 
             await context.websocket.send_json(heartbeat_message)
@@ -603,6 +638,7 @@ class StreamingOrchestrator(IStreaming):
 
 # Global singleton instance
 _orchestrator_instance = None
+
 
 def get_streaming_orchestrator() -> StreamingOrchestrator:
     """Get singleton streaming orchestrator instance"""
@@ -621,5 +657,5 @@ __all__ = [
     "BackpressureHandler",
     "SyntaxToken",
     "SyntaxType",
-    "get_streaming_orchestrator"
+    "get_streaming_orchestrator",
 ]

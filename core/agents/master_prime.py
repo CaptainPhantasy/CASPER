@@ -12,16 +12,26 @@ from typing import Dict, List, Optional, Set, Tuple
 from uuid import UUID
 
 from .base import (
-    AgentRole, AgentStatus, BaseAgent, ContextBundle,
-    AgentResult, TaskPriority, TaskDelegation
+    AgentRole,
+    AgentStatus,
+    BaseAgent,
+    ContextBundle,
+    AgentResult,
+    TaskPriority,
+    TaskDelegation,
 )
 from core.services.llm import llm_service
-from core.agentic.prompt_templates import DECOMPOSE_PROMPT, CRITIQUE_PROMPT, REFINE_PROMPT
+from core.agentic.prompt_templates import (
+    DECOMPOSE_PROMPT,
+    CRITIQUE_PROMPT,
+    REFINE_PROMPT,
+)
 from core.context.delegator import ContextDelegator
 
 
 class TaskComplexity(Enum):
     """Task complexity levels for spawning decisions."""
+
     LOW = "low"  # Single file, simple logic
     MEDIUM = "medium"  # Multiple files, moderate logic
     HIGH = "high"  # Multiple components, complex integration
@@ -29,6 +39,7 @@ class TaskComplexity(Enum):
 
 class ExecutionStrategy(Enum):
     """How to execute subtasks."""
+
     SEQUENTIAL = "sequential"
     PARALLEL = "parallel"
     HYBRID = "hybrid"
@@ -37,11 +48,12 @@ class ExecutionStrategy(Enum):
 @dataclass
 class TaskAnalysis:
     """Comprehensive task analysis result."""
+
     original_task: str
     complexity: TaskComplexity
     estimated_tokens: int
     required_agents: List[AgentRole]
-    subtasks: List['SubTask']
+    subtasks: List["SubTask"]
     execution_strategy: ExecutionStrategy
     dependencies: Dict[str, List[str]] = field(default_factory=dict)
     risk_factors: List[str] = field(default_factory=list)
@@ -51,6 +63,7 @@ class TaskAnalysis:
 @dataclass
 class SubTask:
     """Individual subtask for delegation."""
+
     task_id: UUID
     description: str
     agent_role: AgentRole
@@ -72,7 +85,7 @@ class TaskComplexityAnalyzer:
             r"(authentication|authorization|security)\s+system",
             r"full[- ]stack",
             r"end[- ]to[- ]end",
-            r"production[- ]ready"
+            r"production[- ]ready",
         ],
         TaskComplexity.MEDIUM: [
             r"(api|endpoint|service)",
@@ -80,37 +93,82 @@ class TaskComplexityAnalyzer:
             r"(component|module|feature)",
             r"(refactor|optimize|improve)",
             r"(test|testing)\s+(suite|coverage)",
-            r"dashboard|interface|ui"
+            r"dashboard|interface|ui",
         ],
         TaskComplexity.LOW: [
             r"(fix|debug|patch)",
             r"(add|update|modify)\s+\w+",
             r"single\s+(file|function|method)",
             r"(simple|basic|minor)",
-            r"(typo|formatting|style)"
-        ]
+            r"(typo|formatting|style)",
+        ],
     }
 
     AGENT_KEYWORDS = {
         AgentRole.FRONTEND_PRIME: [
-            "ui", "interface", "component", "react", "frontend",
-            "dashboard", "form", "button", "layout", "css", "style",
-            "user experience", "ux", "responsive", "interactive"
+            "ui",
+            "interface",
+            "component",
+            "react",
+            "frontend",
+            "dashboard",
+            "form",
+            "button",
+            "layout",
+            "css",
+            "style",
+            "user experience",
+            "ux",
+            "responsive",
+            "interactive",
         ],
         AgentRole.BACKEND_PRIME: [
-            "api", "database", "server", "backend", "endpoint",
-            "authentication", "authorization", "jwt", "rest", "graphql",
-            "model", "schema", "migration", "crud", "service"
+            "api",
+            "database",
+            "server",
+            "backend",
+            "endpoint",
+            "authentication",
+            "authorization",
+            "jwt",
+            "rest",
+            "graphql",
+            "model",
+            "schema",
+            "migration",
+            "crud",
+            "service",
         ],
         AgentRole.TESTING_PRIME: [
-            "test", "testing", "coverage", "unit test", "integration",
-            "e2e", "mock", "stub", "assertion", "suite", "tdd"
+            "test",
+            "testing",
+            "coverage",
+            "unit test",
+            "integration",
+            "e2e",
+            "mock",
+            "stub",
+            "assertion",
+            "suite",
+            "tdd",
         ],
         AgentRole.DEVOPS_PRIME: [
-            "deploy", "deployment", "infrastructure", "ci/cd", "pipeline",
-            "docker", "kubernetes", "terraform", "monitoring", "logging",
-            "rollout", "scaling", "performance", "ops", "devops"
-        ]
+            "deploy",
+            "deployment",
+            "infrastructure",
+            "ci/cd",
+            "pipeline",
+            "docker",
+            "kubernetes",
+            "terraform",
+            "monitoring",
+            "logging",
+            "rollout",
+            "scaling",
+            "performance",
+            "ops",
+            "devops",
+        ],
     }
 
     @classmethod
@@ -191,7 +249,9 @@ class MasterPrimeAgent(BaseAgent):
             self.current_context.parent_task = task
 
             # Update status
-            await self._update_progress(AgentStatus.PLANNING, 10, "Analyzing task complexity...")
+            await self._update_progress(
+                AgentStatus.PLANNING, 10, "Analyzing task complexity..."
+            )
 
             # Perform comprehensive task analysis
             analysis = await self.perform_task_analysis(task)
@@ -200,22 +260,34 @@ class MasterPrimeAgent(BaseAgent):
             self._log_decision(
                 f"Task complexity: {analysis.complexity.value}",
                 f"Requires {len(analysis.required_agents)} agents, {len(analysis.subtasks)} subtasks",
-                [str(agent.value) for agent in analysis.required_agents]
+                [str(agent.value) for agent in analysis.required_agents],
             )
 
             # Create execution plan
-            await self._update_progress(AgentStatus.PLANNING, 30, "Creating execution plan...")
+            await self._update_progress(
+                AgentStatus.PLANNING, 30, "Creating execution plan..."
+            )
             execution_plan = await self.create_execution_plan(analysis)
 
             # Spawn agents and delegate tasks
-            await self._update_progress(AgentStatus.BUILDING, 50, "Spawning specialized agents...")
+            await self._update_progress(
+                AgentStatus.BUILDING, 50, "Spawning specialized agents..."
+            )
             delegations = await self.spawn_and_delegate(execution_plan)
 
             # Delegate execution to coordinator; don't block here.
-            await self._update_progress(AgentStatus.REVIEWING, 80, "Delegations created; monitoring child agents...")
+            await self._update_progress(
+                AgentStatus.REVIEWING,
+                80,
+                "Delegations created; monitoring child agents...",
+            )
 
             # Complete master planning step; children will continue.
-            await self._update_progress(AgentStatus.COMPLETED, 100, "Master planning complete; execution in progress")
+            await self._update_progress(
+                AgentStatus.COMPLETED,
+                100,
+                "Master planning complete; execution in progress",
+            )
 
             return AgentResult(
                 agent_id=self.agent_id,
@@ -224,7 +296,7 @@ class MasterPrimeAgent(BaseAgent):
                 status=AgentStatus.COMPLETED,
                 context_bundle=self.current_context,
                 output=f"Planned {len(delegations)} delegations using {analysis.execution_strategy.value} strategy",
-                token_usage=self.token_usage
+                token_usage=self.token_usage,
             )
 
         except Exception as e:
@@ -235,7 +307,7 @@ class MasterPrimeAgent(BaseAgent):
                 status=AgentStatus.FAILED,
                 context_bundle=context,
                 errors=[str(e)],
-                token_usage=self.token_usage
+                token_usage=self.token_usage,
             )
 
     async def perform_task_analysis(self, task: str) -> TaskAnalysis:
@@ -254,7 +326,9 @@ class MasterPrimeAgent(BaseAgent):
                 llm_subtasks = []
 
         # Heuristic decomposition as baseline/fallback
-        heuristic_subtasks = await self.decompose_task(task, complexity, required_agents)
+        heuristic_subtasks = await self.decompose_task(
+            task, complexity, required_agents
+        )
 
         # Merge: prefer LLM subtasks when present, else heuristics
         subtasks = llm_subtasks or heuristic_subtasks
@@ -283,12 +357,14 @@ class MasterPrimeAgent(BaseAgent):
             execution_strategy=strategy,
             dependencies=dependencies,
             risk_factors=risk_factors,
-            success_criteria=success_criteria
+            success_criteria=success_criteria,
         )
 
     async def llm_decompose(self, task: str) -> List[SubTask]:
         """Use LLM to propose a subtask graph with roles and priorities."""
-        text = await llm_service.complete(DECOMPOSE_PROMPT.format(task=task), max_tokens=900)
+        text = await llm_service.complete(
+            DECOMPOSE_PROMPT.format(task=task), max_tokens=900
+        )
         plan_json = text.strip()
         # Extract JSON array if code fences are present
         if plan_json.startswith("```"):
@@ -298,6 +374,7 @@ class MasterPrimeAgent(BaseAgent):
             plan_json = plan_json.rsplit("```", 1)[0]
 
         import json as _json
+
         data = None
         try:
             data = _json.loads(plan_json)
@@ -306,8 +383,12 @@ class MasterPrimeAgent(BaseAgent):
             pass
 
         # Critique + refine loop
-        critique = await llm_service.complete(CRITIQUE_PROMPT.format(plan_json=plan_json), max_tokens=400)
-        refined = await llm_service.complete(REFINE_PROMPT.format(plan_json=plan_json, critique=critique), max_tokens=900)
+        critique = await llm_service.complete(
+            CRITIQUE_PROMPT.format(plan_json=plan_json), max_tokens=400
+        )
+        refined = await llm_service.complete(
+            REFINE_PROMPT.format(plan_json=plan_json, critique=critique), max_tokens=900
+        )
         ref = refined.strip()
         if ref.startswith("```"):
             ref = ref.split("\n", 1)[1]
@@ -333,38 +414,51 @@ class MasterPrimeAgent(BaseAgent):
                 "backend_prime": AgentRole.BACKEND_PRIME,
                 "frontend_prime": AgentRole.FRONTEND_PRIME,
                 "testing_prime": AgentRole.TESTING_PRIME,
-            "worker": AgentRole.WORKER,
-            "devops_prime": AgentRole.DEVOPS_PRIME,
+                "worker": AgentRole.WORKER,
+                "devops_prime": AgentRole.DEVOPS_PRIME,
             }.get(role_str, AgentRole.WORKER)
             prio = str(item.get("priority", "medium")).lower()
-            priority = TaskPriority.HIGH if prio == "high" else TaskPriority.LOW if prio == "low" else TaskPriority.MEDIUM
+            priority = (
+                TaskPriority.HIGH
+                if prio == "high"
+                else TaskPriority.LOW if prio == "low" else TaskPriority.MEDIUM
+            )
             st_id = UUID(int=1 + i)  # ephemeral, unique within plan
             id_map.append(st_id)
-            subtasks.append(SubTask(
-                task_id=st_id,
-                description=item.get("description", ""),
-                agent_role=role,
-                priority=priority,
-                estimated_tokens=500,
-                dependencies=[]
-            ))
+            subtasks.append(
+                SubTask(
+                    task_id=st_id,
+                    description=item.get("description", ""),
+                    agent_role=role,
+                    priority=priority,
+                    estimated_tokens=500,
+                    dependencies=[],
+                )
+            )
 
         # Wire dependencies
         for i, item in enumerate(data):
             depends = item.get("depends_on") or []
             try:
-                subtasks[i].dependencies = [id_map[j] for j in depends if isinstance(j, int) and 0 <= j < len(id_map)]
+                subtasks[i].dependencies = [
+                    id_map[j]
+                    for j in depends
+                    if isinstance(j, int) and 0 <= j < len(id_map)
+                ]
             except Exception:
                 pass
 
         # Log a decision summary
-        self._log_decision("Decomposition plan created", f"{len(subtasks)} subtasks from LLM", [s.agent_role.value for s in subtasks])
+        self._log_decision(
+            "Decomposition plan created",
+            f"{len(subtasks)} subtasks from LLM",
+            [s.agent_role.value for s in subtasks],
+        )
         return subtasks
 
-    async def decompose_task(self,
-                            task: str,
-                            complexity: TaskComplexity,
-                            required_agents: Set[AgentRole]) -> List[SubTask]:
+    async def decompose_task(
+        self, task: str, complexity: TaskComplexity, required_agents: Set[AgentRole]
+    ) -> List[SubTask]:
         """
         Decompose task into manageable subtasks.
         """
@@ -373,122 +467,142 @@ class MasterPrimeAgent(BaseAgent):
 
         # Example decomposition for authentication system
         if "authentication" in task_lower and "system" in task_lower:
-            subtasks.extend([
-                SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000001'),
-                    description="Design database schema for users, sessions, and tokens",
-                    agent_role=AgentRole.BACKEND_PRIME,
-                    priority=TaskPriority.HIGH,
-                    estimated_tokens=500,
-                    parallel_group=1
-                ),
-                SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000002'),
-                    description="Implement JWT token generation and validation",
-                    agent_role=AgentRole.BACKEND_PRIME,
-                    priority=TaskPriority.HIGH,
-                    estimated_tokens=800,
-                    dependencies=[UUID('00000000-0000-0000-0000-000000000001')]
-                ),
-                SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000003'),
-                    description="Create login and registration forms with validation",
-                    agent_role=AgentRole.FRONTEND_PRIME,
-                    priority=TaskPriority.HIGH,
-                    estimated_tokens=600,
-                    parallel_group=1
-                ),
-                SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000004'),
-                    description="Implement password reset flow with email",
-                    agent_role=AgentRole.BACKEND_PRIME,
-                    priority=TaskPriority.MEDIUM,
-                    estimated_tokens=700,
-                    dependencies=[UUID('00000000-0000-0000-0000-000000000002')]
-                ),
-                SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000005'),
-                    description="Create password reset UI components",
-                    agent_role=AgentRole.FRONTEND_PRIME,
-                    priority=TaskPriority.MEDIUM,
-                    estimated_tokens=400,
-                    dependencies=[UUID('00000000-0000-0000-0000-000000000003')]
-                ),
-                SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000006'),
-                    description="Write comprehensive tests for authentication flow",
-                    agent_role=AgentRole.TESTING_PRIME,
-                    priority=TaskPriority.HIGH,
-                    estimated_tokens=900,
-                    dependencies=[
-                        UUID('00000000-0000-0000-0000-000000000002'),
-                        UUID('00000000-0000-0000-0000-000000000003')
-                    ]
-                )
-            ])
+            subtasks.extend(
+                [
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000001"),
+                        description="Design database schema for users, sessions, and tokens",
+                        agent_role=AgentRole.BACKEND_PRIME,
+                        priority=TaskPriority.HIGH,
+                        estimated_tokens=500,
+                        parallel_group=1,
+                    ),
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000002"),
+                        description="Implement JWT token generation and validation",
+                        agent_role=AgentRole.BACKEND_PRIME,
+                        priority=TaskPriority.HIGH,
+                        estimated_tokens=800,
+                        dependencies=[UUID("00000000-0000-0000-0000-000000000001")],
+                    ),
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000003"),
+                        description="Create login and registration forms with validation",
+                        agent_role=AgentRole.FRONTEND_PRIME,
+                        priority=TaskPriority.HIGH,
+                        estimated_tokens=600,
+                        parallel_group=1,
+                    ),
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000004"),
+                        description="Implement password reset flow with email",
+                        agent_role=AgentRole.BACKEND_PRIME,
+                        priority=TaskPriority.MEDIUM,
+                        estimated_tokens=700,
+                        dependencies=[UUID("00000000-0000-0000-0000-000000000002")],
+                    ),
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000005"),
+                        description="Create password reset UI components",
+                        agent_role=AgentRole.FRONTEND_PRIME,
+                        priority=TaskPriority.MEDIUM,
+                        estimated_tokens=400,
+                        dependencies=[UUID("00000000-0000-0000-0000-000000000003")],
+                    ),
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000006"),
+                        description="Write comprehensive tests for authentication flow",
+                        agent_role=AgentRole.TESTING_PRIME,
+                        priority=TaskPriority.HIGH,
+                        estimated_tokens=900,
+                        dependencies=[
+                            UUID("00000000-0000-0000-0000-000000000002"),
+                            UUID("00000000-0000-0000-0000-000000000003"),
+                        ],
+                    ),
+                ]
+            )
 
         # Generic decomposition for other tasks
         elif complexity == TaskComplexity.HIGH:
             # High complexity: multiple specialized subtasks
             if AgentRole.BACKEND_PRIME in required_agents:
-                subtasks.append(SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000010'),
-                    description=f"Design and implement backend architecture for: {task[:100]}",
-                    agent_role=AgentRole.BACKEND_PRIME,
-                    priority=TaskPriority.HIGH,
-                    estimated_tokens=1000
-                ))
+                subtasks.append(
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000010"),
+                        description=f"Design and implement backend architecture for: {task[:100]}",
+                        agent_role=AgentRole.BACKEND_PRIME,
+                        priority=TaskPriority.HIGH,
+                        estimated_tokens=1000,
+                    )
+                )
 
             if AgentRole.FRONTEND_PRIME in required_agents:
-                subtasks.append(SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000011'),
-                    description=f"Build user interface components for: {task[:100]}",
-                    agent_role=AgentRole.FRONTEND_PRIME,
-                    priority=TaskPriority.HIGH,
-                    estimated_tokens=800
-                ))
+                subtasks.append(
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000011"),
+                        description=f"Build user interface components for: {task[:100]}",
+                        agent_role=AgentRole.FRONTEND_PRIME,
+                        priority=TaskPriority.HIGH,
+                        estimated_tokens=800,
+                    )
+                )
 
             if AgentRole.TESTING_PRIME in required_agents:
-                subtasks.append(SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000012'),
-                    description=f"Create comprehensive test suite for: {task[:100]}",
-                    agent_role=AgentRole.TESTING_PRIME,
-                    priority=TaskPriority.MEDIUM,
-                    estimated_tokens=600
-                ))
+                subtasks.append(
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000012"),
+                        description=f"Create comprehensive test suite for: {task[:100]}",
+                        agent_role=AgentRole.TESTING_PRIME,
+                        priority=TaskPriority.MEDIUM,
+                        estimated_tokens=600,
+                    )
+                )
 
             if AgentRole.DEVOPS_PRIME in required_agents:
-                subtasks.append(SubTask(
-                    task_id=UUID('00000000-0000-0000-0000-000000000013'),
-                    description=f"Establish CI/CD and deployment strategy for: {task[:100]}",
-                    agent_role=AgentRole.DEVOPS_PRIME,
-                    priority=TaskPriority.MEDIUM,
-                    estimated_tokens=700
-                ))
+                subtasks.append(
+                    SubTask(
+                        task_id=UUID("00000000-0000-0000-0000-000000000013"),
+                        description=f"Establish CI/CD and deployment strategy for: {task[:100]}",
+                        agent_role=AgentRole.DEVOPS_PRIME,
+                        priority=TaskPriority.MEDIUM,
+                        estimated_tokens=700,
+                    )
+                )
 
         elif complexity == TaskComplexity.MEDIUM:
             # Medium complexity: focused subtasks
-            subtasks.append(SubTask(
-                task_id=UUID('00000000-0000-0000-0000-000000000020'),
-                description=task,
-                agent_role=list(required_agents)[0] if required_agents else AgentRole.WORKER,
-                priority=TaskPriority.MEDIUM,
-                estimated_tokens=500
-            ))
+            subtasks.append(
+                SubTask(
+                    task_id=UUID("00000000-0000-0000-0000-000000000020"),
+                    description=task,
+                    agent_role=(
+                        list(required_agents)[0]
+                        if required_agents
+                        else AgentRole.WORKER
+                    ),
+                    priority=TaskPriority.MEDIUM,
+                    estimated_tokens=500,
+                )
+            )
 
         else:
             # Low complexity: single subtask
-            subtasks.append(SubTask(
-                task_id=UUID('00000000-0000-0000-0000-000000000030'),
-                description=task,
-                agent_role=AgentRole.WORKER,
-                priority=TaskPriority.LOW,
-                estimated_tokens=200
-            ))
+            subtasks.append(
+                SubTask(
+                    task_id=UUID("00000000-0000-0000-0000-000000000030"),
+                    description=task,
+                    agent_role=AgentRole.WORKER,
+                    priority=TaskPriority.LOW,
+                    estimated_tokens=200,
+                )
+            )
 
         return subtasks
 
-    def determine_execution_strategy(self, subtasks: List[SubTask]) -> ExecutionStrategy:
+    def determine_execution_strategy(
+        self, subtasks: List[SubTask]
+    ) -> ExecutionStrategy:
         """
         Determine optimal execution strategy based on dependencies.
         """
@@ -505,14 +619,16 @@ class MasterPrimeAgent(BaseAgent):
         else:
             return ExecutionStrategy.PARALLEL
 
-    def estimate_token_usage(self, complexity: TaskComplexity, subtask_count: int) -> int:
+    def estimate_token_usage(
+        self, complexity: TaskComplexity, subtask_count: int
+    ) -> int:
         """
         Estimate total token usage for the task.
         """
         base_tokens = {
             TaskComplexity.LOW: 500,
             TaskComplexity.MEDIUM: 2000,
-            TaskComplexity.HIGH: 5000
+            TaskComplexity.HIGH: 5000,
         }
 
         return base_tokens[complexity] + (subtask_count * 300)
@@ -524,7 +640,9 @@ class MasterPrimeAgent(BaseAgent):
         dependencies = {}
         for subtask in subtasks:
             if subtask.dependencies:
-                dependencies[str(subtask.task_id)] = [str(d) for d in subtask.dependencies]
+                dependencies[str(subtask.task_id)] = [
+                    str(d) for d in subtask.dependencies
+                ]
         return dependencies
 
     def assess_risks(self, task: str, complexity: TaskComplexity) -> List[str]:
@@ -552,7 +670,7 @@ class MasterPrimeAgent(BaseAgent):
         criteria = [
             f"All {len(subtasks)} subtasks completed successfully",
             "No critical errors in execution",
-            "Token usage within 20% of estimate"
+            "Token usage within 20% of estimate",
         ]
 
         if "test" in task.lower():
@@ -566,7 +684,9 @@ class MasterPrimeAgent(BaseAgent):
 
         return criteria
 
-    async def create_execution_plan(self, analysis: TaskAnalysis) -> List[TaskDelegation]:
+    async def create_execution_plan(
+        self, analysis: TaskAnalysis
+    ) -> List[TaskDelegation]:
         """
         Create detailed execution plan with delegations.
         """
@@ -575,28 +695,43 @@ class MasterPrimeAgent(BaseAgent):
         for subtask in analysis.subtasks:
             # Create context bundle for each subtask
             subtask_context = ContextBundle(
-                parent_task=analysis.original_task,
-                max_tokens=subtask.estimated_tokens
+                parent_task=analysis.original_task, max_tokens=subtask.estimated_tokens
             )
-            subtask_context.root_task_id = self.current_context.ensure_root() if self.current_context else None
+            subtask_context.root_task_id = (
+                self.current_context.ensure_root() if self.current_context else None
+            )
 
             # Add relevant pointers
-            subtask_context.add_pointer("task_analysis", f"master_prime/analysis/{self.agent_id}")
+            subtask_context.add_pointer(
+                "task_analysis", f"master_prime/analysis/{self.agent_id}"
+            )
             subtask_context.add_pointer("dependencies", str(subtask.dependencies))
 
             # Prepare delegation metadata with ContextDelegator
             work_completed = {
                 "output": "",
-                "artifacts_created": self.current_context.artifacts_created if self.current_context else [],
+                "artifacts_created": (
+                    self.current_context.artifacts_created
+                    if self.current_context
+                    else []
+                ),
                 "decisions_made": [
                     {
                         "decision": d.decision,
                         "rationale": d.rationale,
                         "timestamp": d.timestamp.isoformat(),
                     }
-                    for d in (self.current_context.decisions_made if self.current_context else [])
+                    for d in (
+                        self.current_context.decisions_made
+                        if self.current_context
+                        else []
+                    )
                 ],
-                "structural_pointers": self.current_context.structural_pointers if self.current_context else {},
+                "structural_pointers": (
+                    self.current_context.structural_pointers
+                    if self.current_context
+                    else {}
+                ),
             }
             handoff_bundle = ContextDelegator.prepare_handoff_bundle(
                 subtask.description,
@@ -614,14 +749,16 @@ class MasterPrimeAgent(BaseAgent):
                 task_description=subtask.description,
                 context_bundle=subtask_context,
                 priority=subtask.priority,
-                dependencies=subtask.dependencies
+                dependencies=subtask.dependencies,
             )
 
             delegations.append(delegation)
 
         return delegations
 
-    async def spawn_and_delegate(self, delegations: List[TaskDelegation]) -> List[TaskDelegation]:
+    async def spawn_and_delegate(
+        self, delegations: List[TaskDelegation]
+    ) -> List[TaskDelegation]:
         """
         Spawn required agents and delegate tasks.
         """
@@ -634,14 +771,14 @@ class MasterPrimeAgent(BaseAgent):
             self._log_decision(
                 f"Spawning {delegation.target_specialization.value} agent",
                 f"Task: {delegation.task_description[:50]}",
-                []
+                [],
             )
 
         return delegations
 
-    async def coordinate_execution(self,
-                                  delegations: List[TaskDelegation],
-                                  strategy: ExecutionStrategy) -> List[AgentResult]:
+    async def coordinate_execution(
+        self, delegations: List[TaskDelegation], strategy: ExecutionStrategy
+    ) -> List[AgentResult]:
         """
         Coordinate execution based on strategy.
         """
@@ -671,7 +808,7 @@ class MasterPrimeAgent(BaseAgent):
                 status=AgentStatus.COMPLETED,
                 context_bundle=delegation.context_bundle,
                 output=f"Completed: {delegation.task_description}",
-                token_usage={"input": 100, "output": 100, "total": 200}
+                token_usage={"input": 100, "output": 100, "total": 200},
             )
             results.append(result)
 
@@ -682,14 +819,16 @@ class MasterPrimeAgent(BaseAgent):
         Integrate results from all agents into final result.
         """
         # Combine all context bundles
-        integrated_context = ContextBundle(
-            parent_task=self.current_context.parent_task
-        )
+        integrated_context = ContextBundle(parent_task=self.current_context.parent_task)
 
         # Merge artifacts and decisions
         for result in results:
-            integrated_context.artifacts_created.extend(result.context_bundle.artifacts_created)
-            integrated_context.decisions_made.extend(result.context_bundle.decisions_made)
+            integrated_context.artifacts_created.extend(
+                result.context_bundle.artifacts_created
+            )
+            integrated_context.decisions_made.extend(
+                result.context_bundle.decisions_made
+            )
 
         # Calculate total token usage
         total_tokens = sum(r.token_usage.get("total", 0) for r in results)
@@ -703,5 +842,5 @@ class MasterPrimeAgent(BaseAgent):
             context_bundle=integrated_context,
             output=f"Successfully completed task with {len(results)} agents",
             token_usage={"total": total_tokens},
-            execution_time=0.0  # Would calculate actual time
+            execution_time=0.0,  # Would calculate actual time
         )

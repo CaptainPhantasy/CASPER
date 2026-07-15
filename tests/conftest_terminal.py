@@ -17,24 +17,12 @@ pytest_plugins = ["pytest_asyncio"]
 
 def pytest_configure(config):
     """Configure pytest with custom markers."""
-    config.addinivalue_line(
-        "markers", "unit: marks tests as unit tests"
-    )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "e2e: marks tests as end-to-end tests"
-    )
-    config.addinivalue_line(
-        "markers", "performance: marks tests as performance tests"
-    )
-    config.addinivalue_line(
-        "markers", "security: marks tests as security tests"
-    )
-    config.addinivalue_line(
-        "markers", "slow: marks tests as slow running"
-    )
+    config.addinivalue_line("markers", "unit: marks tests as unit tests")
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests")
+    config.addinivalue_line("markers", "performance: marks tests as performance tests")
+    config.addinivalue_line("markers", "security: marks tests as security tests")
+    config.addinivalue_line("markers", "slow: marks tests as slow running")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -53,7 +41,10 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.integration)
         elif "test_terminal_" in str(item.fspath):
             # Terminal-specific tests
-            if not any(marker in str(item.fspath) for marker in ["performance", "security", "e2e", "integration"]):
+            if not any(
+                marker in str(item.fspath)
+                for marker in ["performance", "security", "e2e", "integration"]
+            ):
                 item.add_marker(pytest.mark.unit)
 
 
@@ -76,7 +67,9 @@ async def temp_workspace():
     (temp_dir / "src").mkdir()
     (temp_dir / "tests").mkdir()
     (temp_dir / ".git").mkdir()
-    (temp_dir / "package.json").write_text('{"name": "test-project", "version": "1.0.0"}')
+    (temp_dir / "package.json").write_text(
+        '{"name": "test-project", "version": "1.0.0"}'
+    )
     (temp_dir / "README.md").write_text("# Test Project")
     (temp_dir / "src" / "main.py").write_text('print("Hello, World!")')
 
@@ -89,7 +82,7 @@ async def temp_workspace():
 @pytest.fixture
 def mock_pty_manager():
     """Create a mock PTY manager for testing."""
-    with patch('core.terminal.pty_manager.PTYManager') as mock_class:
+    with patch("core.terminal.pty_manager.PTYManager") as mock_class:
         mock_instance = AsyncMock()
         mock_instance.sessions = {}
         mock_instance.create_session.return_value = "test-session-id"
@@ -101,7 +94,7 @@ def mock_pty_manager():
             "session_id": "test-session-id",
             "is_active": True,
             "last_activity": 1234567890.0,
-            "process_pid": 12345
+            "process_pid": 12345,
         }
         mock_class.return_value = mock_instance
         yield mock_instance
@@ -124,14 +117,14 @@ def mock_websocket():
 @pytest.fixture
 def mock_security_middleware():
     """Create a mock security middleware for testing."""
-    with patch('core.terminal.security.SecurityMiddleware') as mock_class:
+    with patch("core.terminal.security.SecurityMiddleware") as mock_class:
         mock_instance = AsyncMock()
         mock_instance.validate_command = AsyncMock()
         mock_instance.validate_casper_command = AsyncMock()
         mock_instance.validate_input = AsyncMock(return_value=True)
         mock_instance.create_sandbox.return_value = {
             "sandbox_dir": "/tmp/test_sandbox",
-            "env_vars": {"HOME": "/tmp/test_sandbox", "CASPER_SANDBOX": "true"}
+            "env_vars": {"HOME": "/tmp/test_sandbox", "CASPER_SANDBOX": "true"},
         }
         mock_instance.cleanup_sandbox = AsyncMock()
         mock_instance.audit_log = []
@@ -139,14 +132,14 @@ def mock_security_middleware():
             "total_events": 0,
             "blocked_commands": 0,
             "allowed_commands": 0,
-            "risk_distribution": {"low": 0, "medium": 0, "high": 0, "critical": 0}
+            "risk_distribution": {"low": 0, "medium": 0, "high": 0, "critical": 0},
         }
         mock_instance.get_audit_summary.return_value = {
             "timeframe": "Last 24 hours",
             "total_events": 0,
             "unique_sessions": 0,
             "unique_users": 0,
-            "risk_levels": {"low": 0, "medium": 0, "high": 0, "critical": 0}
+            "risk_levels": {"low": 0, "medium": 0, "high": 0, "critical": 0},
         }
         mock_class.return_value = mock_instance
         yield mock_instance
@@ -155,7 +148,7 @@ def mock_security_middleware():
 @pytest.fixture
 def mock_command_proxy():
     """Create a mock command proxy for testing."""
-    with patch('core.terminal.command_proxy.CommandProxy') as mock_class:
+    with patch("core.terminal.command_proxy.CommandProxy") as mock_class:
         mock_instance = AsyncMock()
         mock_instance._initialized = True
         mock_instance.initialize = AsyncMock()
@@ -171,12 +164,17 @@ def mock_command_proxy():
                 "system_status": {
                     "active_tasks": 0,
                     "queued_tasks": 0,
-                    "context_sessions": 0
+                    "context_sessions": 0,
                 }
-            }
+            },
         }
         mock_instance.get_available_commands.return_value = [
-            "task", "status", "analyze", "list", "help", "init"
+            "task",
+            "status",
+            "analyze",
+            "list",
+            "help",
+            "init",
         ]
         mock_instance.is_valid_command.return_value = True
         mock_class.return_value = mock_instance
@@ -186,7 +184,7 @@ def mock_command_proxy():
 @pytest.fixture
 def mock_task_analyzer():
     """Create a mock task analyzer for testing."""
-    with patch('core.orchestrator.task_analyzer.TaskAnalyzer') as mock_class:
+    with patch("core.orchestrator.task_analyzer.TaskAnalyzer") as mock_class:
         mock_instance = Mock()
 
         # Mock TaskMetrics
@@ -198,13 +196,13 @@ def mock_task_analyzer():
             file_count_estimate=3,
             component_count=2,
             integration_points=1,
-            external_dependencies=0
+            external_dependencies=0,
         )
 
         mock_instance.analyze_task.return_value = (
             mock_metrics,
             [AgentRole.BACKEND_PRIME],
-            TaskPriority.MEDIUM
+            TaskPriority.MEDIUM,
         )
         mock_instance._calculate_complexity_score.return_value = 5
         mock_class.return_value = mock_instance
@@ -214,7 +212,7 @@ def mock_task_analyzer():
 @pytest.fixture
 def mock_agent_coordinator():
     """Create a mock agent coordinator for testing."""
-    with patch('core.orchestrator.coordinator.AgentCoordinator') as mock_class:
+    with patch("core.orchestrator.coordinator.AgentCoordinator") as mock_class:
         mock_instance = AsyncMock()
         mock_instance.start = AsyncMock()
         mock_instance.stop = AsyncMock()
@@ -226,12 +224,9 @@ def mock_agent_coordinator():
             "agent_pool": {
                 "total_agents": 10,
                 "busy_agents": 3,
-                "available_by_role": {
-                    "backend_prime": 2,
-                    "frontend_prime": 1
-                }
+                "available_by_role": {"backend_prime": 2, "frontend_prime": 1},
             },
-            "token_usage_total": 5000
+            "token_usage_total": 5000,
         }
         mock_instance.get_results.return_value = []
         mock_class.return_value = mock_instance
@@ -257,7 +252,9 @@ def mock_terminal_session():
         async def send_message(self, message_type: str, data: Dict[str, Any]):
             pass
 
-        async def send_error(self, error_type: str, message: str, details: Optional[Dict] = None):
+        async def send_error(
+            self, error_type: str, message: str, details: Optional[Dict] = None
+        ):
             pass
 
         def update_activity(self):
@@ -315,7 +312,7 @@ def terminal_test_data():
             "medium": 50,
             "large": 100,
             "stress": 500,
-        }
+        },
     }
 
 
@@ -350,21 +347,27 @@ def performance_monitor():
                 "execution_time": end_time - self.start_time,
                 "memory_used": end_memory - self.start_memory,
                 "final_memory_mb": end_memory / (1024 * 1024),
-                "cpu_percent": self.process.cpu_percent()
+                "cpu_percent": self.process.cpu_percent(),
             }
 
-        def assert_performance(self, max_time: float = None, max_memory_mb: float = None):
+        def assert_performance(
+            self, max_time: float = None, max_memory_mb: float = None
+        ):
             """Assert performance metrics are within bounds."""
             metrics = self.stop()
             if not metrics:
                 return
 
             if max_time and metrics["execution_time"] > max_time:
-                pytest.fail(f"Test too slow: {metrics['execution_time']:.3f}s > {max_time}s")
+                pytest.fail(
+                    f"Test too slow: {metrics['execution_time']:.3f}s > {max_time}s"
+                )
 
             if max_memory_mb and metrics["memory_used"] / (1024 * 1024) > max_memory_mb:
                 memory_mb = metrics["memory_used"] / (1024 * 1024)
-                pytest.fail(f"Memory usage too high: {memory_mb:.1f}MB > {max_memory_mb}MB")
+                pytest.fail(
+                    f"Memory usage too high: {memory_mb:.1f}MB > {max_memory_mb}MB"
+                )
 
     return PerformanceMonitor()
 
@@ -374,10 +377,7 @@ def test_database():
     """Create a test database for integration tests."""
     # This would set up a test database if needed
     # For now, we'll just return a mock
-    return {
-        "url": "sqlite:///:memory:",
-        "tables_created": True
-    }
+    return {"url": "sqlite:///:memory:", "tables_created": True}
 
 
 @pytest.fixture(autouse=True)
@@ -460,7 +460,7 @@ async def mock_server():
 
         return ws
 
-    app.router.add_get('/ws/terminal', websocket_handler)
+    app.router.add_get("/ws/terminal", websocket_handler)
 
     # This would start a test server
     # For now, just return the app
@@ -492,19 +492,26 @@ def create_mock_audit_events(count: int = 10) -> List[Dict[str, Any]]:
 
     events = []
     risk_levels = ["low", "medium", "high", "critical"]
-    event_types = ["COMMAND_EXECUTED", "COMMAND_BLOCKED", "SESSION_CREATED", "SECURITY_VIOLATION"]
+    event_types = [
+        "COMMAND_EXECUTED",
+        "COMMAND_BLOCKED",
+        "SESSION_CREATED",
+        "SECURITY_VIOLATION",
+    ]
 
     for i in range(count):
-        events.append({
-            "event_type": random.choice(event_types),
-            "command": f"test command {i}",
-            "session_id": f"session-{i % 5}",
-            "user_id": f"user-{i % 3}",
-            "risk_level": random.choice(risk_levels),
-            "allowed": random.choice([True, False]),
-            "reason": f"Test reason {i}",
-            "timestamp": datetime.now().isoformat()
-        })
+        events.append(
+            {
+                "event_type": random.choice(event_types),
+                "command": f"test command {i}",
+                "session_id": f"session-{i % 5}",
+                "user_id": f"user-{i % 3}",
+                "risk_level": random.choice(risk_levels),
+                "allowed": random.choice([True, False]),
+                "reason": f"Test reason {i}",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
     return events
 
@@ -520,14 +527,20 @@ def pytest_runtest_setup(item):
 def pytest_addoption(parser):
     """Add custom command line options."""
     parser.addoption(
-        "--run-slow", action="store_true", default=False,
-        help="run slow tests including performance and E2E tests"
+        "--run-slow",
+        action="store_true",
+        default=False,
+        help="run slow tests including performance and E2E tests",
     )
     parser.addoption(
-        "--run-integration", action="store_true", default=False,
-        help="run integration tests"
+        "--run-integration",
+        action="store_true",
+        default=False,
+        help="run integration tests",
     )
     parser.addoption(
-        "--coverage-threshold", type=int, default=85,
-        help="minimum coverage percentage required"
+        "--coverage-threshold",
+        type=int,
+        default=85,
+        help="minimum coverage percentage required",
     )

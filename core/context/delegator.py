@@ -16,13 +16,15 @@ class ContextDelegator:
     """
 
     @classmethod
-    def prepare_handoff_bundle(cls,
-                               task: str,
-                               from_agent: str,
-                               to_agent: str,
-                               work_completed: Dict,
-                               next_steps: List[str],
-                               dependencies: List[str] = None) -> Dict:
+    def prepare_handoff_bundle(
+        cls,
+        task: str,
+        from_agent: str,
+        to_agent: str,
+        work_completed: Dict,
+        next_steps: List[str],
+        dependencies: List[str] = None,
+    ) -> Dict:
         """
         Prepare optimized context bundle for handoff.
         """
@@ -31,11 +33,11 @@ class ContextDelegator:
                 "from_agent": from_agent,
                 "to_agent": to_agent,
                 "timestamp": datetime.now().isoformat(),
-                "task": task[:200]  # Truncate long tasks
+                "task": task[:200],  # Truncate long tasks
             },
             "what_i_did": cls._summarize_work(work_completed),
             "what_you_need": cls._prepare_requirements(next_steps, dependencies),
-            "where_to_find_more": cls._create_reference_map(work_completed)
+            "where_to_find_more": cls._create_reference_map(work_completed),
         }
 
         return bundle
@@ -50,17 +52,17 @@ class ContextDelegator:
             "files_modified": [],
             "apis_created": [],
             "tests_written": [],
-            "decisions_made": []
+            "decisions_made": [],
         }
 
         # Extract key accomplishments by category
         if "artifacts_created" in work_completed:
             for artifact in work_completed["artifacts_created"]:
-                if any(ext in artifact for ext in ['.py', '.js', '.ts']):
+                if any(ext in artifact for ext in [".py", ".js", ".ts"]):
                     summary["files_modified"].append(artifact)
-                elif 'api' in artifact.lower() or 'endpoint' in artifact.lower():
+                elif "api" in artifact.lower() or "endpoint" in artifact.lower():
                     summary["apis_created"].append(artifact)
-                elif 'test' in artifact.lower():
+                elif "test" in artifact.lower():
                     summary["tests_written"].append(artifact)
 
         # Limit lists to most important items
@@ -71,15 +73,19 @@ class ContextDelegator:
         # Include key decisions
         if "decisions_made" in work_completed:
             for decision in work_completed["decisions_made"][-3:]:  # Last 3 decisions
-                summary["decisions_made"].append({
-                    "decision": decision.get("decision", "")[:100],
-                    "impact": decision.get("rationale", "")[:50]
-                })
+                summary["decisions_made"].append(
+                    {
+                        "decision": decision.get("decision", "")[:100],
+                        "impact": decision.get("rationale", "")[:50],
+                    }
+                )
 
         return summary
 
     @classmethod
-    def _prepare_requirements(cls, next_steps: List[str], dependencies: List[str] = None) -> Dict:
+    def _prepare_requirements(
+        cls, next_steps: List[str], dependencies: List[str] = None
+    ) -> Dict:
         """
         Prepare clear requirements for next agent.
         """
@@ -87,7 +93,7 @@ class ContextDelegator:
             "immediate_tasks": next_steps[:5],  # Top 5 priority tasks
             "dependencies": dependencies[:5] if dependencies else [],
             "prerequisites_met": [],
-            "blockers": []
+            "blockers": [],
         }
 
         # Analyze tasks for prerequisites
@@ -111,23 +117,25 @@ class ContextDelegator:
             "detailed_context": {},
             "code_locations": {},
             "documentation": {},
-            "external_resources": []
+            "external_resources": [],
         }
 
         # Map artifacts to categories
         if "artifacts_created" in work_completed:
             for artifact in work_completed["artifacts_created"]:
                 # Categorize by file type
-                if artifact.endswith('.md'):
+                if artifact.endswith(".md"):
                     reference_map["documentation"][artifact] = "Documentation"
-                elif any(artifact.endswith(ext) for ext in ['.py', '.js', '.ts']):
+                elif any(artifact.endswith(ext) for ext in [".py", ".js", ".ts"]):
                     # Extract module/component name
-                    name = artifact.split('/')[-1].split('.')[0]
+                    name = artifact.split("/")[-1].split(".")[0]
                     reference_map["code_locations"][name] = artifact
 
         # Add structural pointers if available
         if "structural_pointers" in work_completed:
-            for key, location in list(work_completed["structural_pointers"].items())[:5]:
+            for key, location in list(work_completed["structural_pointers"].items())[
+                :5
+            ]:
                 reference_map["detailed_context"][key] = location
 
         return reference_map
@@ -176,17 +184,20 @@ class ContextDelegator:
                 "task": task,
                 "depends_on": i if i > 0 else None,
                 "estimated_handoffs": 1,
-                "parallel_possible": False
+                "parallel_possible": False,
             }
 
             # Analyze for parallelization opportunities
             task_lower = task.lower()
             if i > 0:
-                prev_task_lower = tasks[i-1].lower()
+                prev_task_lower = tasks[i - 1].lower()
                 # Check if tasks can be parallelized
-                if not any(dep in task_lower for dep in ["then", "after", "using", "from"]):
-                    if ("frontend" in task_lower and "backend" in prev_task_lower) or \
-                       ("backend" in task_lower and "frontend" in prev_task_lower):
+                if not any(
+                    dep in task_lower for dep in ["then", "after", "using", "from"]
+                ):
+                    if ("frontend" in task_lower and "backend" in prev_task_lower) or (
+                        "backend" in task_lower and "frontend" in prev_task_lower
+                    ):
                         delegation["parallel_possible"] = True
 
             chain.append(delegation)
@@ -217,9 +228,9 @@ class ContextDelegator:
         return groups
 
     @classmethod
-    def create_integration_handoff(cls,
-                                   agent_results: List[Dict],
-                                   integration_agent: str) -> Dict:
+    def create_integration_handoff(
+        cls, agent_results: List[Dict], integration_agent: str
+    ) -> Dict:
         """
         Create special handoff for integration of multiple agent results.
         """
@@ -228,12 +239,12 @@ class ContextDelegator:
                 "from_agents": [r.get("agent_id", "") for r in agent_results],
                 "to_agent": integration_agent,
                 "timestamp": datetime.now().isoformat(),
-                "task": "Integrate results from multiple agents"
+                "task": "Integrate results from multiple agents",
             },
             "components_to_integrate": [],
             "integration_points": [],
             "potential_conflicts": [],
-            "suggested_approach": ""
+            "suggested_approach": "",
         }
 
         # Analyze results for integration needs
@@ -241,7 +252,7 @@ class ContextDelegator:
             component = {
                 "agent": result.get("agent_role", ""),
                 "artifacts": result.get("artifacts_created", [])[:3],
-                "status": result.get("status", "")
+                "status": result.get("status", ""),
             }
             integration_bundle["components_to_integrate"].append(component)
 
@@ -254,13 +265,19 @@ class ContextDelegator:
                 integration_bundle["integration_points"].append("UI components")
 
         # Remove duplicates
-        integration_bundle["integration_points"] = list(set(integration_bundle["integration_points"]))
+        integration_bundle["integration_points"] = list(
+            set(integration_bundle["integration_points"])
+        )
 
         # Suggest integration approach
         if len(agent_results) > 2:
-            integration_bundle["suggested_approach"] = "Incremental integration with testing at each step"
+            integration_bundle["suggested_approach"] = (
+                "Incremental integration with testing at each step"
+            )
         else:
-            integration_bundle["suggested_approach"] = "Direct integration with comprehensive testing"
+            integration_bundle["suggested_approach"] = (
+                "Direct integration with comprehensive testing"
+            )
 
         return integration_bundle
 
@@ -280,9 +297,11 @@ class ContextDelegator:
 
         if "what_i_did" in bundle:
             work = bundle["what_i_did"]
-            accomplishments = (len(work.get("files_modified", [])) +
-                             len(work.get("apis_created", [])) +
-                             len(work.get("tests_written", [])))
+            accomplishments = (
+                len(work.get("files_modified", []))
+                + len(work.get("apis_created", []))
+                + len(work.get("tests_written", []))
+            )
 
         if "what_you_need" in bundle:
             needs = bundle["what_you_need"]
@@ -290,15 +309,18 @@ class ContextDelegator:
 
         if "where_to_find_more" in bundle:
             refs = bundle["where_to_find_more"]
-            references = (len(refs.get("code_locations", {})) +
-                         len(refs.get("documentation", {})))
+            references = len(refs.get("code_locations", {})) + len(
+                refs.get("documentation", {})
+            )
 
         # Calculate efficiency scores
-        information_density = (accomplishments + next_tasks + references) / max(estimated_tokens / 100, 1)
+        information_density = (accomplishments + next_tasks + references) / max(
+            estimated_tokens / 100, 1
+        )
 
         return {
             "estimated_tokens": estimated_tokens,
             "information_items": accomplishments + next_tasks + references,
             "information_density": information_density,
-            "efficiency_score": min(information_density * 10, 100)  # Scale to 0-100
+            "efficiency_score": min(information_density * 10, 100),  # Scale to 0-100
         }

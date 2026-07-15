@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ReActStep:
     """Single step in ReAct reasoning chain"""
+
     thought: str
     action: str
     action_input: str
@@ -58,30 +59,38 @@ class ReActStreamingCallback(AsyncCallbackHandler):
     async def on_agent_action(self, action: AgentAction, **kwargs) -> None:
         """Called when agent takes an action"""
         step = ReActStep(
-            thought=action.log.split('Action:')[0].strip() if 'Action:' in action.log else action.log,
+            thought=(
+                action.log.split("Action:")[0].strip()
+                if "Action:" in action.log
+                else action.log
+            ),
             action=action.tool,
             action_input=str(action.tool_input),
             observation="",  # Will be filled after tool execution
             timestamp=datetime.utcnow(),
-            step_number=self.current_step
+            step_number=self.current_step,
         )
 
         self.reasoning_log.append(step)
 
         if self.step_callback:
-            await self.step_callback({
-                "type": "thought",
-                "step": self.current_step,
-                "content": step.thought,
-                "timestamp": step.timestamp.isoformat()
-            })
-            await self.step_callback({
-                "type": "action",
-                "step": self.current_step,
-                "action": step.action,
-                "input": step.action_input,
-                "timestamp": step.timestamp.isoformat()
-            })
+            await self.step_callback(
+                {
+                    "type": "thought",
+                    "step": self.current_step,
+                    "content": step.thought,
+                    "timestamp": step.timestamp.isoformat(),
+                }
+            )
+            await self.step_callback(
+                {
+                    "type": "action",
+                    "step": self.current_step,
+                    "action": step.action,
+                    "input": step.action_input,
+                    "timestamp": step.timestamp.isoformat(),
+                }
+            )
 
     async def on_tool_end(self, output: str, **kwargs) -> None:
         """Called when tool execution completes"""
@@ -89,23 +98,27 @@ class ReActStreamingCallback(AsyncCallbackHandler):
             self.reasoning_log[-1].observation = output
 
             if self.step_callback:
-                await self.step_callback({
-                    "type": "observation",
-                    "step": self.current_step,
-                    "content": output,
-                    "timestamp": datetime.utcnow().isoformat()
-                })
+                await self.step_callback(
+                    {
+                        "type": "observation",
+                        "step": self.current_step,
+                        "content": output,
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                )
 
             self.current_step += 1
 
     async def on_agent_finish(self, finish: AgentFinish, **kwargs) -> None:
         """Called when agent finishes"""
         if self.step_callback:
-            await self.step_callback({
-                "type": "final_answer",
-                "content": finish.return_values.get("output", ""),
-                "timestamp": datetime.utcnow().isoformat()
-            })
+            await self.step_callback(
+                {
+                    "type": "final_answer",
+                    "content": finish.return_values.get("output", ""),
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+            )
 
 
 class ProductionReActEngine:
@@ -137,26 +150,36 @@ class ProductionReActEngine:
         cleaned = response.strip()
 
         # Extract Thought
-        thought_match = re.search(r'Thought:\s*(.*?)(?=Action:|Final Answer:|$)', cleaned, re.DOTALL | re.IGNORECASE)
+        thought_match = re.search(
+            r"Thought:\s*(.*?)(?=Action:|Final Answer:|$)",
+            cleaned,
+            re.DOTALL | re.IGNORECASE,
+        )
         thought = thought_match.group(1).strip() if thought_match else ""
 
         # Extract Action
-        action_match = re.search(r'Action:\s*(\w+)', cleaned, re.IGNORECASE)
+        action_match = re.search(r"Action:\s*(\w+)", cleaned, re.IGNORECASE)
         action = action_match.group(1).strip() if action_match else ""
 
         # Extract Action Input
-        input_match = re.search(r'Action Input:\s*(.*?)(?=Observation:|Thought:|Final Answer:|$)', cleaned, re.DOTALL | re.IGNORECASE)
+        input_match = re.search(
+            r"Action Input:\s*(.*?)(?=Observation:|Thought:|Final Answer:|$)",
+            cleaned,
+            re.DOTALL | re.IGNORECASE,
+        )
         action_input = input_match.group(1).strip() if input_match else ""
 
         # Extract Final Answer
-        final_match = re.search(r'Final Answer:\s*(.*)', cleaned, re.DOTALL | re.IGNORECASE)
+        final_match = re.search(
+            r"Final Answer:\s*(.*)", cleaned, re.DOTALL | re.IGNORECASE
+        )
         final_answer = final_match.group(1).strip() if final_match else ""
 
         return {
-            'thought': thought,
-            'action': action,
-            'action_input': action_input,
-            'final_answer': final_answer,
+            "thought": thought,
+            "action": action,
+            "action_input": action_input,
+            "final_answer": final_answer,
         }
 
     def _call_tool(self, tool_name: str, tool_input: str) -> str:
@@ -171,7 +194,9 @@ class ProductionReActEngine:
             if tool_name in ["execute_code", "write_file", "search_code"]:
                 # Parse arguments from tool_input
                 if "," in tool_input:
-                    args = [arg.strip().strip('"\'') for arg in tool_input.split(",", 1)]
+                    args = [
+                        arg.strip().strip("\"'") for arg in tool_input.split(",", 1)
+                    ]
                     if len(args) >= 2:
                         return tool_func(args[0], args[1])
                 return tool_func(tool_input)
@@ -186,7 +211,9 @@ class ProductionReActEngine:
         try:
             if language.lower() == "python":
                 # Create temporary file
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".py", delete=False
+                ) as f:
                     f.write(code)
                     temp_file = f.name
 
@@ -197,7 +224,7 @@ class ProductionReActEngine:
                         capture_output=True,
                         text=True,
                         timeout=30,
-                        cwd=str(self.project_root)
+                        cwd=str(self.project_root),
                     )
 
                     if result.returncode == 0:
@@ -211,12 +238,11 @@ class ProductionReActEngine:
             elif language.lower() == "bash":
                 # Execute bash commands safely
                 result = subprocess.run(
-                    code,
-                    shell=True,
+                    ["/bin/bash", "-c", code],
                     capture_output=True,
                     text=True,
                     timeout=30,
-                    cwd=str(self.project_root)
+                    cwd=str(self.project_root),
                 )
 
                 if result.returncode == 0:
@@ -248,11 +274,15 @@ class ProductionReActEngine:
             if full_path.is_dir():
                 # List directory contents
                 contents = list(full_path.iterdir())
-                return f"✓ Directory contents ({len(contents)} items):\n" + \
-                       "\n".join([f"  {item.name}{'/' if item.is_dir() else ''}" for item in contents[:20]])
+                return f"✓ Directory contents ({len(contents)} items):\n" + "\n".join(
+                    [
+                        f"  {item.name}{'/' if item.is_dir() else ''}"
+                        for item in contents[:20]
+                    ]
+                )
 
             # Read file
-            with open(full_path, 'r', encoding='utf-8') as f:
+            with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             if len(content) > 5000:
@@ -280,10 +310,12 @@ class ProductionReActEngine:
             full_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Write file
-            with open(full_path, 'w', encoding='utf-8') as f:
+            with open(full_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            return f"✓ File written successfully: {file_path} ({len(content)} characters)"
+            return (
+                f"✓ File written successfully: {file_path} ({len(content)} characters)"
+            )
 
         except Exception as e:
             return f"✗ Error writing {file_path}: {e}"
@@ -307,7 +339,7 @@ class ProductionReActEngine:
                 capture_output=True,
                 text=True,
                 timeout=120,  # 2 minutes for tests
-                cwd=str(self.project_root)
+                cwd=str(self.project_root),
             )
 
             output = result.stdout + result.stderr
@@ -325,17 +357,19 @@ class ProductionReActEngine:
     def _search_codebase(self, pattern: str, file_type: str = "py") -> str:
         """Search for patterns in codebase"""
         try:
-            cmd = ["grep", "-r", "--include", f"*.{file_type}", pattern, str(self.project_root)]
+            cmd = [
+                "grep",
+                "-r",
+                "--include",
+                f"*.{file_type}",
+                pattern,
+                str(self.project_root),
+            ]
 
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
-                lines = result.stdout.strip().split('\n')[:10]  # Limit to 10 results
+                lines = result.stdout.strip().split("\n")[:10]  # Limit to 10 results
                 return f"✓ Found {len(lines)} matches:\n" + "\n".join(lines)
             else:
                 return f"✗ No matches found for '{pattern}'"
@@ -350,7 +384,7 @@ class ProductionReActEngine:
             "read_file": self._read_file_safely,
             "write_file": self._write_file_safely,
             "run_tests": self._run_tests_safely,
-            "search_code": self._search_codebase
+            "search_code": self._search_codebase,
         }
 
         # Tool descriptions for the LLM
@@ -359,17 +393,18 @@ class ProductionReActEngine:
             "read_file": "Read file or list directory contents. Usage: read_file('path/to/file.py')",
             "write_file": "Write content to file. Usage: write_file('path/file.py', 'content')",
             "run_tests": "Run pytest tests. Usage: run_tests() or run_tests('specific_test.py')",
-            "search_code": "Search for patterns in code. Usage: search_code('function_name', 'py')"
+            "search_code": "Search for patterns in code. Usage: search_code('function_name', 'py')",
         }
 
-    async def _run_react_loop(self, task: str, callback: Optional[callable] = None) -> Dict[str, Any]:
+    async def _run_react_loop(
+        self, task: str, callback: Optional[callable] = None
+    ) -> Dict[str, Any]:
         """Run the ReAct reasoning loop using CASPER's LLM service"""
 
         # Build tool descriptions for the prompt
-        tools_text = "\n".join([
-            f"- {name}: {desc}"
-            for name, desc in self.tool_descriptions.items()
-        ])
+        tools_text = "\n".join(
+            [f"- {name}: {desc}" for name, desc in self.tool_descriptions.items()]
+        )
 
         # Initial prompt with ReAct format
         system_prompt = f"""You are CASPER Prime, an autonomous AI development assistant using ReAct reasoning.
@@ -403,42 +438,38 @@ Be methodical and thorough. Always observe tool results before proceeding."""
             try:
                 # Get LLM response
                 response = await llm_service.complete(
-                    prompt=conversation,
-                    system=system_prompt,
-                    max_tokens=1000
+                    prompt=conversation, system=system_prompt, max_tokens=1000
                 )
 
                 if not response:
                     return {
                         "success": False,
                         "error": "LLM service returned empty response",
-                        "steps": steps
+                        "steps": steps,
                     }
 
                 # Enforce ReAct format parsing (deterministic)
                 parsed = self._enforce_react_format(response)
 
                 # Check for final answer first
-                if parsed['final_answer']:
-                    final_answer = parsed['final_answer']
+                if parsed["final_answer"]:
+                    final_answer = parsed["final_answer"]
 
                     if callback:
-                        await callback({
-                            "type": "final_answer",
-                            "content": final_answer,
-                            "timestamp": datetime.utcnow().isoformat()
-                        })
+                        await callback(
+                            {
+                                "type": "final_answer",
+                                "content": final_answer,
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
 
-                    return {
-                        "success": True,
-                        "output": final_answer,
-                        "steps": steps
-                    }
+                    return {"success": True, "output": final_answer, "steps": steps}
 
                 # Extract using enforced format
-                thought = parsed['thought']
-                action = parsed['action']
-                action_input = parsed['action_input']
+                thought = parsed["thought"]
+                action = parsed["action"]
+                action_input = parsed["action_input"]
 
                 # Only proceed if we have a valid action
                 if action and action_input:
@@ -453,72 +484,76 @@ Be methodical and thorough. Always observe tool results before proceeding."""
                         action_input=action_input,
                         observation=observation,
                         timestamp=datetime.utcnow(),
-                        step_number=step_num
+                        step_number=step_num,
                     )
                     steps.append(step)
 
                     # Send callbacks
                     if callback:
-                        await callback({
-                            "type": "thought",
-                            "step": step_num,
-                            "content": thought,
-                            "timestamp": step.timestamp.isoformat()
-                        })
-                        await callback({
-                            "type": "action",
-                            "step": step_num,
-                            "action": action,
-                            "input": action_input,
-                            "timestamp": step.timestamp.isoformat()
-                        })
-                        await callback({
-                            "type": "observation",
-                            "step": step_num,
-                            "content": observation,
-                            "timestamp": step.timestamp.isoformat()
-                        })
+                        await callback(
+                            {
+                                "type": "thought",
+                                "step": step_num,
+                                "content": thought,
+                                "timestamp": step.timestamp.isoformat(),
+                            }
+                        )
+                        await callback(
+                            {
+                                "type": "action",
+                                "step": step_num,
+                                "action": action,
+                                "input": action_input,
+                                "timestamp": step.timestamp.isoformat(),
+                            }
+                        )
+                        await callback(
+                            {
+                                "type": "observation",
+                                "step": step_num,
+                                "content": observation,
+                                "timestamp": step.timestamp.isoformat(),
+                            }
+                        )
 
                     # Update conversation
                     conversation += f"\n\nThought: {thought}\nAction: {action}\nAction Input: {action_input}\nObservation: {observation}\n\n"
                 else:
                     # No action found, treat as final answer
                     if callback:
-                        await callback({
-                            "type": "final_answer",
-                            "content": response,
-                            "timestamp": datetime.utcnow().isoformat()
-                        })
+                        await callback(
+                            {
+                                "type": "final_answer",
+                                "content": response,
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
 
-                    return {
-                        "success": True,
-                        "output": response,
-                        "steps": steps
-                    }
+                    return {"success": True, "output": response, "steps": steps}
 
             except Exception as e:
                 logger.error(f"ReAct loop error on step {step_num}: {e}")
                 return {
                     "success": False,
                     "error": f"Error on step {step_num}: {str(e)}",
-                    "steps": steps
+                    "steps": steps,
                 }
 
         return {
             "success": False,
             "error": "Maximum iterations (15) reached without final answer",
-            "steps": steps
+            "steps": steps,
         }
 
     async def execute_task_with_reasoning(
-        self,
-        task: str,
-        step_callback: Optional[callable] = None
+        self, task: str, step_callback: Optional[callable] = None
     ) -> Dict[str, Any]:
         """Execute task with full ReAct reasoning chain"""
 
         # Log reasoning chain to file
-        reasoning_log_path = Path(f"/Volumes/Storage/Development/CASPER DEV/.casper/transformation/react_implementations/reasoning_{uuid.uuid4().hex[:8]}.log")
+        reasoning_log_path = Path(
+            f"/Volumes/Storage/Development/CASPER DEV/.casper/transformation/react_implementations/reasoning_{uuid.uuid4().hex[:8]}.log"
+        )
         reasoning_log_path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -526,13 +561,15 @@ Be methodical and thorough. Always observe tool results before proceeding."""
             result = await self._run_react_loop(task, step_callback)
 
             # Save reasoning chain
-            with open(reasoning_log_path, 'w') as f:
+            with open(reasoning_log_path, "w") as f:
                 f.write(f"Task: {task}\n")
                 f.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
                 f.write("=== REASONING CHAIN ===\n\n")
 
                 for step in result.get("steps", []):
-                    f.write(f"Step {step.step_number} ({step.timestamp.isoformat()}Z)\n")
+                    f.write(
+                        f"Step {step.step_number} ({step.timestamp.isoformat()}Z)\n"
+                    )
                     f.write(f"Thought: {step.thought}\n")
                     f.write(f"Action: {step.action}\n")
                     f.write(f"Action Input: {step.action_input}\n")
@@ -551,7 +588,7 @@ Be methodical and thorough. Always observe tool results before proceeding."""
             logger.error(f"ReAct execution failed: {e}")
 
             # Still save what we have
-            with open(reasoning_log_path, 'w') as f:
+            with open(reasoning_log_path, "w") as f:
                 f.write(f"Task: {task}\n")
                 f.write(f"Error: {str(e)}\n")
                 f.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
@@ -561,7 +598,7 @@ Be methodical and thorough. Always observe tool results before proceeding."""
                 "error": str(e),
                 "reasoning_steps": 0,
                 "reasoning_log_path": str(reasoning_log_path),
-                "steps": []
+                "steps": [],
             }
 
     async def stream_reasoning(self, task: str) -> AsyncGenerator[Dict[str, Any], None]:
@@ -594,7 +631,7 @@ Be methodical and thorough. Always observe tool results before proceeding."""
                     yield {
                         "type": "completion",
                         "result": result,
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.utcnow().isoformat(),
                     }
                     break
 
@@ -609,7 +646,7 @@ Be methodical and thorough. Always observe tool results before proceeding."""
             yield {
                 "type": "error",
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
     def get_capabilities(self) -> Dict[str, Any]:
@@ -622,12 +659,13 @@ Be methodical and thorough. Always observe tool results before proceeding."""
             "max_iterations": 15,
             "streaming": True,
             "memory": True,
-            "project_root": str(self.project_root)
+            "project_root": str(self.project_root),
         }
 
 
 # Singleton instance for CASPER integration
 _engine_instance = None
+
 
 def get_react_engine(project_root: Optional[str] = None) -> ProductionReActEngine:
     """Get or create ReAct engine instance"""
@@ -639,7 +677,9 @@ def get_react_engine(project_root: Optional[str] = None) -> ProductionReActEngin
     return _engine_instance
 
 
-async def execute_react_task(task: str, project_root: Optional[str] = None) -> Dict[str, Any]:
+async def execute_react_task(
+    task: str, project_root: Optional[str] = None
+) -> Dict[str, Any]:
     """Convenient function to execute ReAct task"""
     engine = get_react_engine(project_root)
     return await engine.execute_task_with_reasoning(task)
@@ -650,5 +690,5 @@ __all__ = [
     "ProductionReActEngine",
     "ReActStep",
     "get_react_engine",
-    "execute_react_task"
+    "execute_react_task",
 ]

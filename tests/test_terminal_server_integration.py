@@ -25,7 +25,7 @@ class TestTerminalServerIntegration:
     @pytest.fixture
     async def mock_terminal_handler(self):
         """Mock terminal handler for testing."""
-        with patch('core.server.terminal_handler') as mock_handler:
+        with patch("core.server.terminal_handler") as mock_handler:
             mock_handler.start = AsyncMock()
             mock_handler.stop = AsyncMock()
             mock_handler.handle_connection = AsyncMock()
@@ -33,7 +33,7 @@ class TestTerminalServerIntegration:
                 "active_connections": 0,
                 "active_sessions": 0,
                 "connections": [],
-                "sessions": []
+                "sessions": [],
             }
             yield mock_handler
 
@@ -47,10 +47,12 @@ class TestTerminalServerIntegration:
     @pytest.mark.asyncio
     async def test_startup_event_initializes_terminal_handler(self):
         """Test that startup event properly initializes terminal handler."""
-        with patch('core.server.TerminalWebSocketHandler') as mock_handler_class, \
-             patch('core.server.AgentCoordinator') as mock_coordinator_class, \
-             patch('core.server.ContextManager') as mock_context_class, \
-             patch('core.server.TaskAnalyzer') as mock_analyzer_class:
+        with (
+            patch("core.server.TerminalWebSocketHandler") as mock_handler_class,
+            patch("core.server.AgentCoordinator") as mock_coordinator_class,
+            patch("core.server.ContextManager") as mock_context_class,
+            patch("core.server.TaskAnalyzer") as mock_analyzer_class,
+        ):
 
             # Set up mocks
             mock_handler = AsyncMock()
@@ -67,6 +69,7 @@ class TestTerminalServerIntegration:
 
             # Import and call startup event
             from core.server import startup_event
+
             await startup_event()
 
             # Verify terminal handler was created and started
@@ -79,14 +82,16 @@ class TestTerminalServerIntegration:
         # This would be tested with a real WebSocket client in integration tests
         # For now, we verify the handler would be called
 
-        with patch('core.server.terminal_handler', mock_terminal_handler):
+        with patch("core.server.terminal_handler", mock_terminal_handler):
             # Simulate WebSocket connection
             mock_websocket = AsyncMock()
 
             # The actual WebSocket endpoint would call terminal_handler.handle_connection
             await mock_terminal_handler.handle_connection(mock_websocket)
 
-            mock_terminal_handler.handle_connection.assert_called_once_with(mock_websocket)
+            mock_terminal_handler.handle_connection.assert_called_once_with(
+                mock_websocket
+            )
 
     def test_cors_configuration(self, client):
         """Test CORS configuration allows terminal connections."""
@@ -95,8 +100,8 @@ class TestTerminalServerIntegration:
             "/api/health",
             headers={
                 "Origin": "http://localhost:5173",
-                "Access-Control-Request-Method": "GET"
-            }
+                "Access-Control-Request-Method": "GET",
+            },
         )
 
         # Should allow the origin
@@ -109,12 +114,13 @@ class TestTerminalWebSocketEndpoint:
     @pytest.fixture
     async def app_with_mock_handler(self):
         """Create app with mocked terminal handler."""
-        with patch('core.server.TerminalWebSocketHandler') as mock_handler_class:
+        with patch("core.server.TerminalWebSocketHandler") as mock_handler_class:
             mock_handler = AsyncMock()
             mock_handler_class.return_value = mock_handler
 
             # Initialize the app
             from core.server import startup_event
+
             await startup_event()
 
             yield app, mock_handler
@@ -127,8 +133,9 @@ class TestTerminalWebSocketEndpoint:
 
         # Check if the endpoint is registered
         websocket_routes = [
-            route for route in app.routes
-            if hasattr(route, 'path') and route.path == "/ws/terminal"
+            route
+            for route in app.routes
+            if hasattr(route, "path") and route.path == "/ws/terminal"
         ]
 
         # Note: The actual endpoint registration might happen during AGENT-01's work
@@ -147,12 +154,12 @@ class TestTerminalAPIEndpoints:
     @pytest.fixture
     async def setup_mock_handler(self):
         """Set up mock terminal handler."""
-        with patch('core.server.terminal_handler') as mock_handler:
+        with patch("core.server.terminal_handler") as mock_handler:
             mock_handler.get_connection_stats.return_value = {
                 "active_connections": 2,
                 "active_sessions": 1,
                 "connections": ["conn1", "conn2"],
-                "sessions": ["session1"]
+                "sessions": ["session1"],
             }
 
             mock_handler.pty_manager.list_sessions.return_value = [
@@ -160,7 +167,7 @@ class TestTerminalAPIEndpoints:
                     "session_id": "session1",
                     "is_active": True,
                     "last_activity": 1234567890.0,
-                    "process_pid": 12345
+                    "process_pid": 12345,
                 }
             ]
 
@@ -223,10 +230,12 @@ class TestTerminalFullIntegration:
         """Test complete terminal workflow from server startup to session management."""
 
         # Mock all dependencies
-        with patch('core.server.TerminalWebSocketHandler') as mock_handler_class, \
-             patch('core.server.AgentCoordinator') as mock_coordinator_class, \
-             patch('core.server.ContextManager') as mock_context_class, \
-             patch('core.server.TaskAnalyzer') as mock_analyzer_class:
+        with (
+            patch("core.server.TerminalWebSocketHandler") as mock_handler_class,
+            patch("core.server.AgentCoordinator") as mock_coordinator_class,
+            patch("core.server.ContextManager") as mock_context_class,
+            patch("core.server.TaskAnalyzer") as mock_analyzer_class,
+        ):
 
             # Set up terminal handler mock
             mock_handler = AsyncMock()
@@ -244,6 +253,7 @@ class TestTerminalFullIntegration:
 
             # Test server startup
             from core.server import startup_event
+
             await startup_event()
 
             # Verify terminal handler initialization
@@ -259,6 +269,7 @@ class TestTerminalFullIntegration:
 
             # Test shutdown
             from core.server import shutdown_event
+
             await shutdown_event()
 
     @pytest.mark.asyncio
@@ -268,11 +279,12 @@ class TestTerminalFullIntegration:
         # This would test multiple concurrent connections
         # and high message throughput
 
-        with patch('core.server.TerminalWebSocketHandler') as mock_handler_class:
+        with patch("core.server.TerminalWebSocketHandler") as mock_handler_class:
             mock_handler = AsyncMock()
             mock_handler_class.return_value = mock_handler
 
             from core.server import startup_event
+
             await startup_event()
 
             # Simulate multiple connections
@@ -308,7 +320,7 @@ class TestTerminalFullIntegration:
 
         # Test error conditions and recovery
 
-        with patch('core.server.TerminalWebSocketHandler') as mock_handler_class:
+        with patch("core.server.TerminalWebSocketHandler") as mock_handler_class:
             # Simulate handler initialization failure
             mock_handler_class.side_effect = Exception("Handler init failed")
 
@@ -327,8 +339,10 @@ class TestTerminalFullIntegration:
     async def test_terminal_cleanup_on_shutdown(self):
         """Test proper cleanup of terminal resources on shutdown."""
 
-        with patch('core.server.TerminalWebSocketHandler') as mock_handler_class, \
-             patch('core.server.AgentCoordinator') as mock_coordinator_class:
+        with (
+            patch("core.server.TerminalWebSocketHandler") as mock_handler_class,
+            patch("core.server.AgentCoordinator") as mock_coordinator_class,
+        ):
 
             mock_handler = AsyncMock()
             mock_handler_class.return_value = mock_handler
@@ -338,6 +352,7 @@ class TestTerminalFullIntegration:
 
             # Initialize
             from core.server import startup_event, shutdown_event
+
             await startup_event()
 
             # Shutdown
@@ -363,20 +378,11 @@ class TestTerminalWebSocketProtocol:
             "create_session": {
                 "type": "create_session",
                 "working_dir": "/optional/path",
-                "env": {}
+                "env": {},
             },
-            "input": {
-                "type": "input",
-                "data": "command text"
-            },
-            "resize": {
-                "type": "resize",
-                "rows": 24,
-                "cols": 80
-            },
-            "close_session": {
-                "type": "close_session"
-            }
+            "input": {"type": "input", "data": "command text"},
+            "resize": {"type": "resize", "rows": 24, "cols": 80},
+            "close_session": {"type": "close_session"},
         }
 
         # Verify message format validation
@@ -395,25 +401,21 @@ class TestTerminalWebSocketProtocol:
                 "type": "connection_established",
                 "connection_id": "string",
                 "message": "string",
-                "timestamp": "ISO string"
+                "timestamp": "ISO string",
             },
             "session_created": {
                 "type": "session_created",
                 "session_id": "string",
                 "working_dir": "string",
-                "timestamp": "ISO string"
+                "timestamp": "ISO string",
             },
             "output": {
                 "type": "output",
                 "session_id": "string",
                 "data": "string",
-                "timestamp": "ISO string"
+                "timestamp": "ISO string",
             },
-            "error": {
-                "type": "error",
-                "message": "string",
-                "timestamp": "ISO string"
-            }
+            "error": {"type": "error", "message": "string", "timestamp": "ISO string"},
         }
 
         # Verify response format structure

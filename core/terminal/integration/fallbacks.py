@@ -13,9 +13,17 @@ from pathlib import Path
 from uuid import uuid4
 
 from ..interfaces import (
-    ISession, IStreaming, IParser, ITerminalUI,
-    SessionState, CodingIntent, CodingAction, StreamChunk,
-    SessionError, StreamingError, ParsingError
+    ISession,
+    IStreaming,
+    IParser,
+    ITerminalUI,
+    SessionState,
+    CodingIntent,
+    CodingAction,
+    StreamChunk,
+    SessionError,
+    StreamingError,
+    ParsingError,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,7 +51,7 @@ class FallbackSessionManager(ISession):
             files_modified=[],
             conversation_history=[],
             knowledge_base_id=f"fallback_{session_id}",
-            active=True
+            active=True,
         )
 
         self.current_session = session_state
@@ -60,7 +68,7 @@ class FallbackSessionManager(ISession):
             "timestamp": datetime.now().isoformat(),
             "user_input": user_input,
             "response": response,
-            "tokens_used": len(user_input + response) // 4  # Rough estimate
+            "tokens_used": len(user_input + response) // 4,  # Rough estimate
         }
 
         self.current_session.conversation_history.append(interaction)
@@ -78,13 +86,15 @@ class FallbackSessionManager(ISession):
             "last_activity": self.current_session.last_activity.isoformat(),
             "context_tokens": self.current_session.context_tokens,
             "interaction_count": len(self.current_session.conversation_history),
-            "fallback": True
+            "fallback": True,
         }
 
     async def persist(self) -> None:
         """Basic persistence - just logs."""
         if self.current_session:
-            logger.debug(f"Persisting fallback session {self.current_session.session_id}")
+            logger.debug(
+                f"Persisting fallback session {self.current_session.session_id}"
+            )
 
     async def recover(self, session_id: str) -> SessionState:
         """Recover session from cache or create new."""
@@ -123,9 +133,7 @@ class FallbackStreamingProcessor(IStreaming):
         self.stream_counter = 0
 
     async def stream_response(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any]
+        self, intent: CodingIntent, session_context: Dict[str, Any]
     ) -> AsyncIterator[StreamChunk]:
         """Stream basic response for intent."""
         stream_id = str(uuid4())
@@ -135,7 +143,7 @@ class FallbackStreamingProcessor(IStreaming):
             self.active_streams[stream_id] = {
                 "intent": intent,
                 "start_time": datetime.now(),
-                "chunks_sent": 0
+                "chunks_sent": 0,
             }
 
             # Thought chunk
@@ -145,7 +153,7 @@ class FallbackStreamingProcessor(IStreaming):
                 content=f"Processing {intent.action.value} request for {', '.join(intent.targets)}",
                 metadata={"intent": intent.action.value, "fallback": True},
                 timestamp=datetime.now(),
-                sequence_number=sequence_number
+                sequence_number=sequence_number,
             )
             await asyncio.sleep(0.1)
 
@@ -156,7 +164,7 @@ class FallbackStreamingProcessor(IStreaming):
                 content=f"Analyzing {intent.scope} scope for {intent.action.value} operation",
                 metadata={"scope": intent.scope, "fallback": True},
                 timestamp=datetime.now(),
-                sequence_number=sequence_number
+                sequence_number=sequence_number,
             )
             await asyncio.sleep(0.2)
 
@@ -174,17 +182,19 @@ class FallbackStreamingProcessor(IStreaming):
                 metadata={
                     "action": intent.action.value,
                     "fallback": True,
-                    "confidence": intent.confidence
+                    "confidence": intent.confidence,
                 },
                 timestamp=datetime.now(),
-                sequence_number=sequence_number
+                sequence_number=sequence_number,
             )
 
         finally:
             if stream_id in self.active_streams:
                 del self.active_streams[stream_id]
 
-    async def _generate_action_response(self, intent: CodingIntent, start_sequence: int) -> AsyncIterator[StreamChunk]:
+    async def _generate_action_response(
+        self, intent: CodingIntent, start_sequence: int
+    ) -> AsyncIterator[StreamChunk]:
         """Generate action-specific response."""
         if intent.action == CodingAction.IMPLEMENT:
             yield StreamChunk(
@@ -199,7 +209,7 @@ def fallback_implementation():
     pass""",
                 metadata={"language": "python", "fallback": True},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
         elif intent.action == CodingAction.DEBUG:
@@ -208,7 +218,7 @@ def fallback_implementation():
                 content=f"Analyzing potential issues in {', '.join(intent.targets)}",
                 metadata={"phase": "analysis", "fallback": True},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
             yield StreamChunk(
@@ -216,7 +226,7 @@ def fallback_implementation():
                 content="Common debugging suggestions: Check variable types, verify function parameters, add logging statements",
                 metadata={"suggestions": True, "fallback": True},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
         elif intent.action == CodingAction.EXPLAIN:
@@ -225,7 +235,7 @@ def fallback_implementation():
                 content=f"Explaining {', '.join(intent.targets)} at {intent.scope} level",
                 metadata={"explanation": True, "fallback": True},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
         elif intent.action == CodingAction.TEST:
@@ -241,7 +251,7 @@ def test_{intent.targets[0].lower().replace(' ', '_') if intent.targets else 'fa
 """,
                 metadata={"test_framework": "pytest", "fallback": True},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
         else:
@@ -250,7 +260,7 @@ def test_{intent.targets[0].lower().replace(' ', '_') if intent.targets else 'fa
                 content=f"Processing {intent.action.value} using fallback implementation",
                 metadata={"action": intent.action.value, "fallback": True},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
         await asyncio.sleep(0.1)
@@ -272,7 +282,7 @@ def test_{intent.targets[0].lower().replace(' ', '_') if intent.targets else 'fa
         return {
             "active_streams": len(self.active_streams),
             "fallback": True,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -285,14 +295,28 @@ class FallbackNLParser(IParser):
     def __init__(self):
         """Initialize fallback NLP parser."""
         self.action_keywords = {
-            CodingAction.IMPLEMENT: ["implement", "create", "build", "make", "add", "new"],
+            CodingAction.IMPLEMENT: [
+                "implement",
+                "create",
+                "build",
+                "make",
+                "add",
+                "new",
+            ],
             CodingAction.MODIFY: ["modify", "change", "update", "edit", "fix", "alter"],
             CodingAction.DEBUG: ["debug", "fix", "solve", "find", "error", "bug"],
             CodingAction.TEST: ["test", "check", "verify", "validate"],
-            CodingAction.EXPLAIN: ["explain", "describe", "tell", "show", "what", "how"],
+            CodingAction.EXPLAIN: [
+                "explain",
+                "describe",
+                "tell",
+                "show",
+                "what",
+                "how",
+            ],
             CodingAction.REVIEW: ["review", "check", "examine", "analyze"],
             CodingAction.REFACTOR: ["refactor", "improve", "restructure", "clean"],
-            CodingAction.OPTIMIZE: ["optimize", "speed", "performance", "faster"]
+            CodingAction.OPTIMIZE: ["optimize", "speed", "performance", "faster"],
         }
 
     async def parse_input(self, user_input: str) -> CodingIntent:
@@ -331,7 +355,7 @@ class FallbackNLParser(IParser):
                 scope=scope,
                 original_request=user_input,
                 confidence=confidence,
-                context_required=["fallback"]
+                context_required=["fallback"],
             )
 
         except Exception as e:
@@ -344,7 +368,8 @@ class FallbackNLParser(IParser):
 
         # Look for file extensions
         import re
-        files = re.findall(r'\b\w+\.(?:py|js|ts|java|cpp|html|css)\b', text)
+
+        files = re.findall(r"\b\w+\.(?:py|js|ts|java|cpp|html|css)\b", text)
         targets.extend(files)
 
         # Look for quoted strings
@@ -352,7 +377,7 @@ class FallbackNLParser(IParser):
         targets.extend(quoted)
 
         # Look for function-like patterns
-        functions = re.findall(r'\b(\w+)\s*\(', text)
+        functions = re.findall(r"\b(\w+)\s*\(", text)
         targets.extend(functions)
 
         return targets[:5] if targets else ["general"]
@@ -363,16 +388,18 @@ class FallbackNLParser(IParser):
         import re
 
         # Files
-        files = re.findall(r'\b(\w+\.\w+)\b', text)
+        files = re.findall(r"\b(\w+\.\w+)\b", text)
         entities.extend([(f, "file") for f in files])
 
         # Functions
-        functions = re.findall(r'\b(\w+)\s*\(', text)
+        functions = re.findall(r"\b(\w+)\s*\(", text)
         entities.extend([(f, "function") for f in functions])
 
         return entities
 
-    async def suggest_completion(self, partial: str, context: Dict[str, Any]) -> List[str]:
+    async def suggest_completion(
+        self, partial: str, context: Dict[str, Any]
+    ) -> List[str]:
         """Provide basic completions."""
         completions = []
         partial_lower = partial.lower()
@@ -386,7 +413,7 @@ class FallbackNLParser(IParser):
             "explain how",
             "debug error",
             "modify file",
-            "review code"
+            "review code",
         ]
 
         for phrase in common_phrases:
@@ -419,8 +446,7 @@ class FallbackTerminalUI(ITerminalUI):
 
     async def start_ui(self) -> None:
         """Start basic terminal UI."""
-        import os
-        os.system('clear' if os.name == 'posix' else 'cls')
+        print("\033[2J\033[H", end="")
         print("=" * 60)
         print("CASPER Prime Terminal (Fallback Mode)")
         print("=" * 60)
@@ -444,7 +470,7 @@ class FallbackTerminalUI(ITerminalUI):
             "code": "💻 ",
             "test": "🧪 ",
             "result": "✅ ",
-            "error": "❌ "
+            "error": "❌ ",
         }
 
         prefix = type_prefixes.get(chunk.type, "")
@@ -467,7 +493,9 @@ class FallbackTerminalUI(ITerminalUI):
         except (EOFError, KeyboardInterrupt):
             return "exit"
 
-    async def show_progress(self, message: str, percentage: Optional[float] = None) -> None:
+    async def show_progress(
+        self, message: str, percentage: Optional[float] = None
+    ) -> None:
         """Show basic progress indicator."""
         if percentage is not None:
             bar_length = 20
@@ -479,8 +507,7 @@ class FallbackTerminalUI(ITerminalUI):
 
     async def clear_screen(self) -> None:
         """Clear terminal screen."""
-        import os
-        os.system('clear' if os.name == 'posix' else 'cls')
+        print("\033[2J\033[H", end="")
 
     async def show_error(self, error: str) -> None:
         """Show error message."""

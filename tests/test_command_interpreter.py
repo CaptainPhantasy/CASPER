@@ -11,6 +11,7 @@ from pathlib import Path
 
 # Add parent directory to path
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.ai.enhanced_command_interpreter import (
@@ -19,14 +20,14 @@ from core.ai.enhanced_command_interpreter import (
     ConfidenceLevel,
     Priority,
     InterpretedCommand,
-    ProjectContext
+    ProjectContext,
 )
 from core.ai.decision_orchestrator import (
     DecisionOrchestrator,
     ExecutionModel,
     AgentSpecialization,
     OrchestrationPlan,
-    QualityGate
+    QualityGate,
 )
 
 
@@ -45,12 +46,16 @@ class TestEnhancedCommandInterpreter:
         assert "init" in classification["keywords"]
 
         # Test creation commands
-        classification = self.interpreter._classify_input("create a new file called test.py")
+        classification = self.interpreter._classify_input(
+            "create a new file called test.py"
+        )
         assert classification["type"] == "creation"
         assert "create" in classification["keywords"]
 
         # Test debugging commands
-        classification = self.interpreter._classify_input("fix the bug in authentication")
+        classification = self.interpreter._classify_input(
+            "fix the bug in authentication"
+        )
         assert classification["type"] == "debugging"
         assert "fix" in classification["keywords"]
 
@@ -64,8 +69,7 @@ class TestEnhancedCommandInterpreter:
         # Direct command - 100% confidence
         classification = {"type": "creation", "keywords": ["create"]}
         confidence = self.interpreter._calculate_confidence(
-            "create file test.py",
-            classification
+            "create file test.py", classification
         )
         assert confidence["score"] == 100.0
         assert confidence["level"] == ConfidenceLevel.DIRECT_MATCH
@@ -73,8 +77,7 @@ class TestEnhancedCommandInterpreter:
         # High confidence - clear intent
         classification = {"type": "testing", "keywords": ["test"]}
         confidence = self.interpreter._calculate_confidence(
-            "run the tests",
-            classification
+            "run the tests", classification
         )
         assert confidence["score"] == 80.0
         assert confidence["level"] == ConfidenceLevel.HIGH
@@ -82,18 +85,14 @@ class TestEnhancedCommandInterpreter:
         # Medium confidence - natural language
         classification = {"type": "general", "keywords": ["something"]}
         confidence = self.interpreter._calculate_confidence(
-            "I need to do something with the database",
-            classification
+            "I need to do something with the database", classification
         )
         assert confidence["score"] == 60.0
         assert confidence["level"] == ConfidenceLevel.MEDIUM
 
         # Low confidence - ambiguous
         classification = {"type": "general", "keywords": []}
-        confidence = self.interpreter._calculate_confidence(
-            "fix it",
-            classification
-        )
+        confidence = self.interpreter._calculate_confidence("fix it", classification)
         assert confidence["score"] == 40.0
         assert confidence["level"] == ConfidenceLevel.LOW
 
@@ -102,26 +101,21 @@ class TestEnhancedCommandInterpreter:
         # High risk - deletion
         classification = {"type": "deletion", "keywords": ["delete"]}
         safety_checks = self.interpreter._assess_risks(
-            "delete the folder",
-            classification
+            "delete the folder", classification
         )
         assert "confirm_deletion" in safety_checks
         assert "check_git_tracked" in safety_checks
 
         # Critical risk - sudo commands
         classification = {"type": "general", "keywords": []}
-        safety_checks = self.interpreter._assess_risks(
-            "sudo rm -rf /",
-            classification
-        )
+        safety_checks = self.interpreter._assess_risks("sudo rm -rf /", classification)
         assert "CRITICAL_BLOCK" in safety_checks
         assert "require_explicit_confirmation" in safety_checks
 
         # Production environment
         classification = {"type": "general", "keywords": []}
         safety_checks = self.interpreter._assess_risks(
-            "deploy to production",
-            classification
+            "deploy to production", classification
         )
         assert "production_environment_warning" in safety_checks
 
@@ -131,8 +125,7 @@ class TestEnhancedCommandInterpreter:
 
         # File targets
         targets = self.interpreter._extract_targets(
-            "create file called test.py",
-            classification
+            "create file called test.py", classification
         )
         assert len(targets) == 1
         assert targets[0]["type"] == "file"
@@ -140,8 +133,7 @@ class TestEnhancedCommandInterpreter:
 
         # Folder targets
         targets = self.interpreter._extract_targets(
-            "create folder named src",
-            classification
+            "create folder named src", classification
         )
         assert len(targets) == 1
         assert targets[0]["type"] == "folder"
@@ -186,11 +178,15 @@ class TestEnhancedCommandInterpreter:
     def test_execution_time_estimation(self):
         """Test execution time estimation"""
         # File operation - fast
-        time_ms = self.interpreter._estimate_execution_time(CommandType.FILE_OPERATION, 1)
+        time_ms = self.interpreter._estimate_execution_time(
+            CommandType.FILE_OPERATION, 1
+        )
         assert time_ms == 100
 
         # Multiple files - scales with count
-        time_ms = self.interpreter._estimate_execution_time(CommandType.FILE_OPERATION, 5)
+        time_ms = self.interpreter._estimate_execution_time(
+            CommandType.FILE_OPERATION, 5
+        )
         assert time_ms == 500
 
         # Testing - slower
@@ -214,7 +210,9 @@ class TestEnhancedCommandInterpreter:
         assert len(result.targets) == 1
         assert result.suggested_agent == "worker"
 
-    @pytest.mark.skip(reason="Non-deterministic - depends on LLM availability and returns DEBUGGING or UNKNOWN")
+    @pytest.mark.skip(
+        reason="Non-deterministic - depends on LLM availability and returns DEBUGGING or UNKNOWN"
+    )
     @pytest.mark.asyncio
     async def test_clarification_request(self):
         """Test clarification request - depends on LLM availability"""
@@ -239,11 +237,13 @@ class TestEnhancedCommandInterpreter:
             priority=Priority.COMPLEX,
             raw_input="build full stack app",
             suggested_agent="master_prime",
-            execution_strategy="parallel"
+            execution_strategy="parallel",
         )
 
         error = Exception("Agent frontend failed")
-        failure_analysis = await self.interpreter.handle_cascading_failure(error, command)
+        failure_analysis = await self.interpreter.handle_cascading_failure(
+            error, command
+        )
 
         assert failure_analysis["root_cause"] == "Agent frontend failed"
         assert failure_analysis["containment_strategy"] == "isolate_failed_agent"
@@ -272,7 +272,7 @@ class TestDecisionOrchestrator:
             raw_input="create file test.txt",
             suggested_agent="worker",
             execution_strategy="sequential",
-            safety_checks=[]
+            safety_checks=[],
         )
 
         complexity = self.orchestrator._assess_complexity(command)
@@ -305,7 +305,7 @@ class TestDecisionOrchestrator:
             raw_input="generate components",
             suggested_agent="master_prime",
             execution_strategy="parallel",
-            safety_checks=[]
+            safety_checks=[],
         )
 
         complexity = {"score": 70, "requires_coordination": True}
@@ -333,7 +333,7 @@ class TestDecisionOrchestrator:
             raw_input="create frontend and backend components",
             suggested_agent="master_prime",
             execution_strategy="parallel",
-            safety_checks=[]
+            safety_checks=[],
         )
 
         complexity = {"score": 80}
@@ -376,7 +376,7 @@ class TestDecisionOrchestrator:
             raw_input="create files",
             suggested_agent="worker",
             execution_strategy="parallel",
-            safety_checks=[]
+            safety_checks=[],
         )
 
         complexity = {"score": 70}
@@ -418,23 +418,24 @@ class TestDecisionOrchestrator:
         # Parallel execution - high factor
         agents = [AgentSpecialization.FRONTEND_DEV, AgentSpecialization.BACKEND_DEV]
         factor = self.orchestrator._calculate_parallelization(
-            agents,
-            ExecutionModel.PARALLEL_EXECUTION
+            agents, ExecutionModel.PARALLEL_EXECUTION
         )
         assert factor == 0.9
 
         # Sequential - no parallelization
         factor = self.orchestrator._calculate_parallelization(
-            agents,
-            ExecutionModel.SEQUENTIAL_PIPELINE
+            agents, ExecutionModel.SEQUENTIAL_PIPELINE
         )
         assert factor == 0.0
 
         # Hybrid with multiple agents - medium
-        agents = [AgentSpecialization.ARCHITECT, AgentSpecialization.FRONTEND_DEV, AgentSpecialization.BACKEND_DEV]
+        agents = [
+            AgentSpecialization.ARCHITECT,
+            AgentSpecialization.FRONTEND_DEV,
+            AgentSpecialization.BACKEND_DEV,
+        ]
         factor = self.orchestrator._calculate_parallelization(
-            agents,
-            ExecutionModel.HYBRID
+            agents, ExecutionModel.HYBRID
         )
         assert factor == 0.5
 
@@ -452,7 +453,7 @@ class TestDecisionOrchestrator:
             raw_input="create user authentication system",
             suggested_agent="master_prime",
             execution_strategy="parallel",
-            safety_checks=["security_review"]
+            safety_checks=["security_review"],
         )
 
         plan = await self.orchestrator.orchestrate(command)
@@ -478,11 +479,11 @@ class TestDecisionOrchestrator:
                     name="input_validation",
                     criteria=["valid_inputs"],
                     must_pass=True,
-                    rollback_on_fail=False
+                    rollback_on_fail=False,
                 )
             ],
             estimated_duration_ms=1000,
-            parallelization_factor=0.0
+            parallelization_factor=0.0,
         )
 
         # Mock execution function
@@ -490,8 +491,10 @@ class TestDecisionOrchestrator:
             return {"status": "success", "output": "test"}
 
         # Execute with gates
-        with patch.object(self.orchestrator, '_validate_inputs', return_value=True):
-            results = await self.orchestrator.execute_with_quality_gates(plan, mock_exec)
+        with patch.object(self.orchestrator, "_validate_inputs", return_value=True):
+            results = await self.orchestrator.execute_with_quality_gates(
+                plan, mock_exec
+            )
 
         assert results["status"] == "completed"
         assert len(results["outputs"]) == 1

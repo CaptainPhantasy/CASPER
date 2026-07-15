@@ -29,17 +29,34 @@ class BackendPrimeAgent(BaseAgent):
     def __init__(self):
         super().__init__(role=AgentRole.BACKEND_PRIME)
         self.expertise = [
-            "REST APIs", "GraphQL", "Database Design",
-            "Authentication", "Authorization", "Microservices",
-            "Message Queues", "Caching", "Performance Optimization"
+            "REST APIs",
+            "GraphQL",
+            "Database Design",
+            "Authentication",
+            "Authorization",
+            "Microservices",
+            "Message Queues",
+            "Caching",
+            "Performance Optimization",
         ]
         self.supported_frameworks = [
-            "FastAPI", "Django", "Flask", "Express", "NestJS",
-            "Spring Boot", "Rails", "Laravel"
+            "FastAPI",
+            "Django",
+            "Flask",
+            "Express",
+            "NestJS",
+            "Spring Boot",
+            "Rails",
+            "Laravel",
         ]
         self.database_systems = [
-            "PostgreSQL", "MySQL", "MongoDB", "Redis",
-            "Elasticsearch", "DynamoDB", "Cassandra"
+            "PostgreSQL",
+            "MySQL",
+            "MongoDB",
+            "Redis",
+            "Elasticsearch",
+            "DynamoDB",
+            "Cassandra",
         ]
 
     async def analyze_task(self, task: str, context: ContextBundle) -> Tuple[bool, str]:
@@ -50,10 +67,27 @@ class BackendPrimeAgent(BaseAgent):
 
         # Keywords indicating backend work
         backend_keywords = [
-            "api", "endpoint", "database", "db", "schema", "model",
-            "authentication", "auth", "jwt", "oauth", "server",
-            "backend", "crud", "rest", "graphql", "microservice",
-            "queue", "cache", "redis", "sql", "migration"
+            "api",
+            "endpoint",
+            "database",
+            "db",
+            "schema",
+            "model",
+            "authentication",
+            "auth",
+            "jwt",
+            "oauth",
+            "server",
+            "backend",
+            "crud",
+            "rest",
+            "graphql",
+            "microservice",
+            "queue",
+            "cache",
+            "redis",
+            "sql",
+            "migration",
         ]
 
         # Check if task contains backend keywords
@@ -72,14 +106,20 @@ class BackendPrimeAgent(BaseAgent):
             self.current_context = context
 
             # Start execution
-            await self._update_progress(AgentStatus.PLANNING, 10, "Analyzing backend requirements...")
+            await self._update_progress(
+                AgentStatus.PLANNING, 10, "Analyzing backend requirements..."
+            )
 
             # Analyze the specific backend task
             task_type = self._categorize_backend_task(task)
 
             # Plan the implementation
-            implementation_plan = await self._create_implementation_plan(task, task_type)
-            await self._update_progress(AgentStatus.PLANNING, 25, f"Planning {task_type} implementation...")
+            implementation_plan = await self._create_implementation_plan(
+                task, task_type
+            )
+            await self._update_progress(
+                AgentStatus.PLANNING, 25, f"Planning {task_type} implementation..."
+            )
 
             # Execute based on task type
             if task_type == "api_development":
@@ -91,10 +131,14 @@ class BackendPrimeAgent(BaseAgent):
             elif task_type == "integration":
                 result = await self._implement_integration(task, implementation_plan)
             else:
-                result = await self._implement_generic_backend(task, implementation_plan)
+                result = await self._implement_generic_backend(
+                    task, implementation_plan
+                )
 
             # Complete
-            await self._update_progress(AgentStatus.COMPLETED, 100, f"Backend {task_type} completed")
+            await self._update_progress(
+                AgentStatus.COMPLETED, 100, f"Backend {task_type} completed"
+            )
 
             return AgentResult(
                 agent_id=self.agent_id,
@@ -103,7 +147,7 @@ class BackendPrimeAgent(BaseAgent):
                 status=AgentStatus.COMPLETED,
                 context_bundle=self.current_context,
                 output=result,
-                token_usage=self.token_usage
+                token_usage=self.token_usage,
             )
 
         except Exception as e:
@@ -114,7 +158,7 @@ class BackendPrimeAgent(BaseAgent):
                 status=AgentStatus.FAILED,
                 context_bundle=context,
                 errors=[str(e)],
-                token_usage=self.token_usage
+                token_usage=self.token_usage,
             )
 
     def _categorize_backend_task(self, task: str) -> str:
@@ -123,13 +167,24 @@ class BackendPrimeAgent(BaseAgent):
         """
         task_lower = task.lower()
 
-        if any(keyword in task_lower for keyword in ["api", "endpoint", "rest", "graphql"]):
+        if any(
+            keyword in task_lower for keyword in ["api", "endpoint", "rest", "graphql"]
+        ):
             return "api_development"
-        elif any(keyword in task_lower for keyword in ["database", "db", "schema", "migration", "model"]):
+        elif any(
+            keyword in task_lower
+            for keyword in ["database", "db", "schema", "migration", "model"]
+        ):
             return "database_design"
-        elif any(keyword in task_lower for keyword in ["auth", "jwt", "oauth", "login", "security"]):
+        elif any(
+            keyword in task_lower
+            for keyword in ["auth", "jwt", "oauth", "login", "security"]
+        ):
             return "authentication"
-        elif any(keyword in task_lower for keyword in ["integrate", "connect", "webhook", "external"]):
+        elif any(
+            keyword in task_lower
+            for keyword in ["integrate", "connect", "webhook", "external"]
+        ):
             return "integration"
         else:
             return "general_backend"
@@ -144,7 +199,7 @@ class BackendPrimeAgent(BaseAgent):
             "technologies": [],
             "steps": [],
             "testing_strategy": "",
-            "security_considerations": []
+            "security_considerations": [],
         }
 
         # Determine technologies based on context
@@ -158,60 +213,85 @@ class BackendPrimeAgent(BaseAgent):
 
         # Plan steps based on task type
         if task_type == "api_development":
-            plan["components"] = ["Routes", "Controllers", "Services", "DTOs", "Middleware"]
+            plan["components"] = [
+                "Routes",
+                "Controllers",
+                "Services",
+                "DTOs",
+                "Middleware",
+            ]
             plan["steps"] = [
                 "Define API specifications",
                 "Create route handlers",
                 "Implement business logic",
                 "Add validation and error handling",
                 "Configure middleware",
-                "Document endpoints"
+                "Document endpoints",
             ]
-            plan["testing_strategy"] = "Unit tests for services, integration tests for endpoints"
+            plan["testing_strategy"] = (
+                "Unit tests for services, integration tests for endpoints"
+            )
 
         elif task_type == "database_design":
-            plan["components"] = ["Models", "Migrations", "Seeders", "Indexes", "Relationships"]
+            plan["components"] = [
+                "Models",
+                "Migrations",
+                "Seeders",
+                "Indexes",
+                "Relationships",
+            ]
             plan["steps"] = [
                 "Design database schema",
                 "Create models/entities",
                 "Define relationships",
                 "Create migrations",
                 "Add indexes for performance",
-                "Create seed data"
+                "Create seed data",
             ]
-            plan["testing_strategy"] = "Test migrations, validate constraints, check query performance"
+            plan["testing_strategy"] = (
+                "Test migrations, validate constraints, check query performance"
+            )
 
         elif task_type == "authentication":
-            plan["components"] = ["Auth Service", "JWT Handler", "Password Utils", "Session Manager"]
+            plan["components"] = [
+                "Auth Service",
+                "JWT Handler",
+                "Password Utils",
+                "Session Manager",
+            ]
             plan["steps"] = [
                 "Implement user model",
                 "Create authentication endpoints",
                 "Implement JWT generation/validation",
                 "Add password hashing",
                 "Implement session management",
-                "Add rate limiting"
+                "Add rate limiting",
             ]
             plan["security_considerations"] = [
                 "Use bcrypt for password hashing",
                 "Implement refresh tokens",
                 "Add CSRF protection",
                 "Validate all inputs",
-                "Use HTTPS only"
+                "Use HTTPS only",
             ]
-            plan["testing_strategy"] = "Test auth flow, token validation, password reset"
+            plan["testing_strategy"] = (
+                "Test auth flow, token validation, password reset"
+            )
 
         # Log the plan
         self._log_decision(
             f"Backend implementation plan for {task_type}",
             f"Using {', '.join(plan['technologies'])} with {len(plan['steps'])} steps",
-            plan["technologies"]
+            plan["technologies"],
         )
 
         return plan
 
     async def _implement_api(self, task: str, plan: Dict) -> str:
         """Generate production-ready API endpoints."""
-        await self._update_progress(AgentStatus.BUILDING, 40, "Generating API routes...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Generating API routes..."
+        )
 
         artifacts = ["backend/api.py", "backend/schemas.py"]
         guidance = (
@@ -220,7 +300,9 @@ class BackendPrimeAgent(BaseAgent):
         )
         generated = await self._generate_files(task, plan, artifacts, guidance)
 
-        await self._update_progress(AgentStatus.BUILDING, 72, "Registering API artifacts...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 72, "Registering API artifacts..."
+        )
         summary = self._summarize_generation(generated, "API")
         return summary
 
@@ -228,7 +310,9 @@ class BackendPrimeAgent(BaseAgent):
         """
         Implement database schema and models.
         """
-        await self._update_progress(AgentStatus.BUILDING, 40, "Designing database schema...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Designing database schema..."
+        )
 
         artifacts = ["database/models.py", "database/migrations/001_initial.sql"]
         guidance = (
@@ -237,14 +321,18 @@ class BackendPrimeAgent(BaseAgent):
         )
         generated = await self._generate_files(task, plan, artifacts, guidance)
 
-        await self._update_progress(AgentStatus.BUILDING, 72, "Linking database assets...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 72, "Linking database assets..."
+        )
         return self._summarize_generation(generated, "database schema")
 
     async def _implement_auth(self, task: str, plan: Dict) -> str:
         """
         Implement authentication system.
         """
-        await self._update_progress(AgentStatus.BUILDING, 40, "Setting up authentication...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Setting up authentication..."
+        )
 
         artifacts = [
             "auth/jwt_handler.py",
@@ -263,14 +351,18 @@ class BackendPrimeAgent(BaseAgent):
             ["Cookie-based sessions", "OAuth2"],
         )
 
-        await self._update_progress(AgentStatus.BUILDING, 72, "Documenting auth workflow...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 72, "Documenting auth workflow..."
+        )
         return self._summarize_generation(generated, "authentication system")
 
     async def _implement_integration(self, task: str, plan: Dict) -> str:
         """
         Implement external integrations.
         """
-        await self._update_progress(AgentStatus.BUILDING, 40, "Setting up integrations...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Setting up integrations..."
+        )
 
         artifacts = ["integrations/client.py", "integrations/webhooks.py"]
         guidance = (
@@ -279,14 +371,18 @@ class BackendPrimeAgent(BaseAgent):
         )
         generated = await self._generate_files(task, plan, artifacts, guidance)
 
-        await self._update_progress(AgentStatus.BUILDING, 72, "Recording integration outputs...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 72, "Recording integration outputs..."
+        )
         return self._summarize_generation(generated, "external integration")
 
     async def _implement_generic_backend(self, task: str, plan: Dict) -> str:
         """
         Implement generic backend functionality.
         """
-        await self._update_progress(AgentStatus.BUILDING, 40, "Implementing backend logic...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Implementing backend logic..."
+        )
 
         artifacts = ["services/service.py", "services/utils.py"]
         guidance = (
@@ -295,7 +391,9 @@ class BackendPrimeAgent(BaseAgent):
         )
         generated = await self._generate_files(task, plan, artifacts, guidance)
 
-        await self._update_progress(AgentStatus.BUILDING, 72, "Registering service layer outputs...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 72, "Registering service layer outputs..."
+        )
         return self._summarize_generation(generated, "backend services")
 
     async def _generate_files(
@@ -316,7 +414,9 @@ class BackendPrimeAgent(BaseAgent):
         for artifact, content in contents.items():
             if not content.strip():
                 continue
-            path = write_artifact(base_dir, session_id, artifact, content.rstrip() + "\n")
+            path = write_artifact(
+                base_dir, session_id, artifact, content.rstrip() + "\n"
+            )
             generated[artifact] = path
             self._add_artifact(path)
             self._add_pointer(artifact.replace("/", "_"), path)
@@ -329,7 +429,9 @@ class BackendPrimeAgent(BaseAgent):
         files = "\n".join(f"- {value}" for value in generated.values())
         return f"Generated {len(generated)} {label} artifact(s):\n{files}"
 
-    def _build_prompt(self, task: str, plan: Dict, artifacts: List[str], guidance: str) -> str:
+    def _build_prompt(
+        self, task: str, plan: Dict, artifacts: List[str], guidance: str
+    ) -> str:
         artifact_lines = "\n".join(f"- {artifact}" for artifact in artifacts)
         steps = "\n".join(f"  • {step}" for step in plan.get("steps", []))
         tech = ", ".join(plan.get("technologies", []))
@@ -361,35 +463,40 @@ class BackendPrimeAgent(BaseAgent):
         mapping: Dict[str, str] = {artifact: "" for artifact in artifacts}
         current: Optional[str] = None
         in_code_block = False
-        
+
         for line in output.splitlines():
             if line.startswith("=== ") and line.endswith(" ==="):
                 candidate = line[4:-4].strip()
                 current = candidate if candidate in mapping else None
                 in_code_block = False
                 continue
-            
+
             if current:
                 # Skip markdown code block markers
-                if line.strip() in ["```python", "```", "```typescript", "```javascript"]:
+                if line.strip() in [
+                    "```python",
+                    "```",
+                    "```typescript",
+                    "```javascript",
+                ]:
                     in_code_block = not in_code_block
                     continue
-                    
+
                 mapping[current] += line + "\n"
-        
+
         # Clean up any remaining artifacts
         for artifact in mapping:
             content = mapping[artifact].strip()
             # Remove any remaining code block markers
             if content.startswith("```"):
-                lines = content.split('\n')
+                lines = content.split("\n")
                 if lines[0].startswith("```"):
                     lines = lines[1:]
                 if lines and lines[-1].strip() == "```":
                     lines = lines[:-1]
-                content = '\n'.join(lines)
+                content = "\n".join(lines)
             mapping[artifact] = content
-            
+
         return mapping
 
     async def identify_dependencies(self, task: str) -> List[str]:

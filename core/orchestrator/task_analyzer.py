@@ -13,6 +13,7 @@ from core.agents.base import AgentRole, TaskPriority
 @dataclass
 class TaskMetrics:
     """Metrics for task complexity analysis."""
+
     lines_of_code_estimate: int = 0
     file_count_estimate: int = 0
     component_count: int = 0
@@ -32,22 +33,66 @@ class TaskAnalyzer:
     COMPLEXITY_KEYWORDS = {
         "simple": ["fix", "update", "change", "modify", "adjust", "tweak", "create"],
         "moderate": ["add", "implement", "build", "develop"],
-        "complex": ["refactor", "redesign", "architect", "migrate", "integrate", "orchestrate"],
-        "system": ["system", "platform", "application", "service", "infrastructure"]
+        "complex": [
+            "refactor",
+            "redesign",
+            "architect",
+            "migrate",
+            "integrate",
+            "orchestrate",
+        ],
+        "system": ["system", "platform", "application", "service", "infrastructure"],
     }
 
     COMPONENT_INDICATORS = {
-        "frontend": ["ui", "interface", "component", "page", "view", "form", "button",
-                     "react", "vue", "angular", "dashboard", "layout", "style", "css"],
-        "backend": ["api", "endpoint", "database", "server", "auth", "crud",
-                    "model", "schema", "migration", "queue", "worker"],
+        "frontend": [
+            "ui",
+            "interface",
+            "component",
+            "page",
+            "view",
+            "form",
+            "button",
+            "react",
+            "vue",
+            "angular",
+            "dashboard",
+            "layout",
+            "style",
+            "css",
+        ],
+        "backend": [
+            "api",
+            "endpoint",
+            "database",
+            "server",
+            "auth",
+            "crud",
+            "model",
+            "schema",
+            "migration",
+            "queue",
+            "worker",
+        ],
         "testing": ["test", "spec", "coverage", "assertion", "mock", "e2e"],
-        "infrastructure": ["deploy", "docker", "kubernetes", "ci", "cd", "pipeline", "terraform", "helm", "prometheus"],
-        "documentation": ["document", "readme", "guide", "tutorial", "comment"]
+        "infrastructure": [
+            "deploy",
+            "docker",
+            "kubernetes",
+            "ci",
+            "cd",
+            "pipeline",
+            "terraform",
+            "helm",
+            "prometheus",
+        ],
+        "documentation": ["document", "readme", "guide", "tutorial", "comment"],
     }
 
     @classmethod
-    def analyze_task(cls, task_description: str) -> Tuple[TaskMetrics, Set[AgentRole], TaskPriority]:
+    def analyze_task(
+        cls, task_description: str
+    ) -> Tuple[TaskMetrics, Set[AgentRole], TaskPriority]:
         """
         Perform comprehensive task analysis.
         Returns metrics, required agents, and suggested priority.
@@ -171,8 +216,15 @@ class TaskAnalyzer:
         Count potential integration points.
         """
         integration_keywords = [
-            "integrate", "connect", "api", "webhook", "callback",
-            "interface", "bridge", "adapter", "middleware"
+            "integrate",
+            "connect",
+            "api",
+            "webhook",
+            "callback",
+            "interface",
+            "bridge",
+            "adapter",
+            "middleware",
         ]
         return sum(1 for keyword in integration_keywords if keyword in task)
 
@@ -184,7 +236,7 @@ class TaskAnalyzer:
         dependency_patterns = [
             r"\b(stripe|paypal|aws|google|firebase|twilio|sendgrid)\b",
             r"\b(redis|postgres|mysql|mongodb|elasticsearch)\b",
-            r"\b(oauth|jwt|ssl|https)\b"
+            r"\b(oauth|jwt|ssl|https)\b",
         ]
         count = 0
         for pattern in dependency_patterns:
@@ -197,30 +249,42 @@ class TaskAnalyzer:
         """
         Determine if task requires testing.
         """
-        return any(keyword in task for keyword in [
-            "test", "spec", "coverage", "quality", "production", "critical"
-        ])
+        return any(
+            keyword in task
+            for keyword in [
+                "test",
+                "spec",
+                "coverage",
+                "quality",
+                "production",
+                "critical",
+            ]
+        )
 
     @classmethod
     def _requires_documentation(cls, task: str) -> bool:
         """
         Determine if task requires documentation.
         """
-        return any(keyword in task for keyword in [
-            "document", "readme", "guide", "api", "public", "library"
-        ])
+        return any(
+            keyword in task
+            for keyword in ["document", "readme", "guide", "api", "public", "library"]
+        )
 
     @classmethod
     def _requires_deployment(cls, task: str) -> bool:
         """
         Determine if task requires deployment setup.
         """
-        return any(keyword in task for keyword in [
-            "deploy", "production", "hosting", "ci", "cd", "pipeline"
-        ])
+        return any(
+            keyword in task
+            for keyword in ["deploy", "production", "hosting", "ci", "cd", "pipeline"]
+        )
 
     @classmethod
-    def _determine_required_agents(cls, task: str, metrics: TaskMetrics) -> Set[AgentRole]:
+    def _determine_required_agents(
+        cls, task: str, metrics: TaskMetrics
+    ) -> Set[AgentRole]:
         """
         Determine which agents are needed based on task and metrics.
         """
@@ -236,7 +300,9 @@ class TaskAnalyzer:
         if metrics.test_coverage_required or "test" in task:
             required.add(AgentRole.TESTING_PRIME)
 
-        if metrics.deployment_required or any(keyword in task for keyword in cls.COMPONENT_INDICATORS["infrastructure"]):
+        if metrics.deployment_required or any(
+            keyword in task for keyword in cls.COMPONENT_INDICATORS["infrastructure"]
+        ):
             required.add(AgentRole.DEVOPS_PRIME)
 
         # If multiple components but no specific agents identified
@@ -268,7 +334,9 @@ class TaskAnalyzer:
             r"(?:make|new)\s+[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+",
         ]
 
-        has_file_creation = any(re.search(pattern, task_lower) for pattern in file_creation_patterns)
+        has_file_creation = any(
+            re.search(pattern, task_lower) for pattern in file_creation_patterns
+        )
 
         # Simple content indicators
         simple_content_indicators = [
@@ -277,28 +345,47 @@ class TaskAnalyzer:
             "put",
             "add content",
             "in it write",
-            "with content"
+            "with content",
         ]
 
-        has_simple_content = any(indicator in task_lower for indicator in simple_content_indicators)
+        has_simple_content = any(
+            indicator in task_lower for indicator in simple_content_indicators
+        )
 
         # Complex indicators that would require master coordination
         complex_indicators = [
-            "system", "api", "database", "authentication", "integration",
-            "multiple files", "architecture", "complex", "advanced"
+            "system",
+            "api",
+            "database",
+            "authentication",
+            "integration",
+            "multiple files",
+            "architecture",
+            "complex",
+            "advanced",
         ]
 
-        has_complex_features = any(indicator in task_lower for indicator in complex_indicators)
+        has_complex_features = any(
+            indicator in task_lower for indicator in complex_indicators
+        )
 
-        return has_file_creation and (has_simple_content or len(task.split()) <= 15) and not has_complex_features
+        return (
+            has_file_creation
+            and (has_simple_content or len(task.split()) <= 15)
+            and not has_complex_features
+        )
 
     @classmethod
-    def _determine_priority(cls, task: str, complexity: int, metrics: TaskMetrics) -> TaskPriority:
+    def _determine_priority(
+        cls, task: str, complexity: int, metrics: TaskMetrics
+    ) -> TaskPriority:
         """
         Determine task priority based on various factors.
         """
         # High priority indicators
-        if any(keyword in task for keyword in ["urgent", "critical", "asap", "immediately"]):
+        if any(
+            keyword in task for keyword in ["urgent", "critical", "asap", "immediately"]
+        ):
             return TaskPriority.HIGH
 
         if "production" in task or "bug" in task or "fix" in task:

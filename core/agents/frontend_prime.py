@@ -28,13 +28,23 @@ class FrontendPrimeAgent(BaseAgent):
     def __init__(self):
         super().__init__(role=AgentRole.FRONTEND_PRIME)
         self.expertise = [
-            "React", "Vue", "Angular", "TypeScript",
-            "State Management", "Component Architecture",
-            "Responsive Design", "Accessibility", "Performance"
+            "React",
+            "Vue",
+            "Angular",
+            "TypeScript",
+            "State Management",
+            "Component Architecture",
+            "Responsive Design",
+            "Accessibility",
+            "Performance",
         ]
         self.ui_libraries = [
-            "Material-UI", "Ant Design", "Tailwind CSS",
-            "Bootstrap", "Chakra UI", "Styled Components"
+            "Material-UI",
+            "Ant Design",
+            "Tailwind CSS",
+            "Bootstrap",
+            "Chakra UI",
+            "Styled Components",
         ]
 
     async def analyze_task(self, task: str, context: ContextBundle) -> Tuple[bool, str]:
@@ -45,9 +55,24 @@ class FrontendPrimeAgent(BaseAgent):
 
         # Keywords indicating frontend work
         frontend_keywords = [
-            "ui", "interface", "component", "frontend", "react", "vue",
-            "form", "button", "layout", "dashboard", "page", "view",
-            "responsive", "mobile", "css", "style", "animation", "ux"
+            "ui",
+            "interface",
+            "component",
+            "frontend",
+            "react",
+            "vue",
+            "form",
+            "button",
+            "layout",
+            "dashboard",
+            "page",
+            "view",
+            "responsive",
+            "mobile",
+            "css",
+            "style",
+            "animation",
+            "ux",
         ]
 
         can_handle = any(keyword in task_lower for keyword in frontend_keywords)
@@ -64,14 +89,18 @@ class FrontendPrimeAgent(BaseAgent):
         try:
             self.current_context = context
 
-            await self._update_progress(AgentStatus.PLANNING, 10, "Analyzing UI requirements...")
+            await self._update_progress(
+                AgentStatus.PLANNING, 10, "Analyzing UI requirements..."
+            )
 
             # Categorize frontend task
             task_type = self._categorize_frontend_task(task)
 
             # Create implementation plan
             plan = await self._create_ui_plan(task, task_type)
-            await self._update_progress(AgentStatus.PLANNING, 25, f"Planning {task_type} implementation...")
+            await self._update_progress(
+                AgentStatus.PLANNING, 25, f"Planning {task_type} implementation..."
+            )
 
             # Execute based on task type
             if task_type == "component_development":
@@ -85,7 +114,9 @@ class FrontendPrimeAgent(BaseAgent):
             else:
                 result = await self._implement_generic_ui(task, plan)
 
-            await self._update_progress(AgentStatus.COMPLETED, 100, f"Frontend {task_type} completed")
+            await self._update_progress(
+                AgentStatus.COMPLETED, 100, f"Frontend {task_type} completed"
+            )
 
             return AgentResult(
                 agent_id=self.agent_id,
@@ -94,7 +125,7 @@ class FrontendPrimeAgent(BaseAgent):
                 status=AgentStatus.COMPLETED,
                 context_bundle=self.current_context,
                 output=result,
-                token_usage=self.token_usage
+                token_usage=self.token_usage,
             )
 
         except Exception as e:
@@ -105,7 +136,7 @@ class FrontendPrimeAgent(BaseAgent):
                 status=AgentStatus.FAILED,
                 context_bundle=context,
                 errors=[str(e)],
-                token_usage=self.token_usage
+                token_usage=self.token_usage,
             )
 
     def _categorize_frontend_task(self, task: str) -> str:
@@ -135,18 +166,22 @@ class FrontendPrimeAgent(BaseAgent):
             "components": [],
             "styling_approach": "Tailwind CSS",
             "state_management": "Context API",
-            "steps": []
+            "steps": [],
         }
 
         if task_type == "component_development":
-            plan["components"] = ["BaseComponent", "ComponentVariants", "ComponentProps"]
+            plan["components"] = [
+                "BaseComponent",
+                "ComponentVariants",
+                "ComponentProps",
+            ]
             plan["steps"] = [
                 "Design component structure",
                 "Implement base functionality",
                 "Add styling and themes",
                 "Create component variants",
                 "Add accessibility features",
-                "Write component tests"
+                "Write component tests",
             ]
 
         elif task_type == "dashboard_creation":
@@ -157,13 +192,13 @@ class FrontendPrimeAgent(BaseAgent):
                 "Create navigation structure",
                 "Implement data visualization",
                 "Add real-time updates",
-                "Optimize performance"
+                "Optimize performance",
             ]
 
         self._log_decision(
             f"Frontend plan for {task_type}",
             f"Using {plan['framework']} with {plan['styling_approach']}",
-            [plan['framework']]
+            [plan["framework"]],
         )
 
         return plan
@@ -172,7 +207,9 @@ class FrontendPrimeAgent(BaseAgent):
         """
         Implement UI components.
         """
-        await self._update_progress(AgentStatus.BUILDING, 40, "Creating component structure...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Creating component structure..."
+        )
 
         artifacts = [
             "frontend/components/BaseButton.tsx",
@@ -184,14 +221,18 @@ class FrontendPrimeAgent(BaseAgent):
             " accessibility attributes, and Storybook-style docs in comments."
         )
         generated = await self._generate_files(task, plan, artifacts, guidance)
-        await self._update_progress(AgentStatus.BUILDING, 72, "Documenting components...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 72, "Documenting components..."
+        )
         return self._summarize_generation(generated, "UI components")
 
     async def _implement_dashboard(self, task: str, plan: Dict) -> str:
         """
         Implement dashboard UI.
         """
-        await self._update_progress(AgentStatus.BUILDING, 40, "Building dashboard layout...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Building dashboard layout..."
+        )
 
         artifacts = [
             "frontend/pages/Dashboard.tsx",
@@ -204,14 +245,18 @@ class FrontendPrimeAgent(BaseAgent):
             " layout components."
         )
         generated = await self._generate_files(task, plan, artifacts, guidance)
-        await self._update_progress(AgentStatus.BUILDING, 72, "Attaching dashboard assets...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 72, "Attaching dashboard assets..."
+        )
         return self._summarize_generation(generated, "dashboard")
 
     async def _implement_forms(self, task: str, plan: Dict) -> str:
         """
         Implement form components.
         """
-        await self._update_progress(AgentStatus.BUILDING, 40, "Creating form components...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Creating form components..."
+        )
 
         artifacts = [
             "frontend/components/forms/LoginForm.tsx",
@@ -223,29 +268,40 @@ class FrontendPrimeAgent(BaseAgent):
             " inline error messaging."
         )
         generated = await self._generate_files(task, plan, artifacts, guidance)
-        await self._update_progress(AgentStatus.BUILDING, 72, "Linking form validation...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 72, "Linking form validation..."
+        )
         return self._summarize_generation(generated, "form")
 
     async def _implement_responsive(self, task: str, plan: Dict) -> str:
         """
         Implement responsive design.
         """
-        await self._update_progress(AgentStatus.BUILDING, 40, "Implementing responsive layout...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Implementing responsive layout..."
+        )
 
-        artifacts = ["frontend/styles/responsive.css", "frontend/hooks/useResponsive.ts"]
+        artifacts = [
+            "frontend/styles/responsive.css",
+            "frontend/hooks/useResponsive.ts",
+        ]
         guidance = (
             "Produce mobile-first CSS utility classes and a React hook exposing"
             " breakpoints using matchMedia."
         )
         generated = await self._generate_files(task, plan, artifacts, guidance)
-        await self._update_progress(AgentStatus.BUILDING, 72, "Validating responsive behaviour...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 72, "Validating responsive behaviour..."
+        )
         return self._summarize_generation(generated, "responsive layout")
 
     async def _implement_generic_ui(self, task: str, plan: Dict) -> str:
         """
         Implement generic UI functionality.
         """
-        await self._update_progress(AgentStatus.BUILDING, 40, "Building UI components...")
+        await self._update_progress(
+            AgentStatus.BUILDING, 40, "Building UI components..."
+        )
 
         artifacts = ["frontend/components/index.tsx", "frontend/styles/global.css"]
         guidance = "Implement reusable components and global styles aligned with the task brief."
@@ -271,7 +327,9 @@ class FrontendPrimeAgent(BaseAgent):
         for artifact, content in contents.items():
             if not content.strip():
                 continue
-            path = write_artifact(base_dir, session_id, artifact, content.rstrip() + "\n")
+            path = write_artifact(
+                base_dir, session_id, artifact, content.rstrip() + "\n"
+            )
             generated[artifact] = path
             self._add_artifact(path)
             self._add_pointer(artifact.replace("/", "_"), path)
@@ -283,7 +341,9 @@ class FrontendPrimeAgent(BaseAgent):
         files = "\n".join(f"- {path}" for path in generated.values())
         return f"Generated {len(generated)} {label} artifact(s):\n{files}"
 
-    def _build_prompt(self, task: str, plan: Dict, artifacts: List[str], guidance: str) -> str:
+    def _build_prompt(
+        self, task: str, plan: Dict, artifacts: List[str], guidance: str
+    ) -> str:
         artifact_lines = "\n".join(f"- {artifact}" for artifact in artifacts)
         steps = "\n".join(f"  • {step}" for step in plan.get("steps", []))
         return (
@@ -315,33 +375,41 @@ class FrontendPrimeAgent(BaseAgent):
         mapping: Dict[str, str] = {artifact: "" for artifact in artifacts}
         current: Optional[str] = None
         in_code_block = False
-        
+
         for line in output.splitlines():
             if line.startswith("=== ") and line.endswith(" ==="):
                 candidate = line[4:-4].strip()
                 current = candidate if candidate in mapping else None
                 in_code_block = False
                 continue
-            
+
             if current:
                 # Skip markdown code block markers
-                if line.strip() in ["```python", "```", "```typescript", "```javascript", "```tsx", "```jsx", "```css"]:
+                if line.strip() in [
+                    "```python",
+                    "```",
+                    "```typescript",
+                    "```javascript",
+                    "```tsx",
+                    "```jsx",
+                    "```css",
+                ]:
                     in_code_block = not in_code_block
                     continue
-                    
+
                 mapping[current] += line + "\n"
-        
+
         # Clean up any remaining artifacts
         for artifact in mapping:
             content = mapping[artifact].strip()
             # Remove any remaining code block markers
             if content.startswith("```"):
-                lines = content.split('\n')
+                lines = content.split("\n")
                 if lines[0].startswith("```"):
                     lines = lines[1:]
                 if lines and lines[-1].strip() == "```":
                     lines = lines[:-1]
-                content = '\n'.join(lines)
+                content = "\n".join(lines)
             mapping[artifact] = content
-            
+
         return mapping

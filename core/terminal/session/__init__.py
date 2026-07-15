@@ -11,9 +11,9 @@ Provides production-ready persistent coding session management with:
 
 from .coding_session import CodingSession, TokenizedInteraction, SessionMetrics
 
-__all__ = ['CodingSession', 'TokenizedInteraction', 'SessionMetrics']
+__all__ = ["CodingSession", "TokenizedInteraction", "SessionMetrics"]
 
 # Version info
-__version__ = '1.0.0'
-__author__ = 'CASPER Prime Terminal Squad'
-__description__ = 'Production-ready persistent coding session manager'
+__version__ = "1.0.0"
+__author__ = "CASPER Prime Terminal Squad"
+__description__ = "Production-ready persistent coding session manager"

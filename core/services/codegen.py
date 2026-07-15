@@ -18,6 +18,7 @@ from core.services.personalization import personalization_manager
 
 console = Console()
 
+
 class CodeTemplates:
     """Code templates for different frameworks and languages."""
 
@@ -194,6 +195,7 @@ class Test{component_name}:
         assert "{component_name}" in str(component)
 """
 
+
 class ComponentGenerator:
     """Generates components with proper file structure and boilerplate."""
 
@@ -207,9 +209,13 @@ class ComponentGenerator:
             package_json = path / "package.json"
             try:
                 import json
+
                 with open(package_json) as f:
                     data = json.load(f)
-                    deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
+                    deps = {
+                        **data.get("dependencies", {}),
+                        **data.get("devDependencies", {}),
+                    }
                     if "react" in deps:
                         return "react"
                     elif "vue" in deps:
@@ -230,13 +236,15 @@ class ComponentGenerator:
 
         return "unknown"
 
-    def find_component_directory(self, project_type: str, base_path: Path) -> Optional[Path]:
+    def find_component_directory(
+        self, project_type: str, base_path: Path
+    ) -> Optional[Path]:
         """Find the appropriate directory to place components."""
         common_paths = {
             "react": ["src/components", "components", "src"],
             "vue": ["src/components", "components", "src"],
             "python": ["src", "lib", "."],
-            "nodejs": ["src", "lib", "."]
+            "nodejs": ["src", "lib", "."],
         }
 
         for potential_path in common_paths.get(project_type, ["."]):
@@ -246,7 +254,9 @@ class ComponentGenerator:
 
         return base_path
 
-    def create_react_component(self, name: str, path: Path, options: Dict) -> List[Path]:
+    def create_react_component(
+        self, name: str, path: Path, options: Dict
+    ) -> List[Path]:
         """Create a React component with all associated files."""
         created_files = []
 
@@ -256,51 +266,44 @@ class ComponentGenerator:
 
         # Generate component file
         component_code = self.templates.REACT_COMPONENT.format(
-            component_name=name,
-            component_name_lower=name.lower()
+            component_name=name, component_name_lower=name.lower()
         )
 
         component_file = component_dir / f"{name}.tsx"
-        with open(component_file, 'w') as f:
+        with open(component_file, "w") as f:
             f.write(component_code)
         created_files.append(component_file)
 
         # Generate CSS file
-        css_code = self.templates.REACT_CSS.format(
-            component_name_lower=name.lower()
-        )
+        css_code = self.templates.REACT_CSS.format(component_name_lower=name.lower())
 
         css_file = component_dir / f"{name}.css"
-        with open(css_file, 'w') as f:
+        with open(css_file, "w") as f:
             f.write(css_code)
         created_files.append(css_file)
 
         # Generate test file if requested
         if options.get("include_tests", True):
-            test_code = self.templates.REACT_TEST.format(
-                component_name=name
-            )
+            test_code = self.templates.REACT_TEST.format(component_name=name)
 
             test_file = component_dir / f"{name}.test.tsx"
-            with open(test_file, 'w') as f:
+            with open(test_file, "w") as f:
                 f.write(test_code)
             created_files.append(test_file)
 
         # Generate Storybook story if requested
         if options.get("include_stories", False):
-            story_code = self.templates.REACT_STORY.format(
-                component_name=name
-            )
+            story_code = self.templates.REACT_STORY.format(component_name=name)
 
             story_file = component_dir / f"{name}.stories.tsx"
-            with open(story_file, 'w') as f:
+            with open(story_file, "w") as f:
                 f.write(story_code)
             created_files.append(story_file)
 
         # Generate index file for easy importing
         index_code = f"export {{ default }} from './{name}';\n"
         index_file = component_dir / "index.ts"
-        with open(index_file, 'w') as f:
+        with open(index_file, "w") as f:
             f.write(index_code)
         created_files.append(index_file)
 
@@ -311,53 +314,57 @@ class ComponentGenerator:
         created_files = []
 
         component_code = self.templates.VUE_COMPONENT.format(
-            component_name=name,
-            component_name_lower=name.lower()
+            component_name=name, component_name_lower=name.lower()
         )
 
         component_file = path / f"{name}.vue"
-        with open(component_file, 'w') as f:
+        with open(component_file, "w") as f:
             f.write(component_code)
         created_files.append(component_file)
 
         return created_files
 
-    def create_python_component(self, name: str, path: Path, options: Dict) -> List[Path]:
+    def create_python_component(
+        self, name: str, path: Path, options: Dict
+    ) -> List[Path]:
         """Create a Python class/module."""
         created_files = []
 
         # Convert component name to appropriate formats
-        module_name = re.sub(r'([A-Z])', r'_\1', name).lower().lstrip('_')
+        module_name = re.sub(r"([A-Z])", r"_\1", name).lower().lstrip("_")
         description = options.get("description", f"{name} functionality")
 
         component_code = self.templates.PYTHON_CLASS.format(
             component_name=name,
             module_name=module_name,
             description=description,
-            date=datetime.now().strftime("%Y-%m-%d")
+            date=datetime.now().strftime("%Y-%m-%d"),
         )
 
         component_file = path / f"{module_name}.py"
-        with open(component_file, 'w') as f:
+        with open(component_file, "w") as f:
             f.write(component_code)
         created_files.append(component_file)
 
         # Generate test file if requested
         if options.get("include_tests", True):
             test_code = self.templates.PYTHON_TEST.format(
-                component_name=name,
-                module_name=module_name
+                component_name=name, module_name=module_name
             )
 
             test_file = path / f"test_{module_name}.py"
-            with open(test_file, 'w') as f:
+            with open(test_file, "w") as f:
                 f.write(test_code)
             created_files.append(test_file)
 
         return created_files
 
-    async def generate_component(self, name: str, component_type: Optional[str] = None,
-                               options: Optional[Dict] = None) -> bool:
+    async def generate_component(
+        self,
+        name: str,
+        component_type: Optional[str] = None,
+        options: Optional[Dict] = None,
+    ) -> bool:
         """
         Generate a new component with boilerplate code.
 
@@ -374,8 +381,10 @@ class ComponentGenerator:
             return False
 
         # Validate component name
-        if not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', name):
-            console.print("[red]❌ Invalid component name. Use letters, numbers, and underscores only.[/red]")
+        if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):
+            console.print(
+                "[red]❌ Invalid component name. Use letters, numbers, and underscores only.[/red]"
+            )
             return False
 
         # Detect project type if not specified
@@ -386,7 +395,7 @@ class ComponentGenerator:
                 component_type = Prompt.ask(
                     "Component type",
                     choices=["react", "vue", "python", "nodejs"],
-                    default="react"
+                    default="react",
                 )
             else:
                 component_type = detected_type
@@ -404,22 +413,32 @@ class ComponentGenerator:
         # Find appropriate directory
         component_dir = self.find_component_directory(component_type, current_path)
         if not component_dir:
-            console.print("[red]❌ Could not find appropriate directory for components[/red]")
+            console.print(
+                "[red]❌ Could not find appropriate directory for components[/red]"
+            )
             return False
 
-        console.print(f"[dim]→ Creating {component_type} component '{name}' in {component_dir}[/dim]")
+        console.print(
+            f"[dim]→ Creating {component_type} component '{name}' in {component_dir}[/dim]"
+        )
 
         try:
             created_files = []
 
             if component_type == "react":
-                created_files = self.create_react_component(name, component_dir, options)
+                created_files = self.create_react_component(
+                    name, component_dir, options
+                )
             elif component_type == "vue":
                 created_files = self.create_vue_component(name, component_dir, options)
             elif component_type == "python":
-                created_files = self.create_python_component(name, component_dir, options)
+                created_files = self.create_python_component(
+                    name, component_dir, options
+                )
             else:
-                console.print(f"[yellow]⚠️  Component type '{component_type}' not yet supported[/yellow]")
+                console.print(
+                    f"[yellow]⚠️  Component type '{component_type}' not yet supported[/yellow]"
+                )
                 return False
 
             # Display success message with created files
@@ -427,7 +446,9 @@ class ComponentGenerator:
 
             # Show created files in a nice table
             if created_files:
-                table = Table(title="Created Files", show_header=True, header_style="bold green")
+                table = Table(
+                    title="Created Files", show_header=True, header_style="bold green"
+                )
                 table.add_column("File", style="bright_white")
                 table.add_column("Type", style="bright_cyan")
 
@@ -464,6 +485,7 @@ class ComponentGenerator:
             return "TypeScript"
         else:
             return "File"
+
 
 # Global instance
 code_generator = ComponentGenerator()

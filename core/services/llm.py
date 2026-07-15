@@ -119,9 +119,17 @@ def _select_anthropic(ids: List[str], tier: str) -> Optional[str]:
     if t in ("worker", "cheap", "tiny"):
         pool = [i for i in ids if "haiku" in low(i)] or ids
     elif t == "standard":
-        pool = [i for i in ids if "sonnet" in low(i)] or [i for i in ids if "opus" in low(i)] or ids
+        pool = (
+            [i for i in ids if "sonnet" in low(i)]
+            or [i for i in ids if "opus" in low(i)]
+            or ids
+        )
     elif t == "frontier":
-        pool = [i for i in ids if "opus" in low(i)] or [i for i in ids if "sonnet" in low(i)] or ids
+        pool = (
+            [i for i in ids if "opus" in low(i)]
+            or [i for i in ids if "sonnet" in low(i)]
+            or ids
+        )
     else:  # primary — most capable; prefer Opus/Sonnet, avoid the fast tier
         pool = [i for i in ids if "opus" in low(i) or "sonnet" in low(i)] or ids
     return max(pool, key=_anthropic_rank)
@@ -175,8 +183,8 @@ class CircuitBreakerConfig:
 
 
 class CircuitBreakerState(Enum):
-    CLOSED = "closed"      # Normal operation
-    OPEN = "open"         # Failing, reject calls
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing, reject calls
     HALF_OPEN = "half_open"  # Testing recovery
 
 
@@ -233,12 +241,22 @@ class LLMService:
         # Get API keys. Environment variables take precedence over stored keys so
         # a freshly-rotated key in the environment/.env always overrides a stale
         # value in encrypted local storage.
-        self.anthropic_key = os.environ.get("ANTHROPIC_API_KEY") or user_config.get_api_key("anthropic")
-        self.openai_key = os.environ.get("OPENAI_API_KEY") or user_config.get_api_key("openai")
-        self.minimax_key = os.environ.get("MINIMAX_API_KEY") or user_config.get_api_key("minimax")
+        self.anthropic_key = os.environ.get(
+            "ANTHROPIC_API_KEY"
+        ) or user_config.get_api_key("anthropic")
+        self.openai_key = os.environ.get("OPENAI_API_KEY") or user_config.get_api_key(
+            "openai"
+        )
+        self.minimax_key = os.environ.get("MINIMAX_API_KEY") or user_config.get_api_key(
+            "minimax"
+        )
         shared_opencode_key = os.environ.get("OPENCODE_API_KEY")
-        self.opencode_go_key = shared_opencode_key or user_config.get_api_key("opencode-go")
-        self.opencode_zen_key = shared_opencode_key or user_config.get_api_key("opencode-zen")
+        self.opencode_go_key = shared_opencode_key or user_config.get_api_key(
+            "opencode-go"
+        )
+        self.opencode_zen_key = shared_opencode_key or user_config.get_api_key(
+            "opencode-zen"
+        )
         self._anthropic: Optional[AsyncAnthropic] = None
         self._openai: Optional[AsyncOpenAI] = None
         self._minimax: Optional[AsyncOpenAI] = None
@@ -292,25 +310,40 @@ class LLMService:
                 page = await self._anthropic.models.list()
                 ids = [getattr(m, "id", None) for m in getattr(page, "data", [])]
                 ids = [i for i in ids if i]
-                chosen = {t: (_select_anthropic(ids, t) or _ANTHROPIC_FALLBACK[t]) for t in tiers}
-                logger.info(f"Resolved Anthropic models from {len(ids)} available: {chosen}")
+                chosen = {
+                    t: (_select_anthropic(ids, t) or _ANTHROPIC_FALLBACK[t])
+                    for t in tiers
+                }
+                logger.info(
+                    f"Resolved Anthropic models from {len(ids)} available: {chosen}"
+                )
                 return chosen
             if provider == "openai" and self._openai is not None:
                 page = await self._openai.models.list()
                 ids = [getattr(m, "id", None) for m in getattr(page, "data", [])]
                 ids = [i for i in ids if i]
-                chosen = {t: (_select_openai(ids, t) or _OPENAI_FALLBACK[t]) for t in tiers}
-                logger.info(f"Resolved OpenAI models from {len(ids)} available: {chosen}")
+                chosen = {
+                    t: (_select_openai(ids, t) or _OPENAI_FALLBACK[t]) for t in tiers
+                }
+                logger.info(
+                    f"Resolved OpenAI models from {len(ids)} available: {chosen}"
+                )
                 return chosen
             if provider == "minimax" and self._minimax is not None:
                 page = await self._minimax.models.list()
                 ids = [getattr(m, "id", None) for m in getattr(page, "data", [])]
                 ids = [i for i in ids if i]
-                chosen = {t: (_select_minimax(ids, t) or _MINIMAX_FALLBACK[t]) for t in tiers}
-                logger.info(f"Resolved MiniMax models from {len(ids)} available: {chosen}")
+                chosen = {
+                    t: (_select_minimax(ids, t) or _MINIMAX_FALLBACK[t]) for t in tiers
+                }
+                logger.info(
+                    f"Resolved MiniMax models from {len(ids)} available: {chosen}"
+                )
                 return chosen
         except Exception as e:
-            logger.warning(f"Live model discovery failed for {provider}: {e}; using current-gen fallback")
+            logger.warning(
+                f"Live model discovery failed for {provider}: {e}; using current-gen fallback"
+            )
         fallbacks = {
             "anthropic": _ANTHROPIC_FALLBACK,
             "openai": _OPENAI_FALLBACK,
@@ -318,7 +351,9 @@ class LLMService:
         }
         return dict(fallbacks.get(provider, _OPENAI_FALLBACK))
 
-    async def resolve_model(self, provider: str, tier: str = "primary") -> Optional[str]:
+    async def resolve_model(
+        self, provider: str, tier: str = "primary"
+    ) -> Optional[str]:
         """Return a current model id for the given provider + tier
         ('primary' or 'worker'), discovering and caching on first use."""
         async with self._resolve_lock:
@@ -338,19 +373,22 @@ class LLMService:
         return out
 
     def available(self) -> bool:
-        return any((
-            self._minimax is not None,
-            self._anthropic is not None,
-            self._openai is not None,
-            bool(self.opencode_go_key),
-            bool(self.opencode_zen_key),
-        ))
+        return any(
+            (
+                self._minimax is not None,
+                self._anthropic is not None,
+                self._openai is not None,
+                bool(self.opencode_go_key),
+                bool(self.opencode_zen_key),
+            )
+        )
 
     def _calculate_delay(self, attempt: int) -> float:
         """Calculate delay with exponential backoff and jitter."""
         delay = min(
-            self.retry_config.base_delay * (self.retry_config.exponential_base ** attempt),
-            self.retry_config.max_delay
+            self.retry_config.base_delay
+            * (self.retry_config.exponential_base**attempt),
+            self.retry_config.max_delay,
         )
 
         if self.retry_config.jitter:
@@ -366,15 +404,22 @@ class LLMService:
             return True
         if isinstance(error, APIStatusError) and 500 <= error.status_code < 600:
             return True
-        if hasattr(error, 'status_code') and error.status_code in [429, 502, 503, 504]:
+        if hasattr(error, "status_code") and error.status_code in [429, 502, 503, 504]:
             return True
-        if isinstance(error, httpx.HTTPStatusError) and error.response.status_code in [429, 502, 503, 504]:
+        if isinstance(error, httpx.HTTPStatusError) and error.response.status_code in [
+            429,
+            502,
+            503,
+            504,
+        ]:
             return True
         if isinstance(error, (httpx.ConnectError, httpx.TimeoutException)):
             return True
         return False
 
-    async def _call_anthropic_with_retry(self, prompt: str, system: str, model: str, max_tokens: int) -> Optional[str]:
+    async def _call_anthropic_with_retry(
+        self, prompt: str, system: str, model: str, max_tokens: int
+    ) -> Optional[str]:
         """Call Anthropic API with retry logic and circuit breaker."""
         if not self._anthropic or not self.anthropic_breaker.can_call():
             return None
@@ -394,10 +439,10 @@ class LLMService:
                 # Extract text content
                 parts = []
                 for block in resp.content:
-                    if hasattr(block, 'text') and block.text:
+                    if hasattr(block, "text") and block.text:
                         parts.append(block.text)
-                    elif isinstance(block, dict) and block.get('type') == 'text':
-                        parts.append(block.get('text', ''))
+                    elif isinstance(block, dict) and block.get("type") == "text":
+                        parts.append(block.get("text", ""))
 
                 result = "\n".join([p for p in parts if p])
                 logger.debug(f"Anthropic API success on attempt {attempt + 1}")
@@ -407,7 +452,10 @@ class LLMService:
                 logger.warning(f"Anthropic API attempt {attempt + 1} failed: {e}")
                 self.anthropic_breaker.record_failure()
 
-                if not self._is_retryable_error(e) or attempt == self.retry_config.max_retries:
+                if (
+                    not self._is_retryable_error(e)
+                    or attempt == self.retry_config.max_retries
+                ):
                     break
 
                 delay = self._calculate_delay(attempt)
@@ -415,7 +463,9 @@ class LLMService:
 
         return None
 
-    async def _call_openai_with_retry(self, prompt: str, system: str, model: str, max_tokens: int) -> Optional[str]:
+    async def _call_openai_with_retry(
+        self, prompt: str, system: str, model: str, max_tokens: int
+    ) -> Optional[str]:
         """Call OpenAI API with retry logic and circuit breaker."""
         if not self._openai or not self.openai_breaker.can_call():
             return None
@@ -447,7 +497,10 @@ class LLMService:
                 logger.warning(f"OpenAI API attempt {attempt + 1} failed: {e}")
                 self.openai_breaker.record_failure()
 
-                if not self._is_retryable_error(e) or attempt == self.retry_config.max_retries:
+                if (
+                    not self._is_retryable_error(e)
+                    or attempt == self.retry_config.max_retries
+                ):
                     break
 
                 delay = self._calculate_delay(attempt)
@@ -455,7 +508,9 @@ class LLMService:
 
         return None
 
-    async def _call_minimax_with_retry(self, prompt: str, system: str, model: str, max_tokens: int) -> Optional[str]:
+    async def _call_minimax_with_retry(
+        self, prompt: str, system: str, model: str, max_tokens: int
+    ) -> Optional[str]:
         """Call MiniMax through its officially supported OpenAI-compatible endpoint."""
         if not self._minimax or not self.minimax_breaker.can_call():
             return None
@@ -475,7 +530,10 @@ class LLMService:
             except Exception as error:
                 logger.warning(f"MiniMax API attempt {attempt + 1} failed: {error}")
                 self.minimax_breaker.record_failure()
-                if not self._is_retryable_error(error) or attempt == self.retry_config.max_retries:
+                if (
+                    not self._is_retryable_error(error)
+                    or attempt == self.retry_config.max_retries
+                ):
                     break
                 await asyncio.sleep(self._calculate_delay(attempt))
         return None
@@ -492,10 +550,18 @@ class LLMService:
         """Call Zen/Go without a provider SDK, translating the model's dialect."""
         from core.routers.gateway import detect_dialect, resolve_upstream_url
 
-        breaker = self.opencode_go_breaker if provider == "opencode-go" else self.opencode_zen_breaker
+        breaker = (
+            self.opencode_go_breaker
+            if provider == "opencode-go"
+            else self.opencode_zen_breaker
+        )
         if not breaker.can_call():
             return None
-        base_url = "https://opencode.ai/zen/go/v1" if provider == "opencode-go" else "https://opencode.ai/zen/v1"
+        base_url = (
+            "https://opencode.ai/zen/go/v1"
+            if provider == "opencode-go"
+            else "https://opencode.ai/zen/v1"
+        )
         dialect = detect_dialect(provider, model, base_url)
         endpoint = resolve_upstream_url(base_url, dialect)
         system_prompt = system or DEFAULT_SYSTEM_PROMPT
@@ -514,7 +580,10 @@ class LLMService:
                 "stream": False,
             }
         elif dialect == "responses":
-            headers = {"authorization": f"Bearer {api_key}", "content-type": "application/json"}
+            headers = {
+                "authorization": f"Bearer {api_key}",
+                "content-type": "application/json",
+            }
             payload = {
                 "model": model,
                 "instructions": system_prompt,
@@ -523,7 +592,10 @@ class LLMService:
                 "stream": False,
             }
         else:
-            headers = {"authorization": f"Bearer {api_key}", "content-type": "application/json"}
+            headers = {
+                "authorization": f"Bearer {api_key}",
+                "content-type": "application/json",
+            }
             payload = {
                 "model": model,
                 "messages": [
@@ -536,13 +608,21 @@ class LLMService:
 
         for attempt in range(self.retry_config.max_retries + 1):
             try:
-                async with httpx.AsyncClient(timeout=60.0, follow_redirects=False) as client:
-                    response = await client.post(endpoint, headers=headers, json=payload)
+                async with httpx.AsyncClient(
+                    timeout=60.0, follow_redirects=False
+                ) as client:
+                    response = await client.post(
+                        endpoint, headers=headers, json=payload
+                    )
                     response.raise_for_status()
                     data = response.json()
                 breaker.record_success()
                 if dialect == "anthropic":
-                    return "\n".join(block.get("text", "") for block in data.get("content", []) if block.get("type") == "text")
+                    return "\n".join(
+                        block.get("text", "")
+                        for block in data.get("content", [])
+                        if block.get("type") == "text"
+                    )
                 if dialect == "responses":
                     if data.get("output_text"):
                         return str(data["output_text"])
@@ -552,11 +632,16 @@ class LLMService:
                         for part in item.get("content", [])
                         if part.get("type") in {"output_text", "text"}
                     )
-                return ((data.get("choices") or [{}])[0].get("message") or {}).get("content", "")
+                return ((data.get("choices") or [{}])[0].get("message") or {}).get(
+                    "content", ""
+                )
             except (httpx.HTTPError, ValueError, KeyError, TypeError) as error:
                 logger.warning(f"{provider} API attempt {attempt + 1} failed: {error}")
                 breaker.record_failure()
-                if not self._is_retryable_error(error) or attempt == self.retry_config.max_retries:
+                if (
+                    not self._is_retryable_error(error)
+                    or attempt == self.retry_config.max_retries
+                ):
                     break
                 await asyncio.sleep(self._calculate_delay(attempt))
         return None
@@ -593,38 +678,75 @@ class LLMService:
             elif lowered.startswith(("gpt-", "o1", "o3", "o4")):
                 preferred = "openai"
 
-        provider_order = list(dict.fromkeys([
-            preferred,
-            "minimax",
-            "opencode-go",
-            "opencode-zen",
-            "anthropic",
-            "openai",
-        ]))
+        provider_order = list(
+            dict.fromkeys(
+                [
+                    preferred,
+                    "minimax",
+                    "opencode-go",
+                    "opencode-zen",
+                    "anthropic",
+                    "openai",
+                ]
+            )
+        )
         for provider in provider_order:
             if provider == "minimax" and self._minimax:
-                selected = requested if requested and "minimax" in requested.lower() else None
-                selected = selected or user_config.get_default_model(_MINIMAX_FALLBACK[tier], "minimax")
-                result = await self._call_minimax_with_retry(prompt, system, selected, max_tokens)
+                selected = (
+                    requested if requested and "minimax" in requested.lower() else None
+                )
+                selected = selected or user_config.get_default_model(
+                    _MINIMAX_FALLBACK[tier], "minimax"
+                )
+                result = await self._call_minimax_with_retry(
+                    prompt, system, selected, max_tokens
+                )
             elif provider == "anthropic" and self._anthropic:
                 selected = requested
-                if not selected or _is_legacy_model(selected) or "claude" not in selected.lower():
-                    selected = await self.resolve_model("anthropic", tier) or _ANTHROPIC_FALLBACK[tier]
-                result = await self._call_anthropic_with_retry(prompt, system, selected, max_tokens)
+                if (
+                    not selected
+                    or _is_legacy_model(selected)
+                    or "claude" not in selected.lower()
+                ):
+                    selected = (
+                        await self.resolve_model("anthropic", tier)
+                        or _ANTHROPIC_FALLBACK[tier]
+                    )
+                result = await self._call_anthropic_with_retry(
+                    prompt, system, selected, max_tokens
+                )
             elif provider == "openai" and self._openai:
                 selected = requested
-                if not selected or _is_legacy_model(selected) or not selected.lower().startswith(("gpt-", "o1", "o3", "o4")):
-                    selected = await self.resolve_model("openai", tier) or _OPENAI_FALLBACK[tier]
-                result = await self._call_openai_with_retry(prompt, system or DEFAULT_SYSTEM_PROMPT, selected, max_tokens)
+                if (
+                    not selected
+                    or _is_legacy_model(selected)
+                    or not selected.lower().startswith(("gpt-", "o1", "o3", "o4"))
+                ):
+                    selected = (
+                        await self.resolve_model("openai", tier)
+                        or _OPENAI_FALLBACK[tier]
+                    )
+                result = await self._call_openai_with_retry(
+                    prompt, system or DEFAULT_SYSTEM_PROMPT, selected, max_tokens
+                )
             elif provider == "opencode-go" and self.opencode_go_key:
-                selected = requested or user_config.get_default_model(_OPENCODE_DEFAULTS[provider], provider)
+                selected = requested or user_config.get_default_model(
+                    _OPENCODE_DEFAULTS[provider], provider
+                )
                 result = await self._call_opencode_with_retry(
                     provider, self.opencode_go_key, prompt, system, selected, max_tokens
                 )
             elif provider == "opencode-zen" and self.opencode_zen_key:
-                selected = requested or user_config.get_default_model(_OPENCODE_DEFAULTS[provider], provider)
+                selected = requested or user_config.get_default_model(
+                    _OPENCODE_DEFAULTS[provider], provider
+                )
                 result = await self._call_opencode_with_retry(
-                    provider, self.opencode_zen_key, prompt, system, selected, max_tokens
+                    provider,
+                    self.opencode_zen_key,
+                    prompt,
+                    system,
+                    selected,
+                    max_tokens,
                 )
             else:
                 continue

@@ -49,11 +49,11 @@ class ContextManager:
         if len(serialized) > 10000:  # 10KB threshold
             compressed = zlib.compress(serialized.encode())
             file_path = self.context_path / f"{session_id}.ctx.gz"
-            with open(file_path, 'wb') as f:
+            with open(file_path, "wb") as f:
                 f.write(compressed)
         else:
             file_path = self.context_path / f"{session_id}.ctx"
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 json.dump(reduced, f)
 
         # Cache for quick access
@@ -71,7 +71,7 @@ class ContextManager:
         # Try compressed file
         compressed_path = self.context_path / f"{session_id}.ctx.gz"
         if compressed_path.exists():
-            with open(compressed_path, 'rb') as f:
+            with open(compressed_path, "rb") as f:
                 compressed = f.read()
                 decompressed = zlib.decompress(compressed)
                 context_data = json.loads(decompressed.decode())
@@ -81,7 +81,7 @@ class ContextManager:
         # Try regular file
         regular_path = self.context_path / f"{session_id}.ctx"
         if regular_path.exists():
-            with open(regular_path, 'r') as f:
+            with open(regular_path, "r") as f:
                 context_data = json.load(f)
                 self.active_contexts[session_id] = context_data
                 return context_data
@@ -98,28 +98,32 @@ class ContextManager:
             "file_map": {},
             "patterns": {},
             "dependencies": {},
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
 
         project_path = Path(project_root)
 
         # Map file locations by type
-        for ext in ['.py', '.js', '.ts', '.jsx', '.tsx', '.json', '.yaml', '.yml']:
+        for ext in [".py", ".js", ".ts", ".jsx", ".tsx", ".json", ".yaml", ".yml"]:
             files = list(project_path.rglob(f"*{ext}"))
             if files:
-                structure["file_map"][ext] = [str(f.relative_to(project_path)) for f in files[:100]]  # Limit
+                structure["file_map"][ext] = [
+                    str(f.relative_to(project_path)) for f in files[:100]
+                ]  # Limit
 
         # Identify common patterns
         if (project_path / "package.json").exists():
             structure["patterns"]["framework"] = "node/npm"
-        if (project_path / "requirements.txt").exists() or (project_path / "setup.py").exists():
+        if (project_path / "requirements.txt").exists() or (
+            project_path / "setup.py"
+        ).exists():
             structure["patterns"]["framework"] = "python"
         if (project_path / "Cargo.toml").exists():
             structure["patterns"]["framework"] = "rust"
 
         # Store in knowledge base
         knowledge_file = self.knowledge_path / "structure.json"
-        with open(knowledge_file, 'w') as f:
+        with open(knowledge_file, "w") as f:
             json.dump(structure, f, indent=2)
 
         return structure
@@ -141,13 +145,13 @@ class ContextManager:
             "original_task": context.get("parent_task", ""),
             "artifacts": context.get("artifacts_created", []),
             "decisions": len(context.get("decisions_made", [])),
-            "archived_at": datetime.now().isoformat()
+            "archived_at": datetime.now().isoformat(),
         }
 
         # Store archive summary
         archive_path = self.context_path / "archive" / f"{session_id}.summary.json"
         archive_path.parent.mkdir(exist_ok=True)
-        with open(archive_path, 'w') as f:
+        with open(archive_path, "w") as f:
             json.dump(archive, f)
 
         # Remove from active contexts
@@ -169,7 +173,7 @@ class ContextManager:
         # Check archive first
         archive_path = self.context_path / "archive" / f"{session_id}.summary.json"
         if archive_path.exists():
-            with open(archive_path, 'r') as f:
+            with open(archive_path, "r") as f:
                 return json.load(f)
 
         # Load and summarize active context
@@ -181,7 +185,7 @@ class ContextManager:
                 "token_count": context.get("token_count", 0),
                 "artifacts_count": len(context.get("artifacts_created", [])),
                 "decisions_count": len(context.get("decisions_made", [])),
-                "status": "active"
+                "status": "active",
             }
 
         return {"session_id": str(session_id), "status": "not_found"}
@@ -195,7 +199,7 @@ class ContextManager:
             "structural_pointers": {},
             "decisions_made": [],
             "artifacts_created": [],
-            "token_count": 0
+            "token_count": 0,
         }
 
         for context in contexts:
@@ -253,5 +257,5 @@ class ContextManager:
             "decisions_made": decisions_count,
             "artifacts_per_1k_tokens": artifacts_per_token,
             "decisions_per_1k_tokens": decisions_per_token,
-            "efficiency_score": (artifacts_per_token + decisions_per_token) / 2
+            "efficiency_score": (artifacts_per_token + decisions_per_token) / 2,
         }

@@ -50,10 +50,7 @@ class TestCLICommandProduction:
             (project_dir / "tests").mkdir()
 
             # Create package.json for JS tests
-            package_json = {
-                "name": "test-project",
-                "scripts": {"test": "jest"}
-            }
+            package_json = {"name": "test-project", "scripts": {"test": "jest"}}
             with open(project_dir / "package.json", "w") as f:
                 json.dump(package_json, f)
 
@@ -69,7 +66,7 @@ class TestCLICommandProduction:
     async def test_help_command(self, command_registry):
         """Test /help command functionality."""
         # Test basic help
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_help("")
             # Verify help was displayed
             assert mock_print.called
@@ -80,7 +77,7 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_help_with_category(self, command_registry):
         """Test /help command with specific category."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_help("System")
             # Verify category-specific help was displayed
             assert any("System" in str(call) for call in mock_print.call_args_list)
@@ -96,24 +93,27 @@ class TestCLICommandProduction:
     async def test_status_command_without_cli(self, command_registry):
         """Test /status command without CLI context."""
         command_registry.casper_cli = None
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_status("")
             # Should display warning
-            assert any("requires CASPER CLI context" in str(call) for call in mock_print.call_args_list)
+            assert any(
+                "requires CASPER CLI context" in str(call)
+                for call in mock_print.call_args_list
+            )
 
     @pytest.mark.asyncio
     async def test_config_show(self, command_registry):
         """Test /config command showing current configuration."""
-        with patch('core.services.slash_commands.user_config') as mock_config:
+        with patch("core.services.slash_commands.user_config") as mock_config:
             mock_config.get_user_info.return_value = {
                 "username": "test_user",
                 "config_dir": "/test/config",
-                "configured_providers": ["anthropic"]
+                "configured_providers": ["anthropic"],
             }
             mock_config.get_config.return_value = {"test_key": "test_value"}
             mock_config.get_default_provider.return_value = "anthropic"
 
-            with patch('core.services.slash_commands.console.print') as mock_print:
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 await command_registry._cmd_config("")
                 # Verify config was displayed
                 assert mock_print.called
@@ -121,11 +121,11 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_config_set(self, command_registry):
         """Test /config set command."""
-        with patch('core.services.slash_commands.user_config') as mock_config:
+        with patch("core.services.slash_commands.user_config") as mock_config:
             mock_config.get_config.return_value = {}
             mock_config.store_config = MagicMock()
 
-            with patch('core.services.slash_commands.console.print') as mock_print:
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 await command_registry._cmd_config("set test_key test_value")
                 mock_config.store_config.assert_called_once()
                 # Verify success message
@@ -134,7 +134,7 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_config_set_invalid(self, command_registry):
         """Test /config set with invalid arguments."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_config("set")
             # Should show usage error
             assert any("Usage:" in str(call) for call in mock_print.call_args_list)
@@ -149,8 +149,8 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_clear_command(self, command_registry):
         """Test /clear command functionality."""
-        with patch('rich.console.Console.clear') as mock_clear:
-            with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("rich.console.Console.clear") as mock_clear:
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 await command_registry._cmd_clear("")
                 mock_clear.assert_called_once()
                 assert any("cleared" in str(call) for call in mock_print.call_args_list)
@@ -168,14 +168,17 @@ class TestCLICommandProduction:
     async def test_task_command_without_cli(self, command_registry):
         """Test /task command without CLI context."""
         command_registry.casper_cli = None
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_task("test task")
-            assert any("requires CASPER CLI context" in str(call) for call in mock_print.call_args_list)
+            assert any(
+                "requires CASPER CLI context" in str(call)
+                for call in mock_print.call_args_list
+            )
 
     @pytest.mark.asyncio
     async def test_task_command_empty(self, command_registry):
         """Test /task command with empty description."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_task("")
             assert any("Usage:" in str(call) for call in mock_print.call_args_list)
 
@@ -189,7 +192,7 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_analyze_command_empty(self, command_registry):
         """Test /analyze command with empty description."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_analyze("")
             assert any("Usage:" in str(call) for call in mock_print.call_args_list)
 
@@ -198,39 +201,46 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_save_session_default_name(self, command_registry):
         """Test /save command with default session name."""
-        with patch('builtins.open', create=True) as mock_open:
-            with patch('json.dump') as mock_dump:
-                with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("builtins.open", create=True) as mock_open:
+            with patch("json.dump") as mock_dump:
+                with patch("core.services.slash_commands.console.print") as mock_print:
                     await command_registry._cmd_save("")
                     mock_open.assert_called_once()
                     mock_dump.assert_called_once()
-                    assert any("saved" in str(call) for call in mock_print.call_args_list)
+                    assert any(
+                        "saved" in str(call) for call in mock_print.call_args_list
+                    )
 
     @pytest.mark.asyncio
     async def test_save_session_custom_name(self, command_registry):
         """Test /save command with custom session name."""
-        with patch('builtins.open', create=True) as mock_open:
-            with patch('json.dump') as mock_dump:
-                with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("builtins.open", create=True) as mock_open:
+            with patch("json.dump") as mock_dump:
+                with patch("core.services.slash_commands.console.print") as mock_print:
                     await command_registry._cmd_save("my_session")
                     mock_open.assert_called_once()
                     mock_dump.assert_called_once()
-                    assert any("my_session" in str(call) for call in mock_print.call_args_list)
+                    assert any(
+                        "my_session" in str(call) for call in mock_print.call_args_list
+                    )
 
     @pytest.mark.asyncio
     async def test_sessions_list_empty(self, command_registry):
         """Test /sessions command with no saved sessions."""
-        with patch.object(Path, 'glob', return_value=[]):
-            with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch.object(Path, "glob", return_value=[]):
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 await command_registry._cmd_sessions("")
-                assert any("No saved sessions" in str(call) for call in mock_print.call_args_list)
+                assert any(
+                    "No saved sessions" in str(call)
+                    for call in mock_print.call_args_list
+                )
 
     # === CODE GENERATION COMMANDS ===
 
     @pytest.mark.asyncio
     async def test_newcomponent_basic(self, command_registry):
         """Test /newcomponent command with basic usage."""
-        with patch('core.services.codegen.code_generator') as mock_generator:
+        with patch("core.services.codegen.code_generator") as mock_generator:
             mock_generator.generate_component = AsyncMock(return_value=True)
 
             await command_registry._cmd_newcomponent("TestComponent")
@@ -239,27 +249,29 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_newcomponent_with_options(self, command_registry):
         """Test /newcomponent with various options."""
-        with patch('core.services.codegen.code_generator') as mock_generator:
+        with patch("core.services.codegen.code_generator") as mock_generator:
             mock_generator.generate_component = AsyncMock(return_value=True)
 
-            await command_registry._cmd_newcomponent("TestComponent --type=react --no-tests --stories")
+            await command_registry._cmd_newcomponent(
+                "TestComponent --type=react --no-tests --stories"
+            )
 
             call_args = mock_generator.generate_component.call_args
-            assert call_args[1]['component_type'] == 'react'
-            assert call_args[1]['options']['include_tests'] is False
-            assert call_args[1]['options']['include_stories'] is True
+            assert call_args[1]["component_type"] == "react"
+            assert call_args[1]["options"]["include_tests"] is False
+            assert call_args[1]["options"]["include_stories"] is True
 
     @pytest.mark.asyncio
     async def test_newcomponent_empty(self, command_registry):
         """Test /newcomponent with no component name."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_newcomponent("")
             assert any("Usage:" in str(call) for call in mock_print.call_args_list)
 
     @pytest.mark.asyncio
     async def test_docs_command(self, command_registry):
         """Test /docs command functionality."""
-        with patch('core.services.docgen.doc_generator') as mock_generator:
+        with patch("core.services.docgen.doc_generator") as mock_generator:
             mock_generator.generate_file_docs = AsyncMock(return_value=True)
 
             await command_registry._cmd_docs("src/utils.py")
@@ -268,16 +280,18 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_docs_with_function(self, command_registry):
         """Test /docs command with specific function."""
-        with patch('core.services.docgen.doc_generator') as mock_generator:
+        with patch("core.services.docgen.doc_generator") as mock_generator:
             mock_generator.generate_function_docs = AsyncMock(return_value=True)
 
             await command_registry._cmd_docs("src/utils.py calculate_total")
-            mock_generator.generate_function_docs.assert_called_once_with("src/utils.py", "calculate_total")
+            mock_generator.generate_function_docs.assert_called_once_with(
+                "src/utils.py", "calculate_total"
+            )
 
     @pytest.mark.asyncio
     async def test_docs_empty(self, command_registry):
         """Test /docs command with no arguments."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_docs("")
             assert any("Usage:" in str(call) for call in mock_print.call_args_list)
 
@@ -286,10 +300,15 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_commit_not_in_git_repo(self, command_registry):
         """Test /commit command when not in a git repository."""
-        with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'git')):
-            with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")
+        ):
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 await command_registry._cmd_commit("")
-                assert any("Not in a git repository" in str(call) for call in mock_print.call_args_list)
+                assert any(
+                    "Not in a git repository" in str(call)
+                    for call in mock_print.call_args_list
+                )
 
     @pytest.mark.asyncio
     async def test_commit_no_changes(self, command_registry):
@@ -299,10 +318,13 @@ class TestCLICommandProduction:
         mock_status.stdout = ""
         mock_status.returncode = 0
 
-        with patch('subprocess.run', return_value=mock_status):
-            with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("subprocess.run", return_value=mock_status):
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 await command_registry._cmd_commit("")
-                assert any("No changes to commit" in str(call) for call in mock_print.call_args_list)
+                assert any(
+                    "No changes to commit" in str(call)
+                    for call in mock_print.call_args_list
+                )
 
     @pytest.mark.asyncio
     async def test_commit_with_changes(self, command_registry):
@@ -317,11 +339,13 @@ class TestCLICommandProduction:
         mock_diff.stdout = "diff --git a/test_file.py b/test_file.py\n+new line\n"
         mock_diff.returncode = 0
 
-        with patch('subprocess.run', side_effect=[mock_status, mock_status, mock_diff]):
-            with patch('rich.prompt.Confirm.ask', return_value=False):  # User cancels
-                with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("subprocess.run", side_effect=[mock_status, mock_status, mock_diff]):
+            with patch("rich.prompt.Confirm.ask", return_value=False):  # User cancels
+                with patch("core.services.slash_commands.console.print") as mock_print:
                     await command_registry._cmd_commit("")
-                    assert any("cancelled" in str(call) for call in mock_print.call_args_list)
+                    assert any(
+                        "cancelled" in str(call) for call in mock_print.call_args_list
+                    )
 
     @pytest.mark.asyncio
     async def test_commit_custom_message(self, command_registry):
@@ -341,11 +365,17 @@ class TestCLICommandProduction:
         mock_commit = MagicMock()
         mock_commit.returncode = 0
 
-        with patch('subprocess.run', side_effect=[mock_status, mock_status, mock_diff, mock_add, mock_commit]):
-            with patch('rich.prompt.Confirm.ask', return_value=True):  # User confirms
-                with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch(
+            "subprocess.run",
+            side_effect=[mock_status, mock_status, mock_diff, mock_add, mock_commit],
+        ):
+            with patch("rich.prompt.Confirm.ask", return_value=True):  # User confirms
+                with patch("core.services.slash_commands.console.print") as mock_print:
                     await command_registry._cmd_commit("--message='test commit'")
-                    assert any("Committed successfully" in str(call) for call in mock_print.call_args_list)
+                    assert any(
+                        "Committed successfully" in str(call)
+                        for call in mock_print.call_args_list
+                    )
 
     # === TESTING COMMANDS ===
 
@@ -360,8 +390,8 @@ class TestCLICommandProduction:
         mock_result.stdout = "===== 5 passed in 0.1s ====="
         mock_result.stderr = ""
 
-        with patch('subprocess.run', return_value=mock_result):
-            with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("subprocess.run", return_value=mock_result):
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 await command_registry._cmd_test("")
                 assert any("pytest" in str(call) for call in mock_print.call_args_list)
                 assert any("passed" in str(call) for call in mock_print.call_args_list)
@@ -372,12 +402,17 @@ class TestCLICommandProduction:
         with tempfile.TemporaryDirectory() as temp_dir:
             os.chdir(temp_dir)
 
-            with patch('core.services.slash_commands.console.print') as mock_print:
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 await command_registry._cmd_test("")
-                assert any("No test framework detected" in str(call) for call in mock_print.call_args_list)
+                assert any(
+                    "No test framework detected" in str(call)
+                    for call in mock_print.call_args_list
+                )
 
     @pytest.mark.asyncio
-    async def test_test_command_with_specific_file(self, command_registry, temp_project):
+    async def test_test_command_with_specific_file(
+        self, command_registry, temp_project
+    ):
         """Test /test command with specific test file."""
         os.chdir(temp_project)
 
@@ -386,11 +421,14 @@ class TestCLICommandProduction:
         mock_result.stdout = "test_specific.py passed"
         mock_result.stderr = ""
 
-        with patch('subprocess.run', return_value=mock_result):
-            with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("subprocess.run", return_value=mock_result):
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 await command_registry._cmd_test("test_specific.py")
                 # Should include the specific file in the command
-                assert any("test_specific.py" in str(call) for call in mock_print.call_args_list)
+                assert any(
+                    "test_specific.py" in str(call)
+                    for call in mock_print.call_args_list
+                )
 
     @pytest.mark.asyncio
     async def test_test_command_failures(self, command_registry, temp_project):
@@ -402,25 +440,33 @@ class TestCLICommandProduction:
         mock_result.stdout = "===== FAILURES ====="
         mock_result.stderr = "2 failed, 3 passed"
 
-        with patch('subprocess.run', return_value=mock_result):
-            with patch('rich.prompt.Confirm.ask', return_value=False):  # Don't rerun failed
-                with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("subprocess.run", return_value=mock_result):
+            with patch(
+                "rich.prompt.Confirm.ask", return_value=False
+            ):  # Don't rerun failed
+                with patch("core.services.slash_commands.console.print") as mock_print:
                     await command_registry._cmd_test("")
-                    assert any("failed" in str(call) for call in mock_print.call_args_list)
+                    assert any(
+                        "failed" in str(call) for call in mock_print.call_args_list
+                    )
 
     # === TODO MANAGEMENT ===
 
     @pytest.mark.asyncio
     async def test_todo_add_basic(self, command_registry):
         """Test /todo command adds a todo item."""
-        with patch.object(command_registry, '_add_todo', new_callable=AsyncMock) as mock_add:
+        with patch.object(
+            command_registry, "_add_todo", new_callable=AsyncMock
+        ) as mock_add:
             await command_registry._cmd_todo("Add new feature")
             mock_add.assert_called_once_with("Add new feature")
 
     @pytest.mark.asyncio
     async def test_todo_empty(self, command_registry):
         """Test /todo command with empty task shows todo list."""
-        with patch.object(command_registry, '_show_todos', new_callable=AsyncMock) as mock_show:
+        with patch.object(
+            command_registry, "_show_todos", new_callable=AsyncMock
+        ) as mock_show:
             await command_registry._cmd_todo("")
             mock_show.assert_called_once()
 
@@ -429,56 +475,69 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_explain_command_placeholder(self, command_registry):
         """Test /explain command shows development status."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_explain("test error message")
-            assert any("Analyzing" in str(call) or "Explaining" in str(call) for call in mock_print.call_args_list)
+            assert any(
+                "Analyzing" in str(call) or "Explaining" in str(call)
+                for call in mock_print.call_args_list
+            )
 
     @pytest.mark.asyncio
     async def test_sync_command_placeholder(self, command_registry):
         """Test /sync command shows development status."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_sync("")
-            assert any("sync" in str(call).lower() for call in mock_print.call_args_list)
+            assert any(
+                "sync" in str(call).lower() for call in mock_print.call_args_list
+            )
 
     @pytest.mark.asyncio
     async def test_debug_command_placeholder(self, command_registry):
         """Test /debug command shows development status."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_debug("debug issue")
-            assert any("debug session" in str(call) for call in mock_print.call_args_list)
+            assert any(
+                "debug session" in str(call) for call in mock_print.call_args_list
+            )
 
     @pytest.mark.asyncio
     async def test_deploy_command_placeholder(self, command_registry):
         """Test /deploy command shows development status."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_deploy("staging")
-            assert any("deploy" in str(call).lower() for call in mock_print.call_args_list)
+            assert any(
+                "deploy" in str(call).lower() for call in mock_print.call_args_list
+            )
 
     @pytest.mark.asyncio
     async def test_command_execution_with_unknown_command(self, command_registry):
         """Test execution of unknown command."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             result = await command_registry.execute("/unknown_command test")
             assert result is True  # Command was processed (even if unknown)
-            assert any("Unknown command" in str(call) for call in mock_print.call_args_list)
+            assert any(
+                "Unknown command" in str(call) for call in mock_print.call_args_list
+            )
 
     @pytest.mark.asyncio
     async def test_command_execution_exception_handling(self, command_registry):
         """Test command execution with exception."""
         # Patch the handler on the command object directly
         help_cmd = command_registry.get_command("help")
-        with patch.object(help_cmd, 'handler', side_effect=Exception("Test error")):
-            with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch.object(help_cmd, "handler", side_effect=Exception("Test error")):
+            with patch("core.services.slash_commands.console.print") as mock_print:
                 result = await command_registry.execute("/help")
                 assert result is True
-                assert any("Error executing" in str(call) for call in mock_print.call_args_list)
+                assert any(
+                    "Error executing" in str(call) for call in mock_print.call_args_list
+                )
 
     # === PERSONALIZATION COMMANDS ===
 
     @pytest.mark.asyncio
     async def test_custom_command_list(self, command_registry):
         """Test /custom list functionality."""
-        with patch('core.services.slash_commands.personalization_manager') as mock_pm:
+        with patch("core.services.slash_commands.personalization_manager") as mock_pm:
             mock_pm.show_custom_commands = MagicMock()
 
             await command_registry._cmd_custom("list")
@@ -487,7 +546,7 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_custom_command_no_args(self, command_registry):
         """Test /custom with no arguments shows custom commands."""
-        with patch('core.services.slash_commands.personalization_manager') as mock_pm:
+        with patch("core.services.slash_commands.personalization_manager") as mock_pm:
             mock_pm.show_custom_commands = MagicMock()
 
             await command_registry._cmd_custom("")
@@ -498,7 +557,7 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_proposal_command_basic(self, command_registry):
         """Test /proposal command basic functionality."""
-        with patch('core.services.business.business_service') as mock_service:
+        with patch("core.services.business.business_service") as mock_service:
             mock_service.generate_proposal = AsyncMock(return_value=True)
 
             await command_registry._cmd_proposal("ClientName")
@@ -507,14 +566,14 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_proposal_command_empty(self, command_registry):
         """Test /proposal command with no client name."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_proposal("")
             assert any("Usage:" in str(call) for call in mock_print.call_args_list)
 
     @pytest.mark.asyncio
     async def test_estimate_command_basic(self, command_registry):
         """Test /estimate command functionality."""
-        with patch('core.services.business.business_service') as mock_service:
+        with patch("core.services.business.business_service") as mock_service:
             mock_service.estimate_project = AsyncMock(return_value={"hours": 40})
 
             await command_registry._cmd_estimate("Build a web app")
@@ -523,7 +582,7 @@ class TestCLICommandProduction:
     @pytest.mark.asyncio
     async def test_estimate_command_empty(self, command_registry):
         """Test /estimate command with no description."""
-        with patch('core.services.slash_commands.console.print') as mock_print:
+        with patch("core.services.slash_commands.console.print") as mock_print:
             await command_registry._cmd_estimate("")
             assert any("Usage:" in str(call) for call in mock_print.call_args_list)
 
@@ -534,21 +593,21 @@ class TestCasperCLI:
     @pytest.fixture
     async def cli(self):
         """Create a CASPER CLI instance."""
-        with patch('core.orchestrator.coordinator.AgentCoordinator'):
-            with patch('core.orchestrator.task_analyzer.TaskAnalyzer'):
+        with patch("core.orchestrator.coordinator.AgentCoordinator"):
+            with patch("core.orchestrator.task_analyzer.TaskAnalyzer"):
                 return CasperCLI()
 
     @pytest.mark.asyncio
     async def test_cli_initialization(self, cli):
         """Test CLI initialization."""
-        with patch.object(cli.coordinator, 'start', new_callable=AsyncMock):
+        with patch.object(cli.coordinator, "start", new_callable=AsyncMock):
             await cli.initialize()
             cli.coordinator.start.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_cli_shutdown(self, cli):
         """Test CLI shutdown."""
-        with patch.object(cli.coordinator, 'stop', new_callable=AsyncMock):
+        with patch.object(cli.coordinator, "stop", new_callable=AsyncMock):
             await cli.shutdown()
             cli.coordinator.stop.assert_called_once()
 
@@ -557,10 +616,22 @@ class TestCasperCLI:
         """Test task execution through CLI."""
         mock_task_id = uuid4()
 
-        with patch.object(cli.task_analyzer, 'analyze_task') as mock_analyze:
-            with patch.object(cli.coordinator, 'submit_task', new_callable=AsyncMock, return_value=mock_task_id):
-                with patch.object(cli.coordinator, 'get_results', new_callable=AsyncMock, return_value=[]):
-                    with patch.object(cli, '_monitor_task_progress', new_callable=AsyncMock):
+        with patch.object(cli.task_analyzer, "analyze_task") as mock_analyze:
+            with patch.object(
+                cli.coordinator,
+                "submit_task",
+                new_callable=AsyncMock,
+                return_value=mock_task_id,
+            ):
+                with patch.object(
+                    cli.coordinator,
+                    "get_results",
+                    new_callable=AsyncMock,
+                    return_value=[],
+                ):
+                    with patch.object(
+                        cli, "_monitor_task_progress", new_callable=AsyncMock
+                    ):
                         mock_metrics = MagicMock()
                         mock_metrics.lines_of_code_estimate = 1000
                         mock_analyze.return_value = (mock_metrics, [], MagicMock())
@@ -573,8 +644,10 @@ class TestCasperCLI:
     @pytest.mark.asyncio
     async def test_analyze_only(self, cli):
         """Test task analysis without execution."""
-        with patch.object(cli.task_analyzer, 'analyze_task') as mock_analyze:
-            with patch('core.orchestrator.task_analyzer.TaskAnalyzer.suggest_execution_strategy') as mock_strategy:
+        with patch.object(cli.task_analyzer, "analyze_task") as mock_analyze:
+            with patch(
+                "core.orchestrator.task_analyzer.TaskAnalyzer.suggest_execution_strategy"
+            ) as mock_strategy:
                 mock_metrics = MagicMock()
                 mock_metrics.lines_of_code_estimate = 1000
                 mock_analyze.return_value = (mock_metrics, [], MagicMock())
@@ -615,11 +688,27 @@ class TestCommandRegistration:
 
         # Critical commands that must exist
         critical_commands = [
-            "help", "status", "config", "setup", "clear",
-            "task", "analyze", "init",
-            "todo", "explain", "sync", "debug",
-            "gen", "refactor", "review", "addroute", "pr", "fixbug",
-            "testfail", "deploy", "standup"
+            "help",
+            "status",
+            "config",
+            "setup",
+            "clear",
+            "task",
+            "analyze",
+            "init",
+            "todo",
+            "explain",
+            "sync",
+            "debug",
+            "gen",
+            "refactor",
+            "review",
+            "addroute",
+            "pr",
+            "fixbug",
+            "testfail",
+            "deploy",
+            "standup",
         ]
 
         for cmd_name in critical_commands:
@@ -664,7 +753,9 @@ class TestCommandRegistration:
         registry = SlashCommandRegistry()
 
         async def test_custom():
-            with patch('core.services.slash_commands.personalization_manager') as mock_pm:
+            with patch(
+                "core.services.slash_commands.personalization_manager"
+            ) as mock_pm:
                 mock_pm.execute_custom_command = AsyncMock(return_value=True)
 
                 result = await registry.execute("#custom_command arg1 arg2")
@@ -678,10 +769,13 @@ class TestCommandRegistration:
 
 if __name__ == "__main__":
     # Run specific test categories for production validation
-    pytest.main([
-        __file__,
-        "-v",
-        "--tb=short",
-        "-k", "not slow",  # Skip slow tests for quick validation
-        "--maxfail=5",     # Stop after 5 failures for quick feedback
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "-k",
+            "not slow",  # Skip slow tests for quick validation
+            "--maxfail=5",  # Stop after 5 failures for quick feedback
+        ]
+    )

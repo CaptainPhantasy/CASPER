@@ -19,7 +19,7 @@ from core.ai.enhanced_command_interpreter import (
     EnhancedCasperInterpreter,
     InterpretedCommand,
     CommandType,
-    ConfidenceLevel
+    ConfidenceLevel,
 )
 from core.ai.decision_orchestrator import DecisionOrchestrator
 from core.agents.master_prime import MasterPrimeAgent
@@ -28,16 +28,18 @@ from core.services.enhanced_approval import EnhancedApprovalService
 
 class AccessLevel(Enum):
     """Access control levels for layer security"""
-    USER = "user"           # External user - can only talk to Omega
-    OMEGA = "omega"         # Layer 0 - can talk to Sigma
-    SIGMA = "sigma"         # Layer 1 - can talk to Gamma
-    GAMMA = "gamma"         # Layer 2 - can talk to Alpha
-    ALPHA = "alpha"         # Layer 3 - can access tools
-    SYSTEM = "system"       # Internal system operations
+
+    USER = "user"  # External user - can only talk to Omega
+    OMEGA = "omega"  # Layer 0 - can talk to Sigma
+    SIGMA = "sigma"  # Layer 1 - can talk to Gamma
+    GAMMA = "gamma"  # Layer 2 - can talk to Alpha
+    ALPHA = "alpha"  # Layer 3 - can access tools
+    SYSTEM = "system"  # Internal system operations
 
 
 class SecurityPolicy(Enum):
     """Security policies for input handling"""
+
     BLOCK_DIRECT_TOOLS = "block_direct_tools"
     BLOCK_SYSTEM_COMMANDS = "block_system_commands"
     BLOCK_FILE_PATHS = "block_file_paths"
@@ -48,6 +50,7 @@ class SecurityPolicy(Enum):
 @dataclass
 class OmegaRequest:
     """Structured request from user through Omega layer"""
+
     id: str
     raw_input: str
     sanitized_input: str
@@ -82,34 +85,34 @@ class OmegaPrime:
 
     # Patterns that indicate direct tool access attempts (BLOCKED)
     BLOCKED_PATTERNS = [
-        r'^Write\s*\(',           # Direct Write tool
-        r'^Edit\s*\(',            # Direct Edit tool
-        r'^Bash\s*\(',            # Direct Bash tool
-        r'^Read\s*\(',            # Direct Read tool
-        r'^MultiEdit\s*\(',       # Direct MultiEdit tool
-        r'^WebSearch\s*\(',       # Direct WebSearch tool
-        r'^Task\s*\(',            # Direct Task tool
-        r'^TodoWrite\s*\(',       # Direct TodoWrite tool
-        r'approval_service\.',    # Direct approval service access
-        r'agent\.',              # Direct agent access
-        r'from\s+core\.',        # Direct import attempts
-        r'import\s+core\.',      # Direct import attempts
-        r'__[a-z]+__',          # Dunder method access
-        r'eval\s*\(',           # Eval attempts
-        r'exec\s*\(',           # Exec attempts
-        r'compile\s*\(',        # Compile attempts
-        r'subprocess\.',        # Subprocess access
-        r'os\.system',          # OS command execution
+        r"^Write\s*\(",  # Direct Write tool
+        r"^Edit\s*\(",  # Direct Edit tool
+        r"^Bash\s*\(",  # Direct Bash tool
+        r"^Read\s*\(",  # Direct Read tool
+        r"^MultiEdit\s*\(",  # Direct MultiEdit tool
+        r"^WebSearch\s*\(",  # Direct WebSearch tool
+        r"^Task\s*\(",  # Direct Task tool
+        r"^TodoWrite\s*\(",  # Direct TodoWrite tool
+        r"approval_service\.",  # Direct approval service access
+        r"agent\.",  # Direct agent access
+        r"from\s+core\.",  # Direct import attempts
+        r"import\s+core\.",  # Direct import attempts
+        r"__[a-z]+__",  # Dunder method access
+        r"eval\s*\(",  # Eval attempts
+        r"exec\s*\(",  # Exec attempts
+        r"compile\s*\(",  # Compile attempts
+        r"subprocess\.",  # Subprocess access
+        r"os\.system",  # OS command execution
     ]
 
     # Patterns that are sanitized but allowed
     SANITIZE_PATTERNS = [
-        (r'rm\s+-rf\s+/', 'delete folder'),  # Dangerous delete
-        (r'sudo\s+', ''),                    # Remove sudo
-        (r'chmod\s+777', 'chmod 755'),       # Safer permissions
-        (r'/etc/', './'),                    # System paths
-        (r'/usr/', './'),                    # System paths
-        (r'/bin/', './'),                    # System paths
+        (r"rm\s+-rf\s+/", "delete folder"),  # Dangerous delete
+        (r"sudo\s+", ""),  # Remove sudo
+        (r"chmod\s+777", "chmod 755"),  # Safer permissions
+        (r"/etc/", "./"),  # System paths
+        (r"/usr/", "./"),  # System paths
+        (r"/bin/", "./"),  # System paths
     ]
 
     def __init__(self):
@@ -124,6 +127,7 @@ class OmegaPrime:
 
         # Initialize fast path for /commands
         from core.layers.omega_fast_path import OmegaFastPath
+
         self.fast_path = OmegaFastPath(self)
 
         print("🛡️ OMEGA PRIME INITIALIZED - Layer 0 Security Active")
@@ -131,7 +135,9 @@ class OmegaPrime:
         print("🚫 Direct tool access is now BLOCKED")
         print("✅ All requests must pass through Omega layer")
 
-    async def process_user_input(self, user_input: str, session_id: str = "default") -> str:
+    async def process_user_input(
+        self, user_input: str, session_id: str = "default"
+    ) -> str:
         """
         THE ONLY METHOD USERS CAN ACCESS.
 
@@ -150,7 +156,7 @@ class OmegaPrime:
         """
 
         # FAST PATH: Check for /commands first (< 10ms overhead)
-        if user_input.startswith('/') and hasattr(self, 'fast_path'):
+        if user_input.startswith("/") and hasattr(self, "fast_path"):
             is_fast, response = await self.fast_path.process_fast(user_input)
             if is_fast:
                 return response
@@ -161,7 +167,7 @@ class OmegaPrime:
             id=f"omega_{datetime.now().timestamp()}",
             raw_input=user_input,
             sanitized_input=user_input,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         # Step 1: Security check - block direct tool access
@@ -228,14 +234,18 @@ class OmegaPrime:
 
         return sanitized
 
-    def _generate_blocked_response(self, blocked_patterns: List[str], user_input: str) -> str:
+    def _generate_blocked_response(
+        self, blocked_patterns: List[str], user_input: str
+    ) -> str:
         """Generate response when direct tool access is blocked"""
 
         # Detect what user was trying to do
         intent = self._detect_blocked_intent(user_input)
 
         response = "🚫 **Direct Tool Access Blocked**\n\n"
-        response += "I detected an attempt to directly access internal tools or layers.\n"
+        response += (
+            "I detected an attempt to directly access internal tools or layers.\n"
+        )
         response += "This is not allowed for security reasons.\n\n"
 
         if intent:
@@ -249,25 +259,29 @@ class OmegaPrime:
             response += "• To run commands: 'list the files in the current directory'\n"
             response += "• To search: 'find all Python files with the word test'\n"
 
-        response += "\n💡 **Remember:** Just describe what you want in natural language."
-        response += "\nI'll handle the technical implementation through the proper layers."
+        response += (
+            "\n💡 **Remember:** Just describe what you want in natural language."
+        )
+        response += (
+            "\nI'll handle the technical implementation through the proper layers."
+        )
 
         return response
 
     def _detect_blocked_intent(self, user_input: str) -> Optional[str]:
         """Detect what the user was trying to do with blocked commands"""
 
-        if 'Write(' in user_input or 'create' in user_input.lower():
+        if "Write(" in user_input or "create" in user_input.lower():
             return "Create or write a file"
-        elif 'Edit(' in user_input or 'modify' in user_input.lower():
+        elif "Edit(" in user_input or "modify" in user_input.lower():
             return "Edit or modify a file"
-        elif 'Bash(' in user_input or 'run' in user_input.lower():
+        elif "Bash(" in user_input or "run" in user_input.lower():
             return "Execute a command"
-        elif 'Read(' in user_input:
+        elif "Read(" in user_input:
             return "Read a file"
-        elif 'approval' in user_input.lower():
+        elif "approval" in user_input.lower():
             return "Manage approvals"
-        elif 'agent' in user_input.lower():
+        elif "agent" in user_input.lower():
             return "Access an agent directly"
 
         return None
@@ -281,7 +295,7 @@ class OmegaPrime:
             "Execute a command": "Say: 'run [describe what command should do]'",
             "Read a file": "Say: 'show me the contents of [filename]'",
             "Manage approvals": "Say: 'approve pending operations' or 'show pending approvals'",
-            "Access an agent directly": "Say what task you want done, I'll route it properly"
+            "Access an agent directly": "Say what task you want done, I'll route it properly",
         }
 
         return proper_commands.get(intent, "Describe your task in natural language")
@@ -298,12 +312,14 @@ class OmegaPrime:
             CommandType.GIT_OPERATION,
             CommandType.PACKAGE_MANAGEMENT,
             CommandType.INITIALIZATION,
-            CommandType.MULTI_AGENT
+            CommandType.MULTI_AGENT,
         ]
 
         return interpretation.command_type in execution_types
 
-    async def _route_to_sigma(self, interpretation: InterpretedCommand, request: OmegaRequest) -> str:
+    async def _route_to_sigma(
+        self, interpretation: InterpretedCommand, request: OmegaRequest
+    ) -> str:
         """
         Route to Sigma layer (Layer 1) through Master Prime.
         Omega → Sigma → Gamma → Alpha
@@ -312,22 +328,27 @@ class OmegaPrime:
         # Initialize Master Prime if needed (Sigma layer)
         if not self.master_agent:
             from core.agents.master_prime import MasterPrimeAgent
+
             self.master_agent = MasterPrimeAgent(
-                agent_id="master_prime_sigma",
-                name="Master Prime (Sigma Layer)"
+                agent_id="master_prime_sigma", name="Master Prime (Sigma Layer)"
             )
 
         # Create context bundle for lower layers
         from core.agents.base import ContextBundle
+
         context = ContextBundle(
             session_id=request.id,
             parent_task=interpretation.raw_input,
             caller_agent_id="omega_prime",
             metadata={
-                "interpretation": interpretation.to_dict() if hasattr(interpretation, 'to_dict') else {},
+                "interpretation": (
+                    interpretation.to_dict()
+                    if hasattr(interpretation, "to_dict")
+                    else {}
+                ),
                 "security_flags": request.security_flags,
-                "access_level": AccessLevel.SIGMA.value
-            }
+                "access_level": AccessLevel.SIGMA.value,
+            },
         )
 
         # Log layer transition
@@ -336,8 +357,7 @@ class OmegaPrime:
         try:
             # Execute through Master Prime (Sigma)
             result = await self.master_agent.execute_task(
-                task=interpretation.raw_input,
-                context=context
+                task=interpretation.raw_input, context=context
             )
 
             # Format response
@@ -365,8 +385,10 @@ class OmegaPrime:
 
     async def _handle_conversation(self, interpretation: InterpretedCommand) -> str:
         """Handle conversational requests"""
-        return f"I understand you're asking about: {interpretation.raw_input}\n" \
-               f"Let me help you with that through the proper channels."
+        return (
+            f"I understand you're asking about: {interpretation.raw_input}\n"
+            f"Let me help you with that through the proper channels."
+        )
 
     async def _handle_query(self, interpretation: InterpretedCommand) -> str:
         """Handle system queries"""
@@ -400,7 +422,7 @@ class OmegaPrime:
             "input_preview": request.raw_input[:100],
             "blocked_patterns": request.blocked_patterns,
             "security_flags": request.security_flags,
-            "status": request.status
+            "status": request.status,
         }
 
         self.security_log.append(event)
@@ -418,23 +440,29 @@ class OmegaPrime:
 
         total_requests = len(self.request_history)
         blocked_count = sum(1 for r in self.request_history if r.status == "blocked")
-        sanitized_count = sum(1 for r in self.request_history if "input_sanitized" in r.security_flags)
+        sanitized_count = sum(
+            1 for r in self.request_history if "input_sanitized" in r.security_flags
+        )
 
         return {
             "total_requests": total_requests,
             "blocked_attempts": blocked_count,
             "sanitized_inputs": sanitized_count,
-            "block_rate": f"{(blocked_count/total_requests*100):.1f}%" if total_requests > 0 else "0%",
+            "block_rate": (
+                f"{(blocked_count/total_requests*100):.1f}%"
+                if total_requests > 0
+                else "0%"
+            ),
             "recent_blocks": [
                 {
                     "time": r.timestamp.strftime("%H:%M:%S"),
                     "input": r.raw_input[:50],
-                    "patterns": r.blocked_patterns
+                    "patterns": r.blocked_patterns,
                 }
                 for r in self.request_history[-5:]
                 if r.status == "blocked"
             ],
-            "active_sessions": len(self.active_sessions)
+            "active_sessions": len(self.active_sessions),
         }
 
     async def shutdown(self):

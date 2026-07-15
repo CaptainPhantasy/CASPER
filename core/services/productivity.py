@@ -28,6 +28,7 @@ console = Console()
 @dataclass
 class FocusSession:
     """Focus session for deep work."""
+
     id: str
     start_time: datetime
     duration_minutes: int
@@ -51,6 +52,7 @@ class FocusSession:
 @dataclass
 class TILEntry:
     """Today I Learned entry."""
+
     id: str
     date: datetime
     content: str
@@ -63,6 +65,7 @@ class TILEntry:
 @dataclass
 class ContextualNote:
     """Note linked to code or commits."""
+
     id: str
     timestamp: datetime
     content: str
@@ -97,16 +100,16 @@ class ProductivityService:
         active_session_file = self.focus_dir / "active_session.json"
         if active_session_file.exists():
             try:
-                with open(active_session_file, 'r') as f:
+                with open(active_session_file, "r") as f:
                     data = json.load(f)
                     self.active_focus_session = FocusSession(
-                        id=data['id'],
-                        start_time=datetime.fromisoformat(data['start_time']),
-                        duration_minutes=data['duration_minutes'],
-                        task=data['task'],
-                        completed=data.get('completed', False),
-                        interruptions=data.get('interruptions', 0),
-                        notes=data.get('notes', [])
+                        id=data["id"],
+                        start_time=datetime.fromisoformat(data["start_time"]),
+                        duration_minutes=data["duration_minutes"],
+                        task=data["task"],
+                        completed=data.get("completed", False),
+                        interruptions=data.get("interruptions", 0),
+                        notes=data.get("notes", []),
                     )
 
                     # Check if session is still active
@@ -121,16 +124,20 @@ class ProductivityService:
         active_session_file = self.focus_dir / "active_session.json"
 
         if self.active_focus_session:
-            with open(active_session_file, 'w') as f:
-                json.dump({
-                    'id': self.active_focus_session.id,
-                    'start_time': self.active_focus_session.start_time.isoformat(),
-                    'duration_minutes': self.active_focus_session.duration_minutes,
-                    'task': self.active_focus_session.task,
-                    'completed': self.active_focus_session.completed,
-                    'interruptions': self.active_focus_session.interruptions,
-                    'notes': self.active_focus_session.notes
-                }, f, indent=2)
+            with open(active_session_file, "w") as f:
+                json.dump(
+                    {
+                        "id": self.active_focus_session.id,
+                        "start_time": self.active_focus_session.start_time.isoformat(),
+                        "duration_minutes": self.active_focus_session.duration_minutes,
+                        "task": self.active_focus_session.task,
+                        "completed": self.active_focus_session.completed,
+                        "interruptions": self.active_focus_session.interruptions,
+                        "notes": self.active_focus_session.notes,
+                    },
+                    f,
+                    indent=2,
+                )
         elif active_session_file.exists():
             active_session_file.unlink()
 
@@ -160,7 +167,7 @@ class ProductivityService:
                 id=session_id,
                 start_time=datetime.now(),
                 duration_minutes=duration,
-                task=task
+                task=task,
             )
 
             self._save_active_session()
@@ -169,15 +176,17 @@ class ProductivityService:
             await self._start_distraction_blocking()
 
             # Display session start
-            console.print(Panel(
-                f"[bold green]🎯 Focus Session Started[/bold green]\n\n"
-                f"[bold]Task:[/bold] {task}\n"
-                f"[bold]Duration:[/bold] {duration} minutes\n"
-                f"[bold]End Time:[/bold] {self.active_focus_session.end_time.strftime('%H:%M')}\n\n"
-                f"[dim]Distractions blocked. Deep work mode active.[/dim]",
-                title="Focus Mode",
-                border_style="green"
-            ))
+            console.print(
+                Panel(
+                    f"[bold green]🎯 Focus Session Started[/bold green]\n\n"
+                    f"[bold]Task:[/bold] {task}\n"
+                    f"[bold]Duration:[/bold] {duration} minutes\n"
+                    f"[bold]End Time:[/bold] {self.active_focus_session.end_time.strftime('%H:%M')}\n\n"
+                    f"[dim]Distractions blocked. Deep work mode active.[/dim]",
+                    title="Focus Mode",
+                    border_style="green",
+                )
+            )
 
             # Set timer for session end
             self._set_session_timer(duration * 60)
@@ -187,7 +196,7 @@ class ProductivityService:
                 "Close unnecessary browser tabs",
                 "Put your phone on silent",
                 "Take a deep breath and begin",
-                "Remember: Quality over quantity"
+                "Remember: Quality over quantity",
             ]
             console.print("\n[bold cyan]Focus Tips:[/bold cyan]")
             for tip in tips:
@@ -202,7 +211,9 @@ class ProductivityService:
 
             # End session
             self.active_focus_session.completed = True
-            session_duration = (datetime.now() - self.active_focus_session.start_time).total_seconds() / 60
+            session_duration = (
+                datetime.now() - self.active_focus_session.start_time
+            ).total_seconds() / 60
 
             # Get session notes
             if Confirm.ask("Add session notes?"):
@@ -216,15 +227,17 @@ class ProductivityService:
             await self._stop_distraction_blocking()
 
             # Display session summary
-            console.print(Panel(
-                f"[bold green]✅ Focus Session Complete![/bold green]\n\n"
-                f"[bold]Task:[/bold] {self.active_focus_session.task}\n"
-                f"[bold]Duration:[/bold] {session_duration:.0f} minutes\n"
-                f"[bold]Interruptions:[/bold] {self.active_focus_session.interruptions}\n"
-                f"[bold]Productivity Score:[/bold] {self._calculate_productivity_score()}/100",
-                title="Session Complete",
-                border_style="green"
-            ))
+            console.print(
+                Panel(
+                    f"[bold green]✅ Focus Session Complete![/bold green]\n\n"
+                    f"[bold]Task:[/bold] {self.active_focus_session.task}\n"
+                    f"[bold]Duration:[/bold] {session_duration:.0f} minutes\n"
+                    f"[bold]Interruptions:[/bold] {self.active_focus_session.interruptions}\n"
+                    f"[bold]Productivity Score:[/bold] {self._calculate_productivity_score()}/100",
+                    title="Session Complete",
+                    border_style="green",
+                )
+            )
 
             # Generate AI insights
             if self.active_focus_session.notes:
@@ -263,10 +276,10 @@ class ProductivityService:
 
                 for session in history[-5:]:
                     table.add_row(
-                        session['date'],
-                        session['task'][:40],
+                        session["date"],
+                        session["task"][:40],
                         f"{session['duration']} min",
-                        str(session.get('score', 'N/A'))
+                        str(session.get("score", "N/A")),
                     )
 
                 console.print(table)
@@ -274,15 +287,17 @@ class ProductivityService:
             remaining = self.active_focus_session.remaining_minutes
 
             if remaining > 0:
-                console.print(Panel(
-                    f"[bold cyan]🎯 Focus Session Active[/bold cyan]\n\n"
-                    f"[bold]Task:[/bold] {self.active_focus_session.task}\n"
-                    f"[bold]Time Remaining:[/bold] {remaining} minutes\n"
-                    f"[bold]Interruptions:[/bold] {self.active_focus_session.interruptions}\n\n"
-                    f"[dim]Use '/focus stop' to end session early[/dim]",
-                    title="Current Session",
-                    border_style="cyan"
-                ))
+                console.print(
+                    Panel(
+                        f"[bold cyan]🎯 Focus Session Active[/bold cyan]\n\n"
+                        f"[bold]Task:[/bold] {self.active_focus_session.task}\n"
+                        f"[bold]Time Remaining:[/bold] {remaining} minutes\n"
+                        f"[bold]Interruptions:[/bold] {self.active_focus_session.interruptions}\n\n"
+                        f"[dim]Use '/focus stop' to end session early[/dim]",
+                        title="Current Session",
+                        border_style="cyan",
+                    )
+                )
 
                 # Show progress bar
                 with Progress(
@@ -293,10 +308,14 @@ class ProductivityService:
                 ) as progress:
                     total = self.active_focus_session.duration_minutes
                     completed = total - remaining
-                    task = progress.add_task("Progress", total=total, completed=completed)
+                    task = progress.add_task(
+                        "Progress", total=total, completed=completed
+                    )
                     time.sleep(0.5)  # Show progress briefly
             else:
-                console.print("[yellow]Session time expired. Use '/focus stop' to complete.[/yellow]")
+                console.print(
+                    "[yellow]Session time expired. Use '/focus stop' to complete.[/yellow]"
+                )
 
     async def _start_distraction_blocking(self):
         """Start blocking distracting websites and apps."""
@@ -307,7 +326,7 @@ class ProductivityService:
             "social media sites",
             "news websites",
             "video streaming",
-            "messaging apps"
+            "messaging apps",
         ]
 
         console.print("\n[dim]Blocking distractions:[/dim]")
@@ -328,6 +347,7 @@ class ProductivityService:
 
     def _set_session_timer(self, seconds: int):
         """Set a timer for session end notification."""
+
         def session_ended():
             console.print("\n" + "=" * 50)
             console.print("[bold yellow]⏰ Focus session time is up![/bold yellow]")
@@ -351,7 +371,9 @@ class ProductivityService:
         score -= self.active_focus_session.interruptions * 10
 
         # Bonus for completing full duration
-        actual_duration = (datetime.now() - self.active_focus_session.start_time).total_seconds() / 60
+        actual_duration = (
+            datetime.now() - self.active_focus_session.start_time
+        ).total_seconds() / 60
         planned_duration = self.active_focus_session.duration_minutes
 
         if actual_duration >= planned_duration:
@@ -369,17 +391,20 @@ class ProductivityService:
 
         history = []
         if history_file.exists():
-            with open(history_file, 'r') as f:
+            with open(history_file, "r") as f:
                 history = json.load(f)
 
         session_data = {
-            'id': self.active_focus_session.id,
-            'date': self.active_focus_session.start_time.strftime('%Y-%m-%d'),
-            'task': self.active_focus_session.task,
-            'duration': int((datetime.now() - self.active_focus_session.start_time).total_seconds() / 60),
-            'interruptions': self.active_focus_session.interruptions,
-            'score': self._calculate_productivity_score(),
-            'notes': self.active_focus_session.notes
+            "id": self.active_focus_session.id,
+            "date": self.active_focus_session.start_time.strftime("%Y-%m-%d"),
+            "task": self.active_focus_session.task,
+            "duration": int(
+                (datetime.now() - self.active_focus_session.start_time).total_seconds()
+                / 60
+            ),
+            "interruptions": self.active_focus_session.interruptions,
+            "score": self._calculate_productivity_score(),
+            "notes": self.active_focus_session.notes,
         }
 
         history.append(session_data)
@@ -388,7 +413,7 @@ class ProductivityService:
         if len(history) > 100:
             history = history[-100:]
 
-        with open(history_file, 'w') as f:
+        with open(history_file, "w") as f:
             json.dump(history, f, indent=2)
 
     def _get_session_history(self) -> List[Dict]:
@@ -396,7 +421,7 @@ class ProductivityService:
         history_file = self.focus_dir / "history.json"
 
         if history_file.exists():
-            with open(history_file, 'r') as f:
+            with open(history_file, "r") as f:
                 return json.load(f)
         return []
 
@@ -423,12 +448,14 @@ Keep response under 100 words.
         insights = await llm_service.complete(
             prompt,
             system="You are a productivity coach providing actionable insights.",
-            max_tokens=200
+            max_tokens=200,
         )
 
         return insights
 
-    async def capture_til(self, learning: str, tags: List[str] = None, project: str = None) -> bool:
+    async def capture_til(
+        self, learning: str, tags: List[str] = None, project: str = None
+    ) -> bool:
         """Today I Learned - knowledge capture and indexing."""
         console.print("[bold cyan]Capturing learning...[/bold cyan]")
 
@@ -437,21 +464,34 @@ Keep response under 100 words.
             tags = []
             # Extract hashtags
             import re
-            hashtags = re.findall(r'#(\w+)', learning)
+
+            hashtags = re.findall(r"#(\w+)", learning)
             tags.extend(hashtags)
 
             # Auto-detect technology tags
-            tech_keywords = ['python', 'javascript', 'react', 'django', 'api', 'database',
-                           'git', 'docker', 'aws', 'testing', 'security', 'performance']
+            tech_keywords = [
+                "python",
+                "javascript",
+                "react",
+                "django",
+                "api",
+                "database",
+                "git",
+                "docker",
+                "aws",
+                "testing",
+                "security",
+                "performance",
+            ]
             for keyword in tech_keywords:
                 if keyword in learning.lower():
                     tags.append(keyword)
 
         # Extract code snippet if present
         code_snippet = None
-        if '```' in learning:
+        if "```" in learning:
             # Extract code block
-            code_match = re.search(r'```[\w]*\n(.*?)\n```', learning, re.DOTALL)
+            code_match = re.search(r"```[\w]*\n(.*?)\n```", learning, re.DOTALL)
             if code_match:
                 code_snippet = code_match.group(1)
 
@@ -467,7 +507,7 @@ Keep response under 100 words.
             content=learning,
             tags=tags,
             project=project,
-            code_snippet=code_snippet
+            code_snippet=code_snippet,
         )
 
         # Generate enhanced learning with AI
@@ -478,30 +518,36 @@ Keep response under 100 words.
 
         # Save TIL entry
         til_file = self.til_dir / f"{til_id}.json"
-        with open(til_file, 'w') as f:
-            json.dump({
-                'id': til_entry.id,
-                'date': til_entry.date.isoformat(),
-                'content': til_entry.content,
-                'enhanced': enhanced,
-                'tags': til_entry.tags,
-                'project': til_entry.project,
-                'code_snippet': til_entry.code_snippet,
-                'resources': til_entry.resources
-            }, f, indent=2)
+        with open(til_file, "w") as f:
+            json.dump(
+                {
+                    "id": til_entry.id,
+                    "date": til_entry.date.isoformat(),
+                    "content": til_entry.content,
+                    "enhanced": enhanced,
+                    "tags": til_entry.tags,
+                    "project": til_entry.project,
+                    "code_snippet": til_entry.code_snippet,
+                    "resources": til_entry.resources,
+                },
+                f,
+                indent=2,
+            )
 
         # Update TIL index
         self._update_til_index(til_entry)
 
         # Display confirmation
-        console.print(Panel(
-            f"[green]✅ Learning captured![/green]\n\n"
-            f"[bold]Topic:[/bold] {learning[:100]}...\n"
-            f"[bold]Tags:[/bold] {', '.join(tags) if tags else 'none'}\n"
-            f"[bold]Project:[/bold] {project}",
-            title="TIL Entry Saved",
-            border_style="green"
-        ))
+        console.print(
+            Panel(
+                f"[green]✅ Learning captured![/green]\n\n"
+                f"[bold]Topic:[/bold] {learning[:100]}...\n"
+                f"[bold]Tags:[/bold] {', '.join(tags) if tags else 'none'}\n"
+                f"[bold]Project:[/bold] {project}",
+                title="TIL Entry Saved",
+                border_style="green",
+            )
+        )
 
         # Show daily learning stats
         stats = self._get_til_stats()
@@ -529,7 +575,7 @@ Keep response concise and actionable.
         enhanced = await llm_service.complete(
             prompt,
             system="You are a technical mentor helping developers learn and grow.",
-            max_tokens=300
+            max_tokens=300,
         )
 
         return enhanced
@@ -537,7 +583,8 @@ Keep response concise and actionable.
     def _extract_resources(self, text: str) -> List[str]:
         """Extract resource URLs from text."""
         import re
-        urls = re.findall(r'https?://[^\s]+', text)
+
+        urls = re.findall(r"https?://[^\s]+", text)
         return urls[:5]  # Limit to 5 resources
 
     def _update_til_index(self, entry: TILEntry):
@@ -546,22 +593,24 @@ Keep response concise and actionable.
 
         index = []
         if index_file.exists():
-            with open(index_file, 'r') as f:
+            with open(index_file, "r") as f:
                 index = json.load(f)
 
-        index.append({
-            'id': entry.id,
-            'date': entry.date.isoformat(),
-            'summary': entry.content[:100],
-            'tags': entry.tags,
-            'project': entry.project
-        })
+        index.append(
+            {
+                "id": entry.id,
+                "date": entry.date.isoformat(),
+                "summary": entry.content[:100],
+                "tags": entry.tags,
+                "project": entry.project,
+            }
+        )
 
         # Keep only last 500 entries in index
         if len(index) > 500:
             index = index[-500:]
 
-        with open(index_file, 'w') as f:
+        with open(index_file, "w") as f:
             json.dump(index, f, indent=2)
 
     def _get_til_stats(self) -> Dict[str, int]:
@@ -569,25 +618,27 @@ Keep response concise and actionable.
         index_file = self.til_dir / "index.json"
 
         if not index_file.exists():
-            return {'today': 0, 'week': 0, 'total': 0}
+            return {"today": 0, "week": 0, "total": 0}
 
-        with open(index_file, 'r') as f:
+        with open(index_file, "r") as f:
             index = json.load(f)
 
         today = datetime.now().date()
         week_ago = today - timedelta(days=7)
 
-        today_count = sum(1 for entry in index
-                         if datetime.fromisoformat(entry['date']).date() == today)
+        today_count = sum(
+            1
+            for entry in index
+            if datetime.fromisoformat(entry["date"]).date() == today
+        )
 
-        week_count = sum(1 for entry in index
-                        if datetime.fromisoformat(entry['date']).date() >= week_ago)
+        week_count = sum(
+            1
+            for entry in index
+            if datetime.fromisoformat(entry["date"]).date() >= week_ago
+        )
 
-        return {
-            'today': today_count,
-            'week': week_count,
-            'total': len(index)
-        }
+        return {"today": today_count, "week": week_count, "total": len(index)}
 
     async def manage_notes(self, action: str, content: str = None) -> bool:
         """Contextual note-taking linked to code/commits."""
@@ -601,7 +652,8 @@ Keep response concise and actionable.
 
             # Extract tags
             import re
-            tags = re.findall(r'#(\w+)', content)
+
+            tags = re.findall(r"#(\w+)", content)
 
             # Create note
             note_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -611,28 +663,34 @@ Keep response concise and actionable.
                 content=content,
                 context_type=context_type,
                 context_ref=context_ref,
-                tags=tags
+                tags=tags,
             )
 
             # Save note
             note_file = self.notes_dir / f"{note_id}.json"
-            with open(note_file, 'w') as f:
-                json.dump({
-                    'id': note.id,
-                    'timestamp': note.timestamp.isoformat(),
-                    'content': note.content,
-                    'context_type': note.context_type,
-                    'context_ref': note.context_ref,
-                    'tags': note.tags
-                }, f, indent=2)
+            with open(note_file, "w") as f:
+                json.dump(
+                    {
+                        "id": note.id,
+                        "timestamp": note.timestamp.isoformat(),
+                        "content": note.content,
+                        "context_type": note.context_type,
+                        "context_ref": note.context_ref,
+                        "tags": note.tags,
+                    },
+                    f,
+                    indent=2,
+                )
 
-            console.print(Panel(
-                f"[green]✅ Note saved![/green]\n\n"
-                f"[bold]Context:[/bold] {context_type} - {context_ref[:50]}...\n"
-                f"[bold]Tags:[/bold] {', '.join(tags) if tags else 'none'}",
-                title="Note Created",
-                border_style="green"
-            ))
+            console.print(
+                Panel(
+                    f"[green]✅ Note saved![/green]\n\n"
+                    f"[bold]Context:[/bold] {context_type} - {context_ref[:50]}...\n"
+                    f"[bold]Tags:[/bold] {', '.join(tags) if tags else 'none'}",
+                    title="Note Created",
+                    border_style="green",
+                )
+            )
 
             return True
 
@@ -643,7 +701,9 @@ Keep response concise and actionable.
                 console.print("[yellow]No notes found[/yellow]")
                 return True
 
-            table = Table(title="Recent Notes", show_header=True, header_style="bold cyan")
+            table = Table(
+                title="Recent Notes", show_header=True, header_style="bold cyan"
+            )
             table.add_column("Date", style="bright_white")
             table.add_column("Context", style="yellow")
             table.add_column("Note", style="white")
@@ -651,10 +711,10 @@ Keep response concise and actionable.
 
             for note in notes[-10:]:
                 table.add_row(
-                    note['date'],
+                    note["date"],
                     f"{note['context_type']}",
-                    note['content'][:50] + "...",
-                    ', '.join(note.get('tags', []))
+                    note["content"][:50] + "...",
+                    ", ".join(note.get("tags", [])),
                 )
 
             console.print(table)
@@ -671,9 +731,11 @@ Keep response concise and actionable.
             else:
                 console.print(f"\n[bold]Found {len(results)} matching notes:[/bold]")
                 for note in results:
-                    console.print(f"\n[yellow]{note['date']}[/yellow] - {note['context_type']}")
+                    console.print(
+                        f"\n[yellow]{note['date']}[/yellow] - {note['context_type']}"
+                    )
                     console.print(f"  {note['content'][:100]}...")
-                    if note.get('tags'):
+                    if note.get("tags"):
                         console.print(f"  [dim]Tags: {', '.join(note['tags'])}[/dim]")
 
             return True
@@ -690,13 +752,21 @@ Keep response concise and actionable.
         # Check if in git repo
         try:
             # Get current branch
-            result = subprocess.run(['git', 'branch', '--show-current'],
-                                  capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                ["git", "branch", "--show-current"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             branch = result.stdout.strip()
 
             # Get last commit
-            result = subprocess.run(['git', 'log', '-1', '--oneline'],
-                                  capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                ["git", "log", "-1", "--oneline"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             commit = result.stdout.strip()
 
             context_type = "commit"
@@ -715,19 +785,23 @@ Keep response concise and actionable.
 
         for note_file in self.notes_dir.glob("*.json"):
             try:
-                with open(note_file, 'r') as f:
+                with open(note_file, "r") as f:
                     note_data = json.load(f)
-                    notes.append({
-                        'date': datetime.fromisoformat(note_data['timestamp']).strftime('%Y-%m-%d %H:%M'),
-                        'content': note_data['content'],
-                        'context_type': note_data['context_type'],
-                        'context_ref': note_data['context_ref'],
-                        'tags': note_data.get('tags', [])
-                    })
+                    notes.append(
+                        {
+                            "date": datetime.fromisoformat(
+                                note_data["timestamp"]
+                            ).strftime("%Y-%m-%d %H:%M"),
+                            "content": note_data["content"],
+                            "context_type": note_data["context_type"],
+                            "context_ref": note_data["context_ref"],
+                            "tags": note_data.get("tags", []),
+                        }
+                    )
             except:
                 pass
 
-        return sorted(notes, key=lambda x: x['date'], reverse=True)
+        return sorted(notes, key=lambda x: x["date"], reverse=True)
 
     def _search_notes(self, query: str) -> List[Dict]:
         """Search notes by content or tags."""
@@ -736,29 +810,39 @@ Keep response concise and actionable.
 
         for note_file in self.notes_dir.glob("*.json"):
             try:
-                with open(note_file, 'r') as f:
+                with open(note_file, "r") as f:
                     note_data = json.load(f)
 
                     # Search in content
-                    if query_lower in note_data['content'].lower():
-                        results.append({
-                            'date': datetime.fromisoformat(note_data['timestamp']).strftime('%Y-%m-%d %H:%M'),
-                            'content': note_data['content'],
-                            'context_type': note_data['context_type'],
-                            'context_ref': note_data['context_ref'],
-                            'tags': note_data.get('tags', [])
-                        })
+                    if query_lower in note_data["content"].lower():
+                        results.append(
+                            {
+                                "date": datetime.fromisoformat(
+                                    note_data["timestamp"]
+                                ).strftime("%Y-%m-%d %H:%M"),
+                                "content": note_data["content"],
+                                "context_type": note_data["context_type"],
+                                "context_ref": note_data["context_ref"],
+                                "tags": note_data.get("tags", []),
+                            }
+                        )
                         continue
 
                     # Search in tags
-                    if any(query_lower in tag.lower() for tag in note_data.get('tags', [])):
-                        results.append({
-                            'date': datetime.fromisoformat(note_data['timestamp']).strftime('%Y-%m-%d %H:%M'),
-                            'content': note_data['content'],
-                            'context_type': note_data['context_type'],
-                            'context_ref': note_data['context_ref'],
-                            'tags': note_data.get('tags', [])
-                        })
+                    if any(
+                        query_lower in tag.lower() for tag in note_data.get("tags", [])
+                    ):
+                        results.append(
+                            {
+                                "date": datetime.fromisoformat(
+                                    note_data["timestamp"]
+                                ).strftime("%Y-%m-%d %H:%M"),
+                                "content": note_data["content"],
+                                "context_type": note_data["context_type"],
+                                "context_ref": note_data["context_ref"],
+                                "tags": note_data.get("tags", []),
+                            }
+                        )
             except:
                 pass
 

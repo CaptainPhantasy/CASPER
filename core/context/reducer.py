@@ -14,12 +14,7 @@ class ContextReducer:
     """
 
     # Maximum tokens for different context types
-    TOKEN_LIMITS = {
-        "handoff": 2000,
-        "summary": 500,
-        "pointer": 100,
-        "decision": 200
-    }
+    TOKEN_LIMITS = {"handoff": 2000, "summary": 500, "pointer": 100, "decision": 200}
 
     @classmethod
     def reduce_code_context(cls, code: str, max_lines: int = 50) -> str:
@@ -27,7 +22,7 @@ class ContextReducer:
         Reduce code to essential structure.
         Keeps signatures, key logic, removes implementation details.
         """
-        lines = code.split('\n')
+        lines = code.split("\n")
         if len(lines) <= max_lines:
             return code
 
@@ -39,10 +34,11 @@ class ContextReducer:
             stripped = line.strip()
 
             # Keep imports, class definitions, function signatures
-            if (stripped.startswith(('import ', 'from ', 'class ', 'def ', '@'))
-                or stripped.startswith(('async def', 'export ', 'interface '))):
+            if stripped.startswith(
+                ("import ", "from ", "class ", "def ", "@")
+            ) or stripped.startswith(("async def", "export ", "interface ")):
                 reduced_lines.append(line)
-                if 'def ' in line:
+                if "def " in line:
                     in_function = True
                     function_depth = len(line) - len(line.lstrip())
 
@@ -61,10 +57,12 @@ class ContextReducer:
                 if len(reduced_lines) < max_lines:
                     reduced_lines.append(line)
 
-        return '\n'.join(reduced_lines[:max_lines])
+        return "\n".join(reduced_lines[:max_lines])
 
     @classmethod
-    def create_file_pointer(cls, file_path: str, key_elements: List[str]) -> Dict[str, str]:
+    def create_file_pointer(
+        cls, file_path: str, key_elements: List[str]
+    ) -> Dict[str, str]:
         """
         Create a lightweight pointer to file location with key elements.
         """
@@ -72,7 +70,7 @@ class ContextReducer:
             "type": "file_pointer",
             "path": file_path,
             "contains": key_elements[:5],  # Limit elements
-            "instruction": f"Load {file_path} for details"
+            "instruction": f"Load {file_path} for details",
         }
 
     @classmethod
@@ -89,11 +87,13 @@ class ContextReducer:
         # Simplify each decision
         simplified = []
         for decision in reduced:
-            simplified.append({
-                "decision": decision.get("decision", "")[:100],  # Truncate
-                "rationale": decision.get("rationale", "")[:50],  # Brief rationale
-                "timestamp": decision.get("timestamp", "")
-            })
+            simplified.append(
+                {
+                    "decision": decision.get("decision", "")[:100],  # Truncate
+                    "rationale": decision.get("rationale", "")[:50],  # Brief rationale
+                    "timestamp": decision.get("timestamp", ""),
+                }
+            )
 
         return simplified
 
@@ -103,8 +103,17 @@ class ContextReducer:
         Extract only the most important artifacts.
         """
         # Prioritize by file type importance
-        priority_extensions = ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rs']
-        config_files = ['package.json', 'requirements.txt', 'Cargo.toml', '.env']
+        priority_extensions = [
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".java",
+            ".go",
+            ".rs",
+        ]
+        config_files = ["package.json", "requirements.txt", "Cargo.toml", ".env"]
 
         prioritized = []
 
@@ -133,7 +142,9 @@ class ContextReducer:
         return prioritized
 
     @classmethod
-    def create_task_summary(cls, task: str, status: str, key_outcomes: List[str]) -> Dict:
+    def create_task_summary(
+        cls, task: str, status: str, key_outcomes: List[str]
+    ) -> Dict:
         """
         Create ultra-compact task summary.
         """
@@ -141,7 +152,7 @@ class ContextReducer:
             "task": task[:100],  # Truncate long tasks
             "status": status,
             "outcomes": key_outcomes[:3],  # Top 3 outcomes only
-            "token_estimate": len(task.split()) + len(' '.join(key_outcomes).split())
+            "token_estimate": len(task.split()) + len(" ".join(key_outcomes).split()),
         }
 
     @classmethod
@@ -152,11 +163,11 @@ class ContextReducer:
         reduced = []
         for error in errors[:5]:  # Max 5 errors
             # Extract key error info
-            if 'Traceback' in error:
+            if "Traceback" in error:
                 # Get just the error type and message
-                lines = error.split('\n')
+                lines = error.split("\n")
                 for line in lines:
-                    if 'Error' in line or 'Exception' in line:
+                    if "Error" in line or "Exception" in line:
                         reduced.append(line.strip())
                         break
             else:
@@ -197,7 +208,9 @@ class ContextReducer:
 
         # Level 2: Reduce artifacts
         if "artifacts_created" in reduced:
-            reduced["artifacts_created"] = cls.extract_key_artifacts(reduced["artifacts_created"])
+            reduced["artifacts_created"] = cls.extract_key_artifacts(
+                reduced["artifacts_created"]
+            )
             current_estimate = cls.estimate_tokens(str(reduced))
             if current_estimate <= limit:
                 return reduced
@@ -221,15 +234,20 @@ class ContextReducer:
             "parent_task": reduced.get("parent_task", "")[:100],
             "next_actions": reduced.get("next_actions", [])[:3],
             "key_artifacts": reduced.get("artifacts_created", [])[:3],
-            "_truncated": True
+            "_truncated": True,
         }
 
         return essential
 
     @classmethod
-    def create_handoff_summary(cls, from_agent: str, to_agent: str,
-                               completed: str, next_task: str,
-                               context: Dict) -> Dict:
+    def create_handoff_summary(
+        cls,
+        from_agent: str,
+        to_agent: str,
+        completed: str,
+        next_task: str,
+        context: Dict,
+    ) -> Dict:
         """
         Create efficient handoff summary between agents.
         """
@@ -238,20 +256,24 @@ class ContextReducer:
                 "from": from_agent,
                 "to": to_agent,
                 "completed": completed[:200],
-                "next_task": next_task[:200]
+                "next_task": next_task[:200],
             },
-            "essential_context": {}
+            "essential_context": {},
         }
 
         # Include only essential context items
         if "structural_pointers" in context:
             # Top 3 most relevant pointers
             pointers = context["structural_pointers"]
-            summary["essential_context"]["key_locations"] = dict(list(pointers.items())[:3])
+            summary["essential_context"]["key_locations"] = dict(
+                list(pointers.items())[:3]
+            )
 
         if "artifacts_created" in context:
             # Most recent artifacts
-            summary["essential_context"]["new_artifacts"] = context["artifacts_created"][-3:]
+            summary["essential_context"]["new_artifacts"] = context[
+                "artifacts_created"
+            ][-3:]
 
         if "decisions_made" in context:
             # Last major decision
@@ -260,7 +282,7 @@ class ContextReducer:
                 last_decision = decisions[-1]
                 summary["essential_context"]["last_decision"] = {
                     "what": last_decision.get("decision", "")[:100],
-                    "why": last_decision.get("rationale", "")[:50]
+                    "why": last_decision.get("rationale", "")[:50],
                 }
 
         # Ensure within token limit

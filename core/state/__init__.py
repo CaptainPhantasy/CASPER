@@ -7,7 +7,11 @@ from .simple_state_manager import SimpleStateManager, AgentTask, TaskStatus
 
 # Try to import the full LangGraph version if available
 try:
-    from .langgraph_orchestrator import ProductionStateManager, create_production_state_manager
+    from .langgraph_orchestrator import (
+        ProductionStateManager,
+        create_production_state_manager,
+    )
+
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     LANGGRAPH_AVAILABLE = False
@@ -33,11 +37,11 @@ def create_state_manager(storage_path: str = None, use_langgraph: bool = True):
 
 
 __all__ = [
-    'SimpleStateManager',
-    'ProductionStateManager',
-    'AgentTask',
-    'TaskStatus',
-    'create_state_manager',
-    'create_production_state_manager',
-    'LANGGRAPH_AVAILABLE'
+    "SimpleStateManager",
+    "ProductionStateManager",
+    "AgentTask",
+    "TaskStatus",
+    "create_state_manager",
+    "create_production_state_manager",
+    "LANGGRAPH_AVAILABLE",
 ]

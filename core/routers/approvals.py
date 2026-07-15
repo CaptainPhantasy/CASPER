@@ -4,13 +4,16 @@ from core.services.approval import approval_service
 
 router = APIRouter()
 
+
 class ApprovalModeRequest(BaseModel):
     mode: str
+
 
 @router.get("/api/approvals/mode")
 async def get_approval_mode():
     """Get the current approval mode."""
     return {"mode": approval_service.mode}
+
 
 @router.post("/api/approvals/mode")
 async def set_approval_mode(request: ApprovalModeRequest):

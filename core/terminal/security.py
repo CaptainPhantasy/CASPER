@@ -27,14 +27,16 @@ logger = logging.getLogger(__name__)
 
 class SecurityLevel(Enum):
     """Security levels for command execution."""
-    SAFE = "safe"           # Safe commands that pose no security risk
+
+    SAFE = "safe"  # Safe commands that pose no security risk
     RESTRICTED = "restricted"  # Commands that require validation
-    DANGEROUS = "dangerous"    # Commands that require approval
-    BLOCKED = "blocked"        # Commands that are never allowed
+    DANGEROUS = "dangerous"  # Commands that require approval
+    BLOCKED = "blocked"  # Commands that are never allowed
 
 
 class CommandRisk(Enum):
     """Risk assessment levels for commands."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -43,6 +45,7 @@ class CommandRisk(Enum):
 
 class SecurityViolation(Exception):
     """Raised when a security violation is detected."""
+
     def __init__(self, message: str, command: str, risk_level: CommandRisk):
         super().__init__(message)
         self.command = command
@@ -52,9 +55,16 @@ class SecurityViolation(Exception):
 class AuditEvent:
     """Represents a security audit event."""
 
-    def __init__(self, event_type: str, command: str, session_id: str,
-                 user_id: Optional[str] = None, risk_level: CommandRisk = CommandRisk.LOW,
-                 allowed: bool = True, reason: Optional[str] = None):
+    def __init__(
+        self,
+        event_type: str,
+        command: str,
+        session_id: str,
+        user_id: Optional[str] = None,
+        risk_level: CommandRisk = CommandRisk.LOW,
+        allowed: bool = True,
+        reason: Optional[str] = None,
+    ):
         self.event_id = str(uuid4())
         self.timestamp = datetime.now()
         self.event_type = event_type
@@ -76,7 +86,7 @@ class AuditEvent:
             "user_id": self.user_id,
             "risk_level": self.risk_level.value,
             "allowed": self.allowed,
-            "reason": self.reason
+            "reason": self.reason,
         }
 
 
@@ -86,61 +96,148 @@ class SecurityConfig:
     def __init__(self):
         self.safe_commands: Set[str] = {
             # Basic file operations
-            "ls", "cat", "head", "tail", "less", "more", "file", "stat", "du", "df",
+            "ls",
+            "cat",
+            "head",
+            "tail",
+            "less",
+            "more",
+            "file",
+            "stat",
+            "du",
+            "df",
             # Directory navigation
-            "pwd", "cd", "find", "locate", "which", "whereis",
+            "pwd",
+            "cd",
+            "find",
+            "locate",
+            "which",
+            "whereis",
             # Text processing
-            "grep", "awk", "sed", "sort", "uniq", "wc", "cut", "tr",
+            "grep",
+            "awk",
+            "sed",
+            "sort",
+            "uniq",
+            "wc",
+            "cut",
+            "tr",
             # CASPER specific commands
-            "casper", "poetry", "pytest", "black", "flake8", "mypy",
+            "casper",
+            "poetry",
+            "pytest",
+            "black",
+            "flake8",
+            "mypy",
             # Version control (read-only)
-            "git status", "git log", "git show", "git diff", "git branch",
+            "git status",
+            "git log",
+            "git show",
+            "git diff",
+            "git branch",
             # System info (read-only)
-            "ps", "top", "whoami", "id", "date", "uptime", "uname",
+            "ps",
+            "top",
+            "whoami",
+            "id",
+            "date",
+            "uptime",
+            "uname",
             # Development tools
-            "npm", "yarn", "node", "python", "python3", "pip", "pip3"
+            "npm",
+            "yarn",
+            "node",
+            "python",
+            "python3",
+            "pip",
+            "pip3",
         }
 
         self.restricted_commands: Set[str] = {
             # File modifications (require validation)
-            "touch", "mkdir", "rmdir", "cp", "mv", "chmod", "chown",
+            "touch",
+            "mkdir",
+            "rmdir",
+            "cp",
+            "mv",
+            "chmod",
+            "chown",
             # Git operations
-            "git add", "git commit", "git push", "git pull", "git merge", "git rebase",
+            "git add",
+            "git commit",
+            "git push",
+            "git pull",
+            "git merge",
+            "git rebase",
             # Package management
-            "npm install", "yarn install", "pip install", "poetry install",
+            "npm install",
+            "yarn install",
+            "pip install",
+            "poetry install",
             # Build tools
-            "make", "cmake", "docker build"
+            "make",
+            "cmake",
+            "docker build",
         }
 
         self.dangerous_commands: Set[str] = {
             # System modifications
-            "sudo", "su", "passwd", "useradd", "userdel", "usermod",
+            "sudo",
+            "su",
+            "passwd",
+            "useradd",
+            "userdel",
+            "usermod",
             # Network operations
-            "curl", "wget", "ssh", "scp", "rsync", "netcat", "nc",
+            "curl",
+            "wget",
+            "ssh",
+            "scp",
+            "rsync",
+            "netcat",
+            "nc",
             # Process control
-            "kill", "killall", "pkill", "nohup", "screen", "tmux"
+            "kill",
+            "killall",
+            "pkill",
+            "nohup",
+            "screen",
+            "tmux",
         }
 
         self.blocked_commands: Set[str] = {
             # Destructive operations
-            "rm", "dd", "mkfs", "fdisk", "parted",
+            "rm",
+            "dd",
+            "mkfs",
+            "fdisk",
+            "parted",
             # System control
-            "reboot", "shutdown", "halt", "poweroff",
+            "reboot",
+            "shutdown",
+            "halt",
+            "poweroff",
             # Security bypasses
-            "exec", "eval", "source", ".",
+            "exec",
+            "eval",
+            "source",
+            ".",
             # Remote access
-            "ftp", "telnet", "rsh", "rlogin"
+            "ftp",
+            "telnet",
+            "rsh",
+            "rlogin",
         }
 
         # Regex patterns for additional security checks
         self.dangerous_patterns: List[re.Pattern] = [
-            re.compile(r'rm\s+.*-r.*'),  # Recursive delete
-            re.compile(r'>\s*/dev/'),     # Writing to device files
-            re.compile(r'\|\s*sh\b'),     # Piping to shell
-            re.compile(r'`.*`'),          # Command substitution
-            re.compile(r'\$\(.*\)'),      # Command substitution
-            re.compile(r'&&|;|\|'),       # Command chaining
-            re.compile(r'<\s*\('),        # Process substitution
+            re.compile(r"rm\s+.*-r.*"),  # Recursive delete
+            re.compile(r">\s*/dev/"),  # Writing to device files
+            re.compile(r"\|\s*sh\b"),  # Piping to shell
+            re.compile(r"`.*`"),  # Command substitution
+            re.compile(r"\$\(.*\)"),  # Command substitution
+            re.compile(r"&&|;|\|"),  # Command chaining
+            re.compile(r"<\s*\("),  # Process substitution
         ]
 
         # File path restrictions
@@ -148,20 +245,31 @@ class SecurityConfig:
             str(Path.cwd()),  # Current working directory
             str(Path.home()),  # User home directory
             "/tmp",
-            "/var/tmp"
+            "/var/tmp",
         }
 
         self.blocked_paths: Set[str] = {
-            "/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin",
-            "/boot", "/dev", "/proc", "/sys", "/root"
+            "/etc",
+            "/bin",
+            "/sbin",
+            "/usr/bin",
+            "/usr/sbin",
+            "/boot",
+            "/dev",
+            "/proc",
+            "/sys",
+            "/root",
         }
 
 
 class SecurityMiddleware:
     """Main security middleware for terminal commands."""
 
-    def __init__(self, config: Optional[SecurityConfig] = None,
-                 audit_callback: Optional[Callable[[AuditEvent], None]] = None):
+    def __init__(
+        self,
+        config: Optional[SecurityConfig] = None,
+        audit_callback: Optional[Callable[[AuditEvent], None]] = None,
+    ):
         self.config = config or SecurityConfig()
         self.audit_callback = audit_callback
         self.audit_log: List[AuditEvent] = []
@@ -171,8 +279,9 @@ class SecurityMiddleware:
         self.audit_dir = Path.cwd() / ".casper" / "security" / "audit"
         self.audit_dir.mkdir(parents=True, exist_ok=True)
 
-    async def validate_command(self, command: str, session_id: str,
-                              user_id: Optional[str] = None) -> bool:
+    async def validate_command(
+        self, command: str, session_id: str, user_id: Optional[str] = None
+    ) -> bool:
         """
         Validate a command for security compliance.
 
@@ -197,8 +306,15 @@ class SecurityMiddleware:
             base_command = parsed[0] if parsed else ""
         except ValueError:
             # Invalid shell syntax
-            self._log_security_event("INVALID_SYNTAX", command, session_id, user_id,
-                                   CommandRisk.HIGH, False, "Invalid shell syntax")
+            self._log_security_event(
+                "INVALID_SYNTAX",
+                command,
+                session_id,
+                user_id,
+                CommandRisk.HIGH,
+                False,
+                "Invalid shell syntax",
+            )
             raise SecurityViolation("Invalid shell syntax", command, CommandRisk.HIGH)
 
         # Assess command risk level
@@ -208,14 +324,25 @@ class SecurityMiddleware:
         security_level = self._get_security_level(base_command, command)
 
         # Apply security rules
-        allowed = await self._apply_security_rules(command, parsed, security_level, risk_level)
+        allowed = await self._apply_security_rules(
+            command, parsed, security_level, risk_level
+        )
 
         # Log the security event
-        self._log_security_event("COMMAND_VALIDATION", command, session_id, user_id,
-                               risk_level, allowed, f"Security level: {security_level.value}")
+        self._log_security_event(
+            "COMMAND_VALIDATION",
+            command,
+            session_id,
+            user_id,
+            risk_level,
+            allowed,
+            f"Security level: {security_level.value}",
+        )
 
         if not allowed:
-            raise SecurityViolation(f"Command blocked by security policy", command, risk_level)
+            raise SecurityViolation(
+                f"Command blocked by security policy", command, risk_level
+            )
 
         return True
 
@@ -247,7 +374,9 @@ class SecurityMiddleware:
 
         return CommandRisk.LOW
 
-    def _get_security_level(self, base_command: str, full_command: str) -> SecurityLevel:
+    def _get_security_level(
+        self, base_command: str, full_command: str
+    ) -> SecurityLevel:
         """Determine the security level for a command."""
         # Check blocked commands first
         if base_command in self.config.blocked_commands:
@@ -273,8 +402,13 @@ class SecurityMiddleware:
         # Default to restricted for unknown commands
         return SecurityLevel.RESTRICTED
 
-    async def _apply_security_rules(self, command: str, parsed: List[str],
-                                  security_level: SecurityLevel, risk_level: CommandRisk) -> bool:
+    async def _apply_security_rules(
+        self,
+        command: str,
+        parsed: List[str],
+        security_level: SecurityLevel,
+        risk_level: CommandRisk,
+    ) -> bool:
         """Apply security rules based on command and risk level."""
 
         # Always block blocked commands
@@ -295,8 +429,9 @@ class SecurityMiddleware:
 
         return True
 
-    async def _validate_restricted_command(self, command: str, parsed: List[str],
-                                         risk_level: CommandRisk) -> bool:
+    async def _validate_restricted_command(
+        self, command: str, parsed: List[str], risk_level: CommandRisk
+    ) -> bool:
         """Additional validation for restricted commands."""
         base_command = parsed[0]
 
@@ -319,7 +454,7 @@ class SecurityMiddleware:
 
     def _is_dangerous_path(self, path: str) -> bool:
         """Check if a path is considered dangerous."""
-        if not path or path.startswith('-'):  # Skip options
+        if not path or path.startswith("-"):  # Skip options
             return False
 
         try:
@@ -339,8 +474,9 @@ class SecurityMiddleware:
     def _is_git_repository(self) -> bool:
         """Check if current directory is in a git repository."""
         try:
-            subprocess.run(["git", "rev-parse", "--git-dir"],
-                         check=True, capture_output=True)
+            subprocess.run(
+                ["git", "rev-parse", "--git-dir"], check=True, capture_output=True
+            )
             return True
         except (subprocess.CalledProcessError, FileNotFoundError):
             return False
@@ -349,22 +485,42 @@ class SecurityMiddleware:
         """Validate package installation commands."""
         # For now, be conservative and only allow known CASPER dependencies
         known_safe_packages = {
-            "fastapi", "uvicorn", "websockets", "rich", "pydantic",
-            "python-dotenv", "asyncio", "pathlib", "typing-extensions",
-            "pytest", "black", "flake8", "mypy", "poetry"
+            "fastapi",
+            "uvicorn",
+            "websockets",
+            "rich",
+            "pydantic",
+            "python-dotenv",
+            "asyncio",
+            "pathlib",
+            "typing-extensions",
+            "pytest",
+            "black",
+            "flake8",
+            "mypy",
+            "poetry",
         }
 
         for arg in parsed:
-            if arg not in known_safe_packages and not arg.startswith('-'):
+            if arg not in known_safe_packages and not arg.startswith("-"):
                 return False
 
         return True
 
-    def _log_security_event(self, event_type: str, command: str, session_id: str,
-                           user_id: Optional[str], risk_level: CommandRisk,
-                           allowed: bool, reason: Optional[str] = None):
+    def _log_security_event(
+        self,
+        event_type: str,
+        command: str,
+        session_id: str,
+        user_id: Optional[str],
+        risk_level: CommandRisk,
+        allowed: bool,
+        reason: Optional[str] = None,
+    ):
         """Log a security event for audit purposes."""
-        event = AuditEvent(event_type, command, session_id, user_id, risk_level, allowed, reason)
+        event = AuditEvent(
+            event_type, command, session_id, user_id, risk_level, allowed, reason
+        )
 
         # Add to in-memory log
         self.audit_log.append(event)
@@ -380,8 +536,15 @@ class SecurityMiddleware:
                 logger.error(f"Error in audit callback: {e}")
 
         # Log to system logger
-        log_level = logging.WARNING if not allowed or risk_level in [CommandRisk.HIGH, CommandRisk.CRITICAL] else logging.INFO
-        logger.log(log_level, f"Security event: {event_type} - Command: {command[:100]} - Allowed: {allowed}")
+        log_level = (
+            logging.WARNING
+            if not allowed or risk_level in [CommandRisk.HIGH, CommandRisk.CRITICAL]
+            else logging.INFO
+        )
+        logger.log(
+            log_level,
+            f"Security event: {event_type} - Command: {command[:100]} - Allowed: {allowed}",
+        )
 
     def _write_audit_event(self, event: AuditEvent):
         """Write audit event to file."""
@@ -391,8 +554,8 @@ class SecurityMiddleware:
             audit_file = self.audit_dir / f"security-{log_date}.jsonl"
 
             # Append event to file
-            with open(audit_file, 'a', encoding='utf-8') as f:
-                f.write(json.dumps(event.to_dict()) + '\n')
+            with open(audit_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event.to_dict()) + "\n")
 
         except Exception as e:
             logger.error(f"Failed to write audit event to file: {e}")
@@ -412,8 +575,8 @@ class SecurityMiddleware:
                 "TMPDIR": str(sandbox_dir / "tmp"),
                 "PATH": "/usr/local/bin:/usr/bin:/bin",  # Restricted PATH
                 "SHELL": "/bin/bash",
-                "TERM": "xterm-256color"
-            }
+                "TERM": "xterm-256color",
+            },
         }
 
         # Create necessary directories in sandbox
@@ -423,8 +586,14 @@ class SecurityMiddleware:
         # Store sandbox context
         self.session_contexts[session_id] = sandbox_context
 
-        self._log_security_event("SANDBOX_CREATED", f"Created sandbox at {sandbox_dir}",
-                               session_id, None, CommandRisk.LOW, True)
+        self._log_security_event(
+            "SANDBOX_CREATED",
+            f"Created sandbox at {sandbox_dir}",
+            session_id,
+            None,
+            CommandRisk.LOW,
+            True,
+        )
 
         return sandbox_context
 
@@ -438,37 +607,58 @@ class SecurityMiddleware:
             sandbox_dir = Path(context["sandbox_dir"])
             if sandbox_dir.exists():
                 import shutil
+
                 shutil.rmtree(sandbox_dir, ignore_errors=True)
 
             del self.session_contexts[session_id]
 
-            self._log_security_event("SANDBOX_CLEANUP", f"Cleaned up sandbox",
-                                   session_id, None, CommandRisk.LOW, True)
+            self._log_security_event(
+                "SANDBOX_CLEANUP",
+                f"Cleaned up sandbox",
+                session_id,
+                None,
+                CommandRisk.LOW,
+                True,
+            )
         except Exception as e:
             logger.error(f"Failed to cleanup sandbox for session {session_id}: {e}")
 
     def get_audit_summary(self, hours: int = 24) -> Dict[str, Any]:
         """Get audit summary for the specified time period."""
         cutoff_time = datetime.now() - timedelta(hours=hours)
-        recent_events = [event for event in self.audit_log if event.timestamp >= cutoff_time]
+        recent_events = [
+            event for event in self.audit_log if event.timestamp >= cutoff_time
+        ]
 
         summary = {
             "total_events": len(recent_events),
             "allowed_commands": len([e for e in recent_events if e.allowed]),
             "blocked_commands": len([e for e in recent_events if not e.allowed]),
             "risk_levels": {
-                "low": len([e for e in recent_events if e.risk_level == CommandRisk.LOW]),
-                "medium": len([e for e in recent_events if e.risk_level == CommandRisk.MEDIUM]),
-                "high": len([e for e in recent_events if e.risk_level == CommandRisk.HIGH]),
-                "critical": len([e for e in recent_events if e.risk_level == CommandRisk.CRITICAL])
+                "low": len(
+                    [e for e in recent_events if e.risk_level == CommandRisk.LOW]
+                ),
+                "medium": len(
+                    [e for e in recent_events if e.risk_level == CommandRisk.MEDIUM]
+                ),
+                "high": len(
+                    [e for e in recent_events if e.risk_level == CommandRisk.HIGH]
+                ),
+                "critical": len(
+                    [e for e in recent_events if e.risk_level == CommandRisk.CRITICAL]
+                ),
             },
             "most_common_commands": self._get_most_common_commands(recent_events),
-            "security_violations": [e.to_dict() for e in recent_events if not e.allowed]
+            "security_violations": [
+                e.to_dict() for e in recent_events if not e.allowed
+            ],
         }
 
         return summary
 
-    def _get_most_common_commands(self, events: List[AuditEvent]) -> List[Dict[str, Any]]:
+    def _get_most_common_commands(
+        self, events: List[AuditEvent]
+    ) -> List[Dict[str, Any]]:
         """Get most commonly used commands from events."""
         command_counts = {}
         for event in events:
@@ -476,5 +666,7 @@ class SecurityMiddleware:
             command_counts[base_cmd] = command_counts.get(base_cmd, 0) + 1
 
         # Sort by count and return top 10
-        sorted_commands = sorted(command_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        sorted_commands = sorted(
+            command_counts.items(), key=lambda x: x[1], reverse=True
+        )[:10]
         return [{"command": cmd, "count": count} for cmd, count in sorted_commands]

@@ -25,18 +25,19 @@ class ApprovalStatus(Enum):
 
 
 class ApprovalMode(Enum):
-    STRICT = "strict"      # All operations require manual approval
-    AUTO = "auto"          # Safe operations auto-approved
-    YOLO = "yolo"          # All operations auto-approved
+    STRICT = "strict"  # All operations require manual approval
+    AUTO = "auto"  # Safe operations auto-approved
+    YOLO = "yolo"  # All operations auto-approved
     INTERACTIVE = "interactive"  # Smart prompting with context
 
 
 @dataclass
 class ApprovalRequest:
     """Enhanced approval request with full context"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     operation_type: str = ""  # create, modify, delete, execute
-    resource_type: str = ""   # file, folder, command, api
+    resource_type: str = ""  # file, folder, command, api
     path: str = ""
     content: str = ""
     agent_id: str = ""
@@ -45,7 +46,9 @@ class ApprovalRequest:
     risk_level: str = "low"  # low, medium, high, critical
     status: ApprovalStatus = ApprovalStatus.PENDING
     created_at: datetime = field(default_factory=datetime.now)
-    expires_at: datetime = field(default_factory=lambda: datetime.now() + timedelta(minutes=5))
+    expires_at: datetime = field(
+        default_factory=lambda: datetime.now() + timedelta(minutes=5)
+    )
     approved_at: Optional[datetime] = None
     approved_by: str = ""
     rejection_reason: str = ""
@@ -59,7 +62,9 @@ class ApprovalRequest:
             "operation_type": self.operation_type,
             "resource_type": self.resource_type,
             "path": self.path,
-            "content_preview": self.content[:200] + "..." if len(self.content) > 200 else self.content,
+            "content_preview": (
+                self.content[:200] + "..." if len(self.content) > 200 else self.content
+            ),
             "agent_id": self.agent_id,
             "agent_name": self.agent_name,
             "task_context": self.task_context,
@@ -69,7 +74,7 @@ class ApprovalRequest:
             "expires_at": self.expires_at.isoformat(),
             "approved_at": self.approved_at.isoformat() if self.approved_at else None,
             "approved_by": self.approved_by,
-            "auto_approve_reasons": self.auto_approve_reasons
+            "auto_approve_reasons": self.auto_approve_reasons,
         }
 
     def format_for_display(self) -> str:
@@ -78,7 +83,7 @@ class ApprovalRequest:
             "low": "green",
             "medium": "yellow",
             "high": "orange",
-            "critical": "red"
+            "critical": "red",
         }
         risk_color = risk_colors.get(self.risk_level, "white")
 
@@ -126,7 +131,7 @@ class ApprovalPolicy:
         "password",
         "secret",
         "token",
-        "api_key"
+        "api_key",
     ]
 
     @classmethod
@@ -161,7 +166,9 @@ class ApprovalPolicy:
         return "medium"
 
     @classmethod
-    def can_auto_approve(cls, request: ApprovalRequest, mode: ApprovalMode) -> tuple[bool, List[str]]:
+    def can_auto_approve(
+        cls, request: ApprovalRequest, mode: ApprovalMode
+    ) -> tuple[bool, List[str]]:
         """Determine if request can be auto-approved based on policy"""
         reasons = []
 
@@ -211,14 +218,18 @@ class EnhancedApprovalService:
         self.approval_patterns: List[Dict] = []  # Learn from user behavior
 
         # Start background cleanup thread
-        self.cleanup_thread = threading.Thread(target=self._cleanup_expired, daemon=True)
+        self.cleanup_thread = threading.Thread(
+            target=self._cleanup_expired, daemon=True
+        )
         self.cleanup_thread.start()
 
-        print(f"🎯 Enhanced Approval Service initialized in {self.mode.value.upper()} mode")
+        print(
+            f"🎯 Enhanced Approval Service initialized in {self.mode.value.upper()} mode"
+        )
 
     def _get_approval_mode(self) -> ApprovalMode:
         """Get approval mode from environment"""
-        mode_str = os.environ.get('CASPER_APPROVAL_MODE', 'INTERACTIVE').upper()
+        mode_str = os.environ.get("CASPER_APPROVAL_MODE", "INTERACTIVE").upper()
         try:
             return ApprovalMode[mode_str]
         except KeyError:
@@ -240,7 +251,7 @@ class EnhancedApprovalService:
         content: str = "",
         agent_id: str = "",
         agent_name: str = "",
-        task_context: str = ""
+        task_context: str = "",
     ) -> str:
         """
         Request approval with enhanced context and routing.
@@ -255,7 +266,7 @@ class EnhancedApprovalService:
             content=content,
             agent_id=agent_id,
             agent_name=agent_name or agent_id[:8],
-            task_context=task_context
+            task_context=task_context,
         )
 
         # Assess risk and check auto-approval
@@ -292,7 +303,7 @@ class EnhancedApprovalService:
         try:
             result = await asyncio.wait_for(
                 request.future,
-                timeout=(request.expires_at - datetime.now()).total_seconds()
+                timeout=(request.expires_at - datetime.now()).total_seconds(),
             )
             return result
         except asyncio.TimeoutError:
@@ -408,22 +419,23 @@ class EnhancedApprovalService:
 
     def _print_approval_request(self, request: ApprovalRequest):
         """Print approval request to console"""
-        risk_symbols = {
-            "low": "✓",
-            "medium": "⚠",
-            "high": "⚠️",
-            "critical": "🚨"
-        }
+        risk_symbols = {"low": "✓", "medium": "⚠", "high": "⚠️", "critical": "🚨"}
         symbol = risk_symbols.get(request.risk_level, "•")
 
         print(f"\n{symbol} APPROVAL REQUIRED [{request.risk_level.upper()}]")
         print(f"ID: {request.id[:8]}...")
-        print(f"Agent: {request.agent_name} wants to {request.operation_type} {request.resource_type}")
+        print(
+            f"Agent: {request.agent_name} wants to {request.operation_type} {request.resource_type}"
+        )
         print(f"Path: {request.path}")
         if request.task_context:
             print(f"Context: {request.task_context}")
         if request.content:
-            preview = request.content[:100] + "..." if len(request.content) > 100 else request.content
+            preview = (
+                request.content[:100] + "..."
+                if len(request.content) > 100
+                else request.content
+            )
             print(f"Content: {preview}")
         print(f"Expires: {request.expires_at.strftime('%H:%M:%S')}")
         print("\n→ To approve: approve <id> or approve all")
@@ -447,7 +459,7 @@ class EnhancedApprovalService:
             "path_pattern": request.path,
             "risk_level": request.risk_level,
             "approved": approved,
-            "timestamp": datetime.now()
+            "timestamp": datetime.now(),
         }
         self.approval_patterns.append(pattern)
 
@@ -490,16 +502,60 @@ class EnhancedApprovalService:
             "mode": self.mode.value,
             "pending": len(self.pending_requests),
             "completed": len(self.completed_requests),
-            "approved": len([r for r in self.completed_requests if r.status == ApprovalStatus.APPROVED]),
-            "rejected": len([r for r in self.completed_requests if r.status == ApprovalStatus.REJECTED]),
-            "auto_approved": len([r for r in self.completed_requests if r.status == ApprovalStatus.AUTO_APPROVED]),
-            "expired": len([r for r in self.completed_requests if r.status == ApprovalStatus.EXPIRED]),
+            "approved": len(
+                [
+                    r
+                    for r in self.completed_requests
+                    if r.status == ApprovalStatus.APPROVED
+                ]
+            ),
+            "rejected": len(
+                [
+                    r
+                    for r in self.completed_requests
+                    if r.status == ApprovalStatus.REJECTED
+                ]
+            ),
+            "auto_approved": len(
+                [
+                    r
+                    for r in self.completed_requests
+                    if r.status == ApprovalStatus.AUTO_APPROVED
+                ]
+            ),
+            "expired": len(
+                [
+                    r
+                    for r in self.completed_requests
+                    if r.status == ApprovalStatus.EXPIRED
+                ]
+            ),
             "by_risk": {
-                "low": len([r for r in self.pending_requests.values() if r.risk_level == "low"]),
-                "medium": len([r for r in self.pending_requests.values() if r.risk_level == "medium"]),
-                "high": len([r for r in self.pending_requests.values() if r.risk_level == "high"]),
-                "critical": len([r for r in self.pending_requests.values() if r.risk_level == "critical"])
-            }
+                "low": len(
+                    [r for r in self.pending_requests.values() if r.risk_level == "low"]
+                ),
+                "medium": len(
+                    [
+                        r
+                        for r in self.pending_requests.values()
+                        if r.risk_level == "medium"
+                    ]
+                ),
+                "high": len(
+                    [
+                        r
+                        for r in self.pending_requests.values()
+                        if r.risk_level == "high"
+                    ]
+                ),
+                "critical": len(
+                    [
+                        r
+                        for r in self.pending_requests.values()
+                        if r.risk_level == "critical"
+                    ]
+                ),
+            },
         }
         return stats
 
@@ -516,8 +572,9 @@ async def request_file_write_approval(path: str, content: str, agent_id: str) ->
         resource_type="file",
         path=path,
         content=content,
-        agent_id=agent_id
+        agent_id=agent_id,
     )
+
 
 async def request_file_modify_approval(path: str, content: str, agent_id: str) -> str:
     """Backward compatible function for file modification approval"""
@@ -526,14 +583,12 @@ async def request_file_modify_approval(path: str, content: str, agent_id: str) -
         resource_type="file",
         path=path,
         content=content,
-        agent_id=agent_id
+        agent_id=agent_id,
     )
+
 
 async def request_file_delete_approval(path: str, agent_id: str) -> str:
     """Backward compatible function for file deletion approval"""
     return await enhanced_approval_service.request_approval(
-        operation_type="delete",
-        resource_type="file",
-        path=path,
-        agent_id=agent_id
+        operation_type="delete", resource_type="file", path=path, agent_id=agent_id
     )

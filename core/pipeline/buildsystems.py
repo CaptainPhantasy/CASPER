@@ -18,19 +18,23 @@ from typing import List, Optional
 
 @dataclass
 class BuildSystem:
-    kind: str                                  # swiftpm | node | python | go | rust | unknown
+    kind: str  # swiftpm | node | python | go | rust | unknown
     build_cmd: Optional[List[str]] = None
     test_cmd: Optional[List[str]] = None
-    setup_cmd: Optional[List[str]] = None      # e.g. npm install
-    available: bool = True                     # is the toolchain installed?
-    toolchain: str = ""                        # the binary it needs
+    setup_cmd: Optional[List[str]] = None  # e.g. npm install
+    available: bool = True  # is the toolchain installed?
+    toolchain: str = ""  # the binary it needs
     notes: str = ""
 
     def to_dict(self) -> dict:
         return {
-            "kind": self.kind, "build_cmd": self.build_cmd, "test_cmd": self.test_cmd,
-            "setup_cmd": self.setup_cmd, "available": self.available,
-            "toolchain": self.toolchain, "notes": self.notes,
+            "kind": self.kind,
+            "build_cmd": self.build_cmd,
+            "test_cmd": self.test_cmd,
+            "setup_cmd": self.setup_cmd,
+            "available": self.available,
+            "toolchain": self.toolchain,
+            "notes": self.notes,
         }
 
 
@@ -66,17 +70,29 @@ def detect_build_system(project_root: str) -> BuildSystem:
 
     if (root / "go.mod").exists():
         return BuildSystem(
-            kind="go", build_cmd=["go", "build", "./..."], test_cmd=["go", "test", "./..."],
-            available=_has("go"), toolchain="go", notes="Go module.",
+            kind="go",
+            build_cmd=["go", "build", "./..."],
+            test_cmd=["go", "test", "./..."],
+            available=_has("go"),
+            toolchain="go",
+            notes="Go module.",
         )
 
     if (root / "Cargo.toml").exists():
         return BuildSystem(
-            kind="rust", build_cmd=["cargo", "build"], test_cmd=["cargo", "test"],
-            available=_has("cargo"), toolchain="cargo", notes="Rust crate.",
+            kind="rust",
+            build_cmd=["cargo", "build"],
+            test_cmd=["cargo", "test"],
+            available=_has("cargo"),
+            toolchain="cargo",
+            notes="Rust crate.",
         )
 
-    if (root / "pyproject.toml").exists() or (root / "requirements.txt").exists() or _any_py(root):
+    if (
+        (root / "pyproject.toml").exists()
+        or (root / "requirements.txt").exists()
+        or _any_py(root)
+    ):
         py = "python3" if _has("python3") else "python"
         # Compile-check all .py files; run pytest if tests exist.
         return BuildSystem(
@@ -88,7 +104,9 @@ def detect_build_system(project_root: str) -> BuildSystem:
             notes="Python project.",
         )
 
-    return BuildSystem(kind="unknown", available=False, notes="No recognized build system.")
+    return BuildSystem(
+        kind="unknown", available=False, notes="No recognized build system."
+    )
 
 
 def _any_py(root: Path) -> bool:

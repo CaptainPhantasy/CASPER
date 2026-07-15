@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch, AsyncMock
 
 # Add parent directory to path for imports
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.services.enhanced_approval import (
@@ -18,7 +19,7 @@ from core.services.enhanced_approval import (
     ApprovalRequest,
     ApprovalStatus,
     ApprovalMode,
-    ApprovalPolicy
+    ApprovalPolicy,
 )
 
 
@@ -32,7 +33,7 @@ class TestApprovalPolicy:
             resource_type="command",
             path="",
             content="sudo rm -rf /",
-            agent_id="test"
+            agent_id="test",
         )
 
         risk = ApprovalPolicy.assess_risk(request)
@@ -46,7 +47,7 @@ class TestApprovalPolicy:
             resource_type="folder",
             path="important_folder",
             content="",
-            agent_id="test"
+            agent_id="test",
         )
         risk = ApprovalPolicy.assess_risk(request)
         assert risk == "high"
@@ -63,7 +64,7 @@ class TestApprovalPolicy:
             resource_type="file",
             path="README.md",
             content="# Project Documentation",
-            agent_id="test"
+            agent_id="test",
         )
         risk = ApprovalPolicy.assess_risk(request)
         assert risk == "low"
@@ -75,7 +76,7 @@ class TestApprovalPolicy:
             resource_type="folder",
             path="/etc/important",
             content="",
-            agent_id="test"
+            agent_id="test",
         )
 
         can_auto, reasons = ApprovalPolicy.can_auto_approve(request, ApprovalMode.YOLO)
@@ -89,10 +90,12 @@ class TestApprovalPolicy:
             resource_type="file",
             path="safe_file.txt",
             content="safe content",
-            agent_id="test"
+            agent_id="test",
         )
 
-        can_auto, reasons = ApprovalPolicy.can_auto_approve(request, ApprovalMode.STRICT)
+        can_auto, reasons = ApprovalPolicy.can_auto_approve(
+            request, ApprovalMode.STRICT
+        )
         assert can_auto == False
         assert "Strict mode" in reasons[0]
 
@@ -104,7 +107,7 @@ class TestApprovalPolicy:
             resource_type="file",
             path="docs/guide.md",
             content="# User Guide",
-            agent_id="test"
+            agent_id="test",
         )
         can_auto, reasons = ApprovalPolicy.can_auto_approve(request, ApprovalMode.AUTO)
         assert can_auto == True
@@ -132,7 +135,7 @@ class TestEnhancedApprovalService:
             content="# Documentation",
             agent_id="test_agent",
             agent_name="Test Agent",
-            task_context="Creating documentation"
+            task_context="Creating documentation",
         )
 
         assert result == "approved"
@@ -153,7 +156,7 @@ class TestEnhancedApprovalService:
                 content="",
                 agent_id="test_agent",
                 agent_name="Test Agent",
-                task_context="Cleaning up"
+                task_context="Cleaning up",
             )
         )
 
@@ -189,7 +192,7 @@ class TestEnhancedApprovalService:
                 resource_type="command",
                 path="",
                 content="rm -rf *",
-                agent_id="test_agent"
+                agent_id="test_agent",
             )
         )
 
@@ -217,7 +220,7 @@ class TestEnhancedApprovalService:
             operation_type="create",
             resource_type="file",
             path="test.txt",
-            expires_at=datetime.now() + timedelta(seconds=0.1)
+            expires_at=datetime.now() + timedelta(seconds=0.1),
         )
         request.future = asyncio.Future()
         service.pending_requests[request.id] = request
@@ -240,7 +243,7 @@ class TestEnhancedApprovalService:
                 operation_type="create",
                 resource_type="file",
                 path=f"file_{i}.txt",
-                agent_id=f"agent_{i}"
+                agent_id=f"agent_{i}",
             )
             service.pending_requests[request.id] = request
 
@@ -249,7 +252,9 @@ class TestEnhancedApprovalService:
         assert count == 5
         assert len(service.pending_requests) == 0
         assert len(service.completed_requests) == 5
-        assert all(r.status == ApprovalStatus.APPROVED for r in service.completed_requests)
+        assert all(
+            r.status == ApprovalStatus.APPROVED for r in service.completed_requests
+        )
 
     def test_approve_all_with_pattern(self):
         """Test pattern-based batch approval"""
@@ -262,7 +267,7 @@ class TestEnhancedApprovalService:
                 operation_type="create",
                 resource_type="file",
                 path=path,
-                agent_id="test"
+                agent_id="test",
             )
             service.pending_requests[request.id] = request
 
@@ -279,7 +284,7 @@ class TestEnhancedApprovalService:
         request = ApprovalRequest(
             id="12345678-abcd-efgh-ijkl-mnopqrstuvwx",
             operation_type="create",
-            path="test.txt"
+            path="test.txt",
         )
         service.pending_requests[request.id] = request
 
@@ -301,9 +306,7 @@ class TestEnhancedApprovalService:
         for risk in risk_levels:
             for i in range(2):
                 request = ApprovalRequest(
-                    operation_type="create",
-                    path=f"{risk}_{i}.txt",
-                    risk_level=risk
+                    operation_type="create", path=f"{risk}_{i}.txt", risk_level=risk
                 )
                 service.pending_requests[request.id] = request
 
@@ -323,7 +326,7 @@ class TestEnhancedApprovalService:
             request = ApprovalRequest(
                 operation_type="create",
                 path=f"pending_{i}.txt",
-                risk_level="low" if i == 0 else "high"
+                risk_level="low" if i == 0 else "high",
             )
             service.pending_requests[request.id] = request
 
@@ -370,7 +373,7 @@ class TestEnhancedApprovalService:
                 operation_type="create",
                 resource_type="file",
                 path="test.txt",
-                agent_id="test"
+                agent_id="test",
             )
         )
 
@@ -395,13 +398,13 @@ class TestBackwardCompatibility:
         """Test legacy file write approval function"""
         from core.services.enhanced_approval import request_file_write_approval
 
-        with patch('core.services.enhanced_approval.enhanced_approval_service') as mock_service:
+        with patch(
+            "core.services.enhanced_approval.enhanced_approval_service"
+        ) as mock_service:
             mock_service.request_approval = AsyncMock(return_value="approved")
 
             result = await request_file_write_approval(
-                path="test.txt",
-                content="test content",
-                agent_id="test_agent"
+                path="test.txt", content="test content", agent_id="test_agent"
             )
 
             assert result == "approved"
@@ -412,13 +415,13 @@ class TestBackwardCompatibility:
         """Test legacy file modify approval function"""
         from core.services.enhanced_approval import request_file_modify_approval
 
-        with patch('core.services.enhanced_approval.enhanced_approval_service') as mock_service:
+        with patch(
+            "core.services.enhanced_approval.enhanced_approval_service"
+        ) as mock_service:
             mock_service.request_approval = AsyncMock(return_value="approved")
 
             result = await request_file_modify_approval(
-                path="test.txt",
-                content="modified content",
-                agent_id="test_agent"
+                path="test.txt", content="modified content", agent_id="test_agent"
             )
 
             assert result == "approved"
@@ -428,12 +431,13 @@ class TestBackwardCompatibility:
         """Test legacy file delete approval function"""
         from core.services.enhanced_approval import request_file_delete_approval
 
-        with patch('core.services.enhanced_approval.enhanced_approval_service') as mock_service:
+        with patch(
+            "core.services.enhanced_approval.enhanced_approval_service"
+        ) as mock_service:
             mock_service.request_approval = AsyncMock(return_value="rejected")
 
             result = await request_file_delete_approval(
-                path="important.db",
-                agent_id="test_agent"
+                path="important.db", agent_id="test_agent"
             )
 
             assert result == "rejected"

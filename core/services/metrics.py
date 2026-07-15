@@ -147,6 +147,7 @@ casper_info = Info(
 # Helper functions
 # ---------------------------------------------------------------------------
 
+
 def record_http_request(method: str, path: str, status: int, duration: float):
     """Record an HTTP request."""
     http_requests_total.labels(method=method, path=path, status=str(status)).inc()

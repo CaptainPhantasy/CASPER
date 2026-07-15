@@ -36,8 +36,8 @@ class Skill:
     id: str
     name: str
     description: str
-    triggers: List[str] = field(default_factory=list)   # keywords/phrases
-    steps: List[str] = field(default_factory=list)       # ordered procedure
+    triggers: List[str] = field(default_factory=list)  # keywords/phrases
+    steps: List[str] = field(default_factory=list)  # ordered procedure
     version: int = 1
     success_count: int = 0
     failure_count: int = 0
@@ -72,7 +72,9 @@ class SkillRegistry:
     def __init__(self, project_root: str, shared_home: Optional[str] = None):
         self.project_root = Path(project_root)
         self.project_dir = self.project_root / ".casper" / "skills"
-        self.shared_home = Path(shared_home or os.environ.get("CASPER_SKILLS_HOME", _DEFAULT_SHARED_HOME))
+        self.shared_home = Path(
+            shared_home or os.environ.get("CASPER_SKILLS_HOME", _DEFAULT_SHARED_HOME)
+        )
         self._skills: Dict[str, Skill] = {}
         self._ensure_layout()
         self.reload()
@@ -84,7 +86,9 @@ class SkillRegistry:
         try:
             self.shared_home.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            logger.warning(f"Could not create shared skills home {self.shared_home}: {e}")
+            logger.warning(
+                f"Could not create shared skills home {self.shared_home}: {e}"
+            )
         try:
             (self.project_root / ".casper").mkdir(parents=True, exist_ok=True)
             if self.project_dir.is_symlink():
@@ -125,12 +129,21 @@ class SkillRegistry:
             logger.warning(f"Could not persist skill {skill.id}: {e}")
 
     # --- public API ------------------------------------------------------
-    def add_skill(self, name: str, description: str, triggers: List[str],
-                  steps: List[str], source: str = "learned") -> Skill:
+    def add_skill(
+        self,
+        name: str,
+        description: str,
+        triggers: List[str],
+        steps: List[str],
+        source: str = "learned",
+    ) -> Skill:
         skill = Skill(
             id=f"skill_{uuid.uuid4().hex[:10]}",
-            name=name, description=description,
-            triggers=triggers, steps=steps, source=source,
+            name=name,
+            description=description,
+            triggers=triggers,
+            steps=steps,
+            source=source,
         )
         self._skills[skill.id] = skill
         self._save(skill)
@@ -199,4 +212,6 @@ def ensure_seed_skills(registry: SkillRegistry) -> None:
     if registry.all_skills():
         return
     for s in SEED_SKILLS:
-        registry.add_skill(s["name"], s["description"], s["triggers"], s["steps"], source="builtin")
+        registry.add_skill(
+            s["name"], s["description"], s["triggers"], s["steps"], source="builtin"
+        )

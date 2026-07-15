@@ -16,6 +16,7 @@ from pathlib import Path
 from .pty_manager import PTYManager
 from .command_proxy import CommandProxy
 from .security import SecurityMiddleware, SecurityViolation, CommandRisk
+from core.security_config import JWT_SECRET
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,9 @@ logger = logging.getLogger(__name__)
 class TerminalSession:
     """Represents a secure terminal session with WebSocket connection."""
 
-    def __init__(self, session_id: str, websocket: WebSocket, user_id: Optional[str] = None):
+    def __init__(
+        self, session_id: str, websocket: WebSocket, user_id: Optional[str] = None
+    ):
         self.session_id = session_id
         self.websocket = websocket
         self.user_id = user_id
@@ -44,20 +47,21 @@ class TerminalSession:
                 "type": message_type,
                 "timestamp": datetime.now().isoformat(),
                 "session_id": self.session_id,
-                **data
+                **data,
             }
             await self.websocket.send_json(message)
         except Exception as e:
             logger.error(f"Failed to send message to session {self.session_id}: {e}")
             self.is_active = False
 
-    async def send_error(self, error_type: str, message: str, details: Optional[Dict] = None):
+    async def send_error(
+        self, error_type: str, message: str, details: Optional[Dict] = None
+    ):
         """Send an error message to the client."""
-        await self.send_message("error", {
-            "error_type": error_type,
-            "message": message,
-            "details": details or {}
-        })
+        await self.send_message(
+            "error",
+            {"error_type": error_type, "message": message, "details": details or {}},
+        )
 
 
 class TerminalWebSocketHandler:
@@ -67,7 +71,7 @@ class TerminalWebSocketHandler:
         self.pty_manager = PTYManager()
         self.command_proxy = CommandProxy()
         self.security = SecurityMiddleware()
-        self.jwt_secret = jwt_secret or "casper-terminal-secret"  # Should be from env in production
+        self.jwt_secret = jwt_secret or JWT_SECRET
         self.sessions: Dict[str, TerminalSession] = {}
         self.active_connections: List[WebSocket] = []
 
@@ -90,7 +94,9 @@ class TerminalWebSocketHandler:
         await self.command_proxy.shutdown()
         logger.info("Terminal WebSocket Handler stopped")
 
-    async def handle_connection(self, websocket: WebSocket, token: Optional[str] = None) -> str:
+    async def handle_connection(
+        self, websocket: WebSocket, token: Optional[str] = None
+    ) -> str:
         """
         Handle a new secure WebSocket connection.
 
@@ -114,7 +120,9 @@ class TerminalWebSocketHandler:
                     await self.handle_message(session_id, data)
                 except json.JSONDecodeError:
                     if session_id in self.sessions:
-                        await self.sessions[session_id].send_error("invalid_json", "Invalid JSON message")
+                        await self.sessions[session_id].send_error(
+                            "invalid_json", "Invalid JSON message"
+                        )
                 except WebSocketDisconnect:
                     logger.info(f"WebSocket disconnected: {session_id}")
                     break
@@ -140,11 +148,13 @@ class TerminalWebSocketHandler:
             try:
                 user_id = await self._authenticate_token(token)
             except Exception as e:
-                await websocket.send_json({
-                    "type": "auth_error",
-                    "message": "Authentication failed",
-                    "details": str(e)
-                })
+                await websocket.send_json(
+                    {
+                        "type": "auth_error",
+                        "message": "Authentication failed",
+                        "details": str(e),
+                    }
+                )
                 await websocket.close()
                 raise
 
@@ -153,19 +163,24 @@ class TerminalWebSocketHandler:
         session = TerminalSession(session_id, websocket, user_id)
         self.sessions[session_id] = session
 
-        logger.info(f"Created terminal session {session_id} for user {user_id or 'anonymous'}")
+        logger.info(
+            f"Created terminal session {session_id} for user {user_id or 'anonymous'}"
+        )
 
         # Send connection confirmation
-        await session.send_message("connection", {
-            "message": "Connected to CASPER Terminal",
-            "user_id": user_id,
-            "features": {
-                "security_enabled": True,
-                "audit_logging": True,
-                "command_validation": True,
-                "process_sandboxing": True
-            }
-        })
+        await session.send_message(
+            "connection",
+            {
+                "message": "Connected to CASPER Terminal",
+                "user_id": user_id,
+                "features": {
+                    "security_enabled": True,
+                    "audit_logging": True,
+                    "command_validation": True,
+                    "process_sandboxing": True,
+                },
+            },
+        )
 
         # Create PTY session
         try:
@@ -175,27 +190,30 @@ class TerminalWebSocketHandler:
             # Create PTY with sandbox environment
             pty_session_id = await self.pty_manager.create_session(
                 working_dir=sandbox_context["sandbox_dir"],
-                env=sandbox_context["env_vars"]
+                env=sandbox_context["env_vars"],
             )
             session.pty_session_id = pty_session_id
 
             # Set up output callback
             self.pty_manager.set_output_callback(
                 pty_session_id,
-                lambda data: asyncio.create_task(session.send_message("output", {"data": data}))
+                lambda data: asyncio.create_task(
+                    session.send_message("output", {"data": data})
+                ),
             )
 
-            await session.send_message("pty_ready", {
-                "pty_session_id": pty_session_id,
-                "sandbox_enabled": True
-            })
+            await session.send_message(
+                "pty_ready", {"pty_session_id": pty_session_id, "sandbox_enabled": True}
+            )
 
             # Send welcome banner with CASPER logo
             await self._send_welcome_banner(session)
 
         except Exception as e:
             logger.error(f"Failed to create PTY session for {session_id}: {e}")
-            await session.send_error("pty_error", "Failed to create terminal session", {"error": str(e)})
+            await session.send_error(
+                "pty_error", "Failed to create terminal session", {"error": str(e)}
+            )
 
         return session_id
 
@@ -250,16 +268,21 @@ class TerminalWebSocketHandler:
             elif message_type == "casper_command":
                 await self._handle_casper_command(session, message)
             else:
-                await session.send_error("invalid_message", f"Unknown message type: {message_type}")
+                await session.send_error(
+                    "invalid_message", f"Unknown message type: {message_type}"
+                )
 
         except SecurityViolation as e:
-            await session.send_error("security_violation", str(e), {
-                "command": e.command,
-                "risk_level": e.risk_level.value
-            })
+            await session.send_error(
+                "security_violation",
+                str(e),
+                {"command": e.command, "risk_level": e.risk_level.value},
+            )
         except Exception as e:
             logger.error(f"Error handling message in session {session_id}: {e}")
-            await session.send_error("handler_error", "Internal error processing message", {"error": str(e)})
+            await session.send_error(
+                "handler_error", "Internal error processing message", {"error": str(e)}
+            )
 
     async def _handle_command(self, session: TerminalSession, message: Dict[str, Any]):
         """Handle command execution request."""
@@ -269,7 +292,9 @@ class TerminalWebSocketHandler:
 
         # Validate command security
         try:
-            await self.security.validate_command(command, session.session_id, session.user_id)
+            await self.security.validate_command(
+                command, session.session_id, session.user_id
+            )
         except SecurityViolation as e:
             # Security violation already logged by middleware
             raise e
@@ -282,7 +307,9 @@ class TerminalWebSocketHandler:
         # Execute command in PTY
         if session.pty_session_id:
             command_with_newline = command + "\n"
-            success = await self.pty_manager.write_to_session(session.pty_session_id, command_with_newline)
+            success = await self.pty_manager.write_to_session(
+                session.pty_session_id, command_with_newline
+            )
 
             if not success:
                 await session.send_error("execution_error", "Failed to execute command")
@@ -306,54 +333,68 @@ class TerminalWebSocketHandler:
         cols = message.get("cols", 80)
 
         if session.pty_session_id:
-            success = await self.pty_manager.resize_session(session.pty_session_id, rows, cols)
+            success = await self.pty_manager.resize_session(
+                session.pty_session_id, rows, cols
+            )
             if success:
                 await session.send_message("resized", {"rows": rows, "cols": cols})
 
     async def _handle_get_history(self, session: TerminalSession):
         """Send command history to client."""
-        await session.send_message("history", {
-            "commands": session.command_history[-100:],  # Last 100 commands
-            "total_count": len(session.command_history)
-        })
+        await session.send_message(
+            "history",
+            {
+                "commands": session.command_history[-100:],  # Last 100 commands
+                "total_count": len(session.command_history),
+            },
+        )
 
     async def _handle_security_status(self, session: TerminalSession):
         """Send security status information."""
         audit_summary = self.security.get_audit_summary(hours=1)  # Last hour
         session_audit = [
-            event for event in self.security.audit_log
+            event
+            for event in self.security.audit_log
             if event.session_id == session.session_id
         ]
 
-        await session.send_message("security_status", {
-            "session_events": len(session_audit),
-            "blocked_commands": len([e for e in session_audit if not e.allowed]),
-            "risk_summary": audit_summary.get("risk_levels", {}),
-            "sandbox_active": session.session_id in self.security.session_contexts
-        })
+        await session.send_message(
+            "security_status",
+            {
+                "session_events": len(session_audit),
+                "blocked_commands": len([e for e in session_audit if not e.allowed]),
+                "risk_summary": audit_summary.get("risk_levels", {}),
+                "sandbox_active": session.session_id in self.security.session_contexts,
+            },
+        )
 
-    async def _handle_casper_command(self, session: TerminalSession, message: Dict[str, Any]):
+    async def _handle_casper_command(
+        self, session: TerminalSession, message: Dict[str, Any]
+    ):
         """Handle CASPER CLI command execution."""
         command = message.get("command", "")
         args = message.get("args", [])
 
         # Validate command through security middleware
         if not self.command_proxy.is_valid_command(command):
-            await session.send_error("invalid_casper_command", f"Unknown CASPER command: {command}")
+            await session.send_error(
+                "invalid_casper_command", f"Unknown CASPER command: {command}"
+            )
             return
 
         try:
             # Execute command through proxy
             result = await self.command_proxy.execute_casper_command(command, args)
 
-            await session.send_message("casper_command_result", {
-                "command": command,
-                "result": result
-            })
+            await session.send_message(
+                "casper_command_result", {"command": command, "result": result}
+            )
 
         except Exception as e:
             logger.error(f"Error executing CASPER command '{command}': {e}")
-            await session.send_error("casper_command_error", f"Command execution failed: {str(e)}")
+            await session.send_error(
+                "casper_command_error", f"Command execution failed: {str(e)}"
+            )
 
     async def _authenticate_token(self, token: str) -> str:
         """
@@ -382,19 +423,28 @@ class TerminalWebSocketHandler:
         # Broadcast security events to relevant sessions
         for session in self.sessions.values():
             if session.session_id == event.session_id and session.is_active:
-                asyncio.create_task(session.send_message("security_event", {
-                    "event_type": event.event_type,
-                    "risk_level": event.risk_level.value,
-                    "allowed": event.allowed,
-                    "reason": event.reason
-                }))
+                asyncio.create_task(
+                    session.send_message(
+                        "security_event",
+                        {
+                            "event_type": event.event_type,
+                            "risk_level": event.risk_level.value,
+                            "allowed": event.allowed,
+                            "reason": event.reason,
+                        },
+                    )
+                )
 
     async def handle_websocket_disconnect(self, session_id: str):
         """Handle WebSocket disconnection."""
         await self.disconnect(session_id)
 
-    async def broadcast_message(self, message_type: str, data: Dict[str, Any],
-                               exclude_session: Optional[str] = None):
+    async def broadcast_message(
+        self,
+        message_type: str,
+        data: Dict[str, Any],
+        exclude_session: Optional[str] = None,
+    ):
         """Broadcast message to all active sessions."""
         for session_id, session in list(self.sessions.items()):
             if session_id != exclude_session and session.is_active:
@@ -409,14 +459,16 @@ class TerminalWebSocketHandler:
         sessions_info = []
         for session in self.sessions.values():
             if session.is_active:
-                sessions_info.append({
-                    "session_id": session.session_id,
-                    "user_id": session.user_id,
-                    "created_at": session.created_at.isoformat(),
-                    "last_activity": session.last_activity.isoformat(),
-                    "command_count": len(session.command_history),
-                    "has_pty": session.pty_session_id is not None
-                })
+                sessions_info.append(
+                    {
+                        "session_id": session.session_id,
+                        "user_id": session.user_id,
+                        "created_at": session.created_at.isoformat(),
+                        "last_activity": session.last_activity.isoformat(),
+                        "command_count": len(session.command_history),
+                        "has_pty": session.pty_session_id is not None,
+                    }
+                )
         return sessions_info
 
     async def cleanup_inactive_sessions(self, timeout_minutes: int = 30):
@@ -441,10 +493,10 @@ class TerminalWebSocketHandler:
             "active_sessions": len(self.sessions),
             "sessions": list(self.sessions.keys()),
             "security_events": len(self.security.audit_log),
-            "sandboxed_sessions": len(self.security.session_contexts)
+            "sandboxed_sessions": len(self.security.session_contexts),
         }
 
-    async def _send_welcome_banner(self, session: 'TerminalSession'):
+    async def _send_welcome_banner(self, session: "TerminalSession"):
         """Send the CASPER welcome banner to a new terminal session."""
         # Clean CASPER ASCII logo - no framing, no additional text
         logo_lines = [
@@ -456,7 +508,7 @@ class TerminalWebSocketHandler:
             r"     _\//\\\____________\/\\\\\\\\\\\\\\\_________\////\\\___\/\\\_____________\/\\\_____________\/\\\____\//\\\___",
             r"      __\///\\\__________\/\\\\\\\\\\\\\\\__/\\\______\//\\\__\/\\\_____________\/\\\_____________\/\\\_____\//\\\__",
             r"       ____\////\\\\\\\\\_\/\\\\\\\\\\\\\\\_\///\\\\\\\\\\\/___\/\\\_____________\/\\\\\\\\\\\\\\\_\/\\\______\//\\\_",
-            r"        _______\/////////__\//__//___//__//____\///////////_____\///______________\///////////////__\///________\///__"
+            r"        _______\/////////__\//__//___//__//____\///////////_____\///______________\///////////////__\///________\///__",
         ]
 
         # Send each line of the logo as terminal output
@@ -472,4 +524,6 @@ class TerminalWebSocketHandler:
             await session.send_message("output", {"data": "\n"})
 
         except Exception as e:
-            logger.error(f"Failed to send welcome banner to session {session.session_id}: {e}")
+            logger.error(
+                f"Failed to send welcome banner to session {session.session_id}: {e}"
+            )

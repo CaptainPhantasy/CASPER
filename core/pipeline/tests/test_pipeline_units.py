@@ -10,8 +10,14 @@ import tempfile
 import pytest
 
 from core.pipeline.models import (
-    FrozenSpec, SpecRequirement, TaskUnit, TaskKind, ModelClass, RiskLevel,
-    ClarifyingQuestion, SpecNotReadyError,
+    FrozenSpec,
+    SpecRequirement,
+    TaskUnit,
+    TaskKind,
+    ModelClass,
+    RiskLevel,
+    ClarifyingQuestion,
+    SpecNotReadyError,
 )
 from core.pipeline.autonomy import GraduatedAutonomy, AutonomyMode, ProposedAction
 from core.pipeline.routing import TaskAwareRouter, BudgetState
@@ -24,7 +30,9 @@ from core.pipeline.models import PipelineStage
 # ----------------------------------------------------------------- models
 def test_spec_freeze_and_integrity():
     s = FrozenSpec.new("build a thing", "summary")
-    s.requirements.append(SpecRequirement(id="r1", text="do x", acceptance_criteria=["x exists"]))
+    s.requirements.append(
+        SpecRequirement(id="r1", text="do x", acceptance_criteria=["x exists"])
+    )
     assert not s.frozen
     s.freeze()
     assert s.frozen and s.verify_integrity()
@@ -36,7 +44,9 @@ def test_spec_freeze_and_integrity():
 def test_spec_cannot_freeze_with_open_required_question():
     s = FrozenSpec.new("intent")
     s.requirements.append(SpecRequirement(id="r1", text="x"))
-    s.open_questions.append(ClarifyingQuestion(id="q1", question="?", why="because", required=True))
+    s.open_questions.append(
+        ClarifyingQuestion(id="q1", question="?", why="because", required=True)
+    )
     with pytest.raises(SpecNotReadyError):
         s.freeze()
 
@@ -48,16 +58,23 @@ def test_autonomy_risk_classification():
     assert ga.assess(ProposedAction("delete", path="a.py")).auto_approved is False
     assert ga.assess(ProposedAction("create", path="a.py")).risk == RiskLevel.SAFE
     assert ga.assess(ProposedAction("create", path="a.py")).auto_approved is True
-    assert ga.assess(ProposedAction("command", command="rm -rf /")).risk == RiskLevel.CRITICAL
+    assert (
+        ga.assess(ProposedAction("command", command="rm -rf /")).risk
+        == RiskLevel.CRITICAL
+    )
     assert ga.assess(ProposedAction("command", command="ls -la")).risk == RiskLevel.SAFE
     assert ga.assess(ProposedAction("deploy", path="site")).risk == RiskLevel.CRITICAL
 
 
 def test_autonomy_modes():
     crit = ProposedAction("deploy")
-    assert GraduatedAutonomy(AutonomyMode.YOLO).assess(crit).auto_approved is False  # CRITICAL never auto
+    assert (
+        GraduatedAutonomy(AutonomyMode.YOLO).assess(crit).auto_approved is False
+    )  # CRITICAL never auto
     safe = ProposedAction("create", path="x.py")
-    assert GraduatedAutonomy(AutonomyMode.STRICT).assess(safe).auto_approved is True  # SAFE auto even in STRICT
+    assert (
+        GraduatedAutonomy(AutonomyMode.STRICT).assess(safe).auto_approved is True
+    )  # SAFE auto even in STRICT
     mod = ProposedAction("command", command="some-unknown-cmd")
     assert GraduatedAutonomy(AutonomyMode.STRICT).assess(mod).auto_approved is False
     assert GraduatedAutonomy(AutonomyMode.AUTO).assess(mod).auto_approved is True
@@ -78,9 +95,13 @@ def test_router_kind_to_class_and_escalation():
 
 
 def test_router_budget_downgrade():
-    r = TaskAwareRouter(provider="anthropic", budget=BudgetState(limit_tokens=1000, spent_tokens=900))
+    r = TaskAwareRouter(
+        provider="anthropic", budget=BudgetState(limit_tokens=1000, spent_tokens=900)
+    )
     assert r._apply_budget(ModelClass.STANDARD) == ModelClass.CHEAP
-    assert r._apply_budget(ModelClass.FRONTIER) == ModelClass.FRONTIER  # reasoning never crippled
+    assert (
+        r._apply_budget(ModelClass.FRONTIER) == ModelClass.FRONTIER
+    )  # reasoning never crippled
 
 
 def test_router_kind_inference_from_text():
@@ -95,7 +116,11 @@ def test_skills_find_and_learn():
         reg = SkillRegistry(d, shared_home=os.path.join(d, "shared"))
         ensure_seed_skills(reg)
         match = reg.best("write a python function with pytest tests")
-        assert match is not None and "python" in [t.lower() for t in match.triggers] or match.name
+        assert (
+            match is not None
+            and "python" in [t.lower() for t in match.triggers]
+            or match.name
+        )
         before = match.confidence
         reg.record_outcome(match.id, success=True)
         reg.reload()
@@ -110,9 +135,14 @@ def test_context_slicing_and_discard():
         with open(os.path.join(d, "a.py"), "w") as f:
             f.write("print('hi')\n")
         spec = FrozenSpec.new("intent", "summary")
-        spec.requirements += [SpecRequirement(id="r1", text="x"), SpecRequirement(id="r2", text="y")]
+        spec.requirements += [
+            SpecRequirement(id="r1", text="x"),
+            SpecRequirement(id="r2", text="y"),
+        ]
         spec.freeze()
-        unit = TaskUnit.new("u", "do x", requirement_ids=["r1"], relevant_paths=["a.py"])
+        unit = TaskUnit.new(
+            "u", "do x", requirement_ids=["r1"], relevant_paths=["a.py"]
+        )
         plan = GlobalPlan(spec=spec, units=[unit])
         cm = ContextManager(d)
         ctx = cm.build_worker_context(plan, unit)

@@ -10,9 +10,16 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple, AsyncIterator
 
 from ..interfaces import (
-    ISession, IStreaming, IParser, SessionState,
-    CodingIntent, CodingAction, StreamChunk,
-    SessionError, StreamingError, ParsingError
+    ISession,
+    IStreaming,
+    IParser,
+    SessionState,
+    CodingIntent,
+    CodingAction,
+    StreamChunk,
+    SessionError,
+    StreamingError,
+    ParsingError,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,9 +35,8 @@ class CodingSessionAdapter(ISession):
         """Initialize adapter with CodingSession."""
         try:
             from ..session.coding_session import CodingSession
-            self.coding_session = CodingSession(
-                storage_path=persistence_path
-            )
+
+            self.coding_session = CodingSession(storage_path=persistence_path)
             self.session_timeout = session_timeout
             logger.info("CodingSession adapter initialized")
         except Exception as e:
@@ -56,7 +62,7 @@ class CodingSessionAdapter(ISession):
                 files_modified=[],
                 conversation_history=[],
                 knowledge_base_id=f"kb_{session_id}",
-                active=True
+                active=True,
             )
 
         except Exception as e:
@@ -68,12 +74,13 @@ class CodingSessionAdapter(ISession):
         try:
             # Create tokenized interaction
             from ..session.coding_session import TokenizedInteraction
+
             interaction = TokenizedInteraction(
                 user_input=user_input,
                 assistant_response=response,
                 timestamp=datetime.now(),
                 token_count=len(user_input + response) // 4,  # Rough estimate
-                context_retrieved=[]
+                context_retrieved=[],
             )
 
             await self.coding_session.add_interaction(interaction)
@@ -96,7 +103,7 @@ class CodingSessionAdapter(ISession):
                 "total_interactions": metrics.total_interactions,
                 "files_modified": [],  # CodingSession doesn't track this
                 "active": True,
-                "adapter": "CodingSession"
+                "adapter": "CodingSession",
             }
 
         except Exception as e:
@@ -116,9 +123,10 @@ class CodingSessionAdapter(ISession):
         try:
             # Create and recover CodingSession
             from ..session.coding_session import CodingSession
+
             self.coding_session = CodingSession(
                 session_id=session_id,
-                persistence_dir=str(self.coding_session.persistence_dir.parent)
+                persistence_dir=str(self.coding_session.persistence_dir.parent),
             )
 
             await self.coding_session.recover()
@@ -135,7 +143,7 @@ class CodingSessionAdapter(ISession):
                 files_modified=[],
                 conversation_history=[],
                 knowledge_base_id=f"kb_{session_id}",
-                active=True
+                active=True,
             )
 
         except Exception as e:
@@ -162,6 +170,7 @@ class StreamingOrchestratorAdapter(IStreaming):
         """Initialize adapter with StreamingOrchestrator."""
         try:
             from ..streaming.streaming_orchestrator import StreamingOrchestrator
+
             self.orchestrator = StreamingOrchestrator()
             self.max_concurrent_streams = max_concurrent_streams
             logger.info("StreamingOrchestrator adapter initialized")
@@ -170,9 +179,7 @@ class StreamingOrchestratorAdapter(IStreaming):
             raise StreamingError(f"Adapter initialization failed: {e}")
 
     async def stream_response(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any]
+        self, intent: CodingIntent, session_context: Dict[str, Any]
     ) -> AsyncIterator[StreamChunk]:
         """Stream response using StreamingOrchestrator."""
         try:
@@ -182,12 +189,14 @@ class StreamingOrchestratorAdapter(IStreaming):
                 "action": intent.action.value,
                 "targets": intent.targets,
                 "scope": intent.scope,
-                "context": session_context
+                "context": session_context,
             }
 
             sequence_number = 0
             # Stream response from orchestrator
-            async for chunk_data in self.orchestrator.stream_coding_response(request_data):
+            async for chunk_data in self.orchestrator.stream_coding_response(
+                request_data
+            ):
                 sequence_number += 1
 
                 # Convert orchestrator chunk to StreamChunk
@@ -196,7 +205,7 @@ class StreamingOrchestratorAdapter(IStreaming):
                     content=chunk_data.get("content", ""),
                     metadata=chunk_data.get("metadata", {}),
                     timestamp=datetime.now(),
-                    sequence_number=sequence_number
+                    sequence_number=sequence_number,
                 )
 
                 yield chunk
@@ -209,7 +218,7 @@ class StreamingOrchestratorAdapter(IStreaming):
                 content=f"Streaming error: {e}",
                 metadata={"error_type": type(e).__name__},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
     async def handle_backpressure(self) -> None:
@@ -236,7 +245,7 @@ class StreamingOrchestratorAdapter(IStreaming):
             return {
                 "adapter": "StreamingOrchestrator",
                 "timestamp": datetime.now().isoformat(),
-                "max_concurrent_streams": self.max_concurrent_streams
+                "max_concurrent_streams": self.max_concurrent_streams,
             }
         except Exception as e:
             logger.error(f"Failed to get metrics: {e}")
@@ -252,6 +261,7 @@ class IntentParserAdapter(IParser):
         """Initialize adapter with IntentParser."""
         try:
             from ..nlp.intent_parser import IntentParser
+
             self.intent_parser = IntentParser()
             logger.info("IntentParser adapter initialized")
         except Exception as e:
@@ -274,12 +284,11 @@ class IntentParserAdapter(IParser):
                 "explain": CodingAction.EXPLAIN,
                 "review": CodingAction.REVIEW,
                 "refactor": CodingAction.REFACTOR,
-                "optimize": CodingAction.OPTIMIZE
+                "optimize": CodingAction.OPTIMIZE,
             }
 
             action = action_mapping.get(
-                parsed_intent.get("action", "explain").lower(),
-                CodingAction.EXPLAIN
+                parsed_intent.get("action", "explain").lower(), CodingAction.EXPLAIN
             )
 
             return CodingIntent(
@@ -288,7 +297,7 @@ class IntentParserAdapter(IParser):
                 scope=parsed_intent.get("scope", "function"),
                 original_request=user_input,
                 confidence=parsed_intent.get("confidence", 0.8),
-                context_required=parsed_intent.get("context_required", [])
+                context_required=parsed_intent.get("context_required", []),
             )
 
         except Exception as e:
@@ -300,7 +309,7 @@ class IntentParserAdapter(IParser):
                 scope="function",
                 original_request=user_input,
                 confidence=0.3,
-                context_required=["fallback"]
+                context_required=["fallback"],
             )
 
     async def extract_entities(self, text: str) -> List[Tuple[str, str]]:
@@ -314,9 +323,7 @@ class IntentParserAdapter(IParser):
             return []
 
     async def suggest_completion(
-        self,
-        partial: str,
-        context: Dict[str, Any]
+        self, partial: str, context: Dict[str, Any]
     ) -> List[str]:
         """Suggest completion using IntentParser."""
         try:
@@ -330,14 +337,16 @@ class IntentParserAdapter(IParser):
                 "implement function",
                 "debug error",
                 "explain code",
-                "test implementation"
+                "test implementation",
             ]
 
     async def detect_language(self, code_snippet: str) -> str:
         """Detect language using IntentParser."""
         try:
             # Use agent's language detection if available
-            language = await self.intent_parser.detect_programming_language(code_snippet)
+            language = await self.intent_parser.detect_programming_language(
+                code_snippet
+            )
             return language.lower()
         except Exception as e:
             logger.error(f"Failed to detect language: {e}")
@@ -353,34 +362,35 @@ class IntentParserAdapter(IParser):
 # Helper function to check if agent implementations are compatible
 async def check_agent_compatibility() -> Dict[str, bool]:
     """Check if agent implementations are compatible with interfaces."""
-    compatibility = {
-        "session": False,
-        "streaming": False,
-        "nlp": False,
-        "ui": False
-    }
+    compatibility = {"session": False, "streaming": False, "nlp": False, "ui": False}
 
     try:
         from ..session.coding_session import CodingSession
-        compatibility["session"] = hasattr(CodingSession, 'add_interaction')
+
+        compatibility["session"] = hasattr(CodingSession, "add_interaction")
     except ImportError:
         pass
 
     try:
         from ..streaming.streaming_orchestrator import StreamingOrchestrator
-        compatibility["streaming"] = hasattr(StreamingOrchestrator, 'stream_coding_response')
+
+        compatibility["streaming"] = hasattr(
+            StreamingOrchestrator, "stream_coding_response"
+        )
     except ImportError:
         pass
 
     try:
         from ..nlp.intent_parser import IntentParser
-        compatibility["nlp"] = hasattr(IntentParser, 'parse_natural_language')
+
+        compatibility["nlp"] = hasattr(IntentParser, "parse_natural_language")
     except ImportError:
         pass
 
     try:
         from ..ui.terminal_ui import TerminalUI
-        compatibility["ui"] = hasattr(TerminalUI, 'start_ui')
+
+        compatibility["ui"] = hasattr(TerminalUI, "start_ui")
     except ImportError:
         pass
 

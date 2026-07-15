@@ -12,18 +12,20 @@ import time
 
 class CommandCategory(Enum):
     """Command categories for fast routing"""
-    FILE_OP = "file_op"          # File operations - pre-validated patterns
-    CODE_GEN = "code_gen"         # Code generation - templated
-    SEARCH = "search"             # Search operations - indexed
-    EXECUTE = "execute"           # Execution - sandboxed
-    INFO = "info"                 # Information queries - cached
-    APPROVAL = "approval"         # Approval operations - direct
-    NAVIGATION = "navigation"     # Navigation - instant
+
+    FILE_OP = "file_op"  # File operations - pre-validated patterns
+    CODE_GEN = "code_gen"  # Code generation - templated
+    SEARCH = "search"  # Search operations - indexed
+    EXECUTE = "execute"  # Execution - sandboxed
+    INFO = "info"  # Information queries - cached
+    APPROVAL = "approval"  # Approval operations - direct
+    NAVIGATION = "navigation"  # Navigation - instant
 
 
 @dataclass
 class FastCommand:
     """Pre-compiled command for instant execution"""
+
     pattern: str
     category: CommandCategory
     handler: Callable
@@ -62,7 +64,7 @@ class OmegaFastPath:
             category=CommandCategory.FILE_OP,
             handler=self._fast_create,
             requires_params=True,
-            cacheable=False
+            cacheable=False,
         )
 
         self.fast_commands["/edit"] = FastCommand(
@@ -70,7 +72,7 @@ class OmegaFastPath:
             category=CommandCategory.FILE_OP,
             handler=self._fast_edit,
             requires_params=True,
-            cacheable=False
+            cacheable=False,
         )
 
         self.fast_commands["/delete"] = FastCommand(
@@ -78,7 +80,7 @@ class OmegaFastPath:
             category=CommandCategory.FILE_OP,
             handler=self._fast_delete,
             requires_params=True,
-            cacheable=False
+            cacheable=False,
         )
 
         # Navigation - instant response
@@ -88,7 +90,7 @@ class OmegaFastPath:
             handler=self._fast_ls,
             requires_params=False,
             cacheable=True,
-            avg_response_ms=5
+            avg_response_ms=5,
         )
 
         self.fast_commands["/cd"] = FastCommand(
@@ -97,7 +99,7 @@ class OmegaFastPath:
             handler=self._fast_cd,
             requires_params=True,
             cacheable=False,
-            avg_response_ms=3
+            avg_response_ms=3,
         )
 
         self.fast_commands["/pwd"] = FastCommand(
@@ -106,7 +108,7 @@ class OmegaFastPath:
             handler=self._fast_pwd,
             requires_params=False,
             cacheable=True,
-            avg_response_ms=1
+            avg_response_ms=1,
         )
 
         # Search - optimized
@@ -116,7 +118,7 @@ class OmegaFastPath:
             handler=self._fast_find,
             requires_params=True,
             cacheable=True,
-            avg_response_ms=50
+            avg_response_ms=50,
         )
 
         self.fast_commands["/grep"] = FastCommand(
@@ -125,7 +127,7 @@ class OmegaFastPath:
             handler=self._fast_grep,
             requires_params=True,
             cacheable=True,
-            avg_response_ms=100
+            avg_response_ms=100,
         )
 
         # Code generation - templated
@@ -135,7 +137,7 @@ class OmegaFastPath:
             handler=self._fast_function,
             requires_params=True,
             cacheable=False,
-            avg_response_ms=200
+            avg_response_ms=200,
         )
 
         self.fast_commands["/class"] = FastCommand(
@@ -144,7 +146,7 @@ class OmegaFastPath:
             handler=self._fast_class,
             requires_params=True,
             cacheable=False,
-            avg_response_ms=250
+            avg_response_ms=250,
         )
 
         # Execution
@@ -154,7 +156,7 @@ class OmegaFastPath:
             handler=self._fast_run,
             requires_params=True,
             cacheable=False,
-            avg_response_ms=500
+            avg_response_ms=500,
         )
 
         self.fast_commands["/test"] = FastCommand(
@@ -163,7 +165,7 @@ class OmegaFastPath:
             handler=self._fast_test,
             requires_params=False,
             cacheable=True,
-            avg_response_ms=1000
+            avg_response_ms=1000,
         )
 
         # Info queries - heavily cached
@@ -173,7 +175,7 @@ class OmegaFastPath:
             handler=self._fast_status,
             requires_params=False,
             cacheable=True,
-            avg_response_ms=10
+            avg_response_ms=10,
         )
 
         self.fast_commands["/help"] = FastCommand(
@@ -182,7 +184,7 @@ class OmegaFastPath:
             handler=self._fast_help,
             requires_params=False,
             cacheable=True,
-            avg_response_ms=1
+            avg_response_ms=1,
         )
 
         # Approval shortcuts
@@ -192,7 +194,7 @@ class OmegaFastPath:
             handler=self._fast_approve,
             requires_params=False,
             cacheable=False,
-            avg_response_ms=20
+            avg_response_ms=20,
         )
 
         self.fast_commands["/reject"] = FastCommand(
@@ -201,15 +203,16 @@ class OmegaFastPath:
             handler=self._fast_reject,
             requires_params=False,
             cacheable=False,
-            avg_response_ms=20
+            avg_response_ms=20,
         )
 
     def _preload_common_patterns(self):
         """Pre-compile common patterns for zero-latency matching"""
         # Pre-compile regex patterns
         import re
-        self._param_pattern = re.compile(r'^(/\w+)\s+(.+)$')
-        self._simple_pattern = re.compile(r'^(/\w+)$')
+
+        self._param_pattern = re.compile(r"^(/\w+)\s+(.+)$")
+        self._simple_pattern = re.compile(r"^(/\w+)$")
 
     async def process_fast(self, user_input: str) -> Tuple[bool, Optional[str]]:
         """
@@ -221,14 +224,14 @@ class OmegaFastPath:
         start_time = time.perf_counter()
 
         # Quick check - starts with /
-        if not user_input.startswith('/'):
+        if not user_input.startswith("/"):
             return False, None
 
         # Extract command and params (zero-allocation)
-        space_idx = user_input.find(' ')
+        space_idx = user_input.find(" ")
         if space_idx > 0:
             command = user_input[:space_idx]
-            params = user_input[space_idx+1:]
+            params = user_input[space_idx + 1 :]
         else:
             command = user_input
             params = None
@@ -248,7 +251,10 @@ class OmegaFastPath:
                     elapsed = (time.perf_counter() - start_time) * 1000
                     if elapsed < 1:
                         return True, cached_response
-                    return True, f"{cached_response}\n[dim](cached, {elapsed:.1f}ms)[/dim]"
+                    return (
+                        True,
+                        f"{cached_response}\n[dim](cached, {elapsed:.1f}ms)[/dim]",
+                    )
 
         # Security validation (still through Omega, but optimized)
         if not self._validate_fast_command(command, params):
@@ -257,7 +263,10 @@ class OmegaFastPath:
         try:
             # Execute handler
             if fast_cmd.requires_params and not params:
-                return True, f"⚠️ {command} requires parameters. Usage: {command} <params>"
+                return (
+                    True,
+                    f"⚠️ {command} requires parameters. Usage: {command} <params>",
+                )
 
             response = await fast_cmd.handler(params)
 
@@ -267,8 +276,9 @@ class OmegaFastPath:
                 # Limit cache size
                 if len(self.response_cache) > 100:
                     # Remove oldest entries
-                    oldest = sorted(self.response_cache.items(),
-                                  key=lambda x: x[1][1])[:20]
+                    oldest = sorted(self.response_cache.items(), key=lambda x: x[1][1])[
+                        :20
+                    ]
                     for key, _ in oldest:
                         del self.response_cache[key]
 
@@ -289,7 +299,7 @@ class OmegaFastPath:
             return True
 
         # Quick dangerous pattern check
-        dangerous = ['../', '/etc/', '/usr/', 'rm -rf', 'sudo']
+        dangerous = ["../", "/etc/", "/usr/", "rm -rf", "sudo"]
         params_lower = params.lower()
         return not any(d in params_lower for d in dangerous)
 
@@ -298,29 +308,29 @@ class OmegaFastPath:
     async def _fast_create(self, params: str) -> str:
         """Fast file creation"""
         # Parse: /create filename.ext [content]
-        parts = params.split(' ', 1)
+        parts = params.split(" ", 1)
         filename = parts[0]
         content = parts[1] if len(parts) > 1 else ""
 
         # Route through Sigma quickly
         from core.agents.base import ContextBundle
+
         context = ContextBundle(
             session_id=f"fast_{time.time()}",
             parent_task=f"create file {filename}",
-            metadata={"fast_path": True}
+            metadata={"fast_path": True},
         )
 
         # Direct to worker agent (skipping some layers for speed)
         result = await self.omega.master_agent.delegate_to_worker(
-            f"create file {filename} with content: {content}",
-            context
+            f"create file {filename} with content: {content}", context
         )
 
         return f"✅ Created {filename}"
 
     async def _fast_edit(self, params: str) -> str:
         """Fast file editing"""
-        parts = params.split(' ', 1)
+        parts = params.split(" ", 1)
         if len(parts) < 2:
             return "Usage: /edit filename changes"
 
@@ -335,7 +345,7 @@ class OmegaFastPath:
         filename = params.strip()
 
         # Quick safety check
-        if filename in ['/', '*', '**']:
+        if filename in ["/", "*", "**"]:
             return "🚫 Cannot delete system-critical paths"
 
         # Requires approval even in fast path
@@ -344,19 +354,21 @@ class OmegaFastPath:
     async def _fast_ls(self, params: Optional[str]) -> str:
         """Fast directory listing"""
         import os
-        path = params or '.'
+
+        path = params or "."
 
         try:
             items = os.listdir(path)[:20]  # Limit for speed
             if len(items) == 20:
-                return '\n'.join(items) + '\n... (truncated for speed)'
-            return '\n'.join(items)
+                return "\n".join(items) + "\n... (truncated for speed)"
+            return "\n".join(items)
         except:
             return f"Cannot list {path}"
 
     async def _fast_cd(self, params: str) -> str:
         """Fast directory change"""
         import os
+
         try:
             os.chdir(params)
             return f"📁 Changed to {os.getcwd()}"
@@ -366,6 +378,7 @@ class OmegaFastPath:
     async def _fast_pwd(self, params: Optional[str]) -> str:
         """Fast working directory"""
         import os
+
         return f"📁 {os.getcwd()}"
 
     async def _fast_find(self, params: str) -> str:
@@ -421,7 +434,7 @@ class {class_name}:
 
     async def _fast_help(self, params: Optional[str]) -> str:
         """Fast help - pre-cached"""
-        if not hasattr(self, '_help_cache'):
+        if not hasattr(self, "_help_cache"):
             self._help_cache = """⚡ Fast Commands (< 50ms response):
 
 File Operations:
@@ -480,13 +493,15 @@ class OmegaPrimeWithFastPath:
         self.omega = original_omega
         self.fast_path = OmegaFastPath(original_omega)
 
-    async def process_user_input(self, user_input: str, session_id: str = "default") -> str:
+    async def process_user_input(
+        self, user_input: str, session_id: str = "default"
+    ) -> str:
         """
         Process with fast path for /commands, normal path for natural language
         """
 
         # Try fast path first for /commands
-        if user_input.startswith('/'):
+        if user_input.startswith("/"):
             is_fast, response = await self.fast_path.process_fast(user_input)
             if is_fast:
                 return response

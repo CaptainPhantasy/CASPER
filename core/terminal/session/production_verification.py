@@ -34,7 +34,9 @@ async def test_production_scenarios():
     try:
         # Initialize components
         context_manager = ContextManager(str(test_dir / ".casper"))
-        session_manager = CodingSession(storage_path=str(test_dir), context_manager=context_manager)
+        session_manager = CodingSession(
+            storage_path=str(test_dir), context_manager=context_manager
+        )
 
         print(f"✅ Initialized at: {test_dir}")
 
@@ -53,21 +55,24 @@ async def test_production_scenarios():
         test_session_id = sessions[0]
 
         # Generate content that exceeds token limit
-        long_text = "This is extensive documentation and code that will contribute significant tokens to test our token management system. " * 200
+        long_text = (
+            "This is extensive documentation and code that will contribute significant tokens to test our token management system. "
+            * 200
+        )
 
         initial_context = await session_manager.get_context(test_session_id)
-        initial_tokens = initial_context['session_state']['context_tokens']
+        initial_tokens = initial_context["session_state"]["context_tokens"]
 
         # Add interactions until we exceed the limit
         for i in range(50):
             await session_manager.add_interaction(
                 test_session_id,
                 f"Complex request {i}: {long_text}",
-                f"Detailed response {i}: {long_text}"
+                f"Detailed response {i}: {long_text}",
             )
 
         final_context = await session_manager.get_context(test_session_id)
-        final_tokens = final_context['session_state']['context_tokens']
+        final_tokens = final_context["session_state"]["context_tokens"]
 
         token_limit_respected = final_tokens <= MAX_CONTEXT_TOKENS
         print(f"   Initial tokens: {initial_tokens}")
@@ -79,25 +84,27 @@ async def test_production_scenarios():
         print("\n⚡ Test 3: Concurrent Operations...")
         concurrent_session = sessions[1]
 
-        async def concurrent_worker(worker_id, session_id, iterations=20):
+        async def concurrent_worker(manager, worker_id, session_id, iterations=20):
             for i in range(iterations):
-                await session_manager.add_interaction(
+                await manager.add_interaction(
                     session_id,
                     f"Worker-{worker_id} Request {i}",
-                    f"Worker-{worker_id} Response {i}"
+                    f"Worker-{worker_id} Response {i}",
                 )
 
         # Run 5 workers concurrently
         start_time = time.time()
-        await asyncio.gather(*[
-            concurrent_worker(i, concurrent_session, 10)
-            for i in range(5)
-        ])
+        await asyncio.gather(
+            *[
+                concurrent_worker(session_manager, i, concurrent_session, 10)
+                for i in range(5)
+            ]
+        )
         concurrent_time = time.time() - start_time
 
         concurrent_context = await session_manager.get_context(concurrent_session)
         expected_interactions = 50  # 5 workers × 10 iterations
-        actual_interactions = concurrent_context['metrics']['total_interactions']
+        actual_interactions = concurrent_context["metrics"]["total_interactions"]
 
         print(f"   Expected interactions: {expected_interactions}")
         print(f"   Actual interactions: {actual_interactions}")
@@ -115,17 +122,14 @@ async def test_production_scenarios():
             # Add interactions
             for j in range(20):
                 await session_manager.add_interaction(
-                    session_id,
-                    f"Load test {j}",
-                    f"Load response {j}"
+                    session_id, f"Load test {j}", f"Load response {j}"
                 )
                 operations_completed += 1
 
             # Add file modifications
             for k in range(5):
                 await session_manager.add_file_modification(
-                    session_id,
-                    f"/test/load/file_{k}.py"
+                    session_id, f"/test/load/file_{k}.py"
                 )
                 operations_completed += 1
 
@@ -138,8 +142,8 @@ async def test_production_scenarios():
         # Verify database integrity
         final_stats = await session_manager.get_session_stats()
         db_integrity_good = (
-            final_stats['total_sessions'] >= 10 and
-            final_stats['total_interactions'] >= 100
+            final_stats["total_sessions"] >= 10
+            and final_stats["total_interactions"] >= 100
         )
 
         results["database_integrity"] = db_integrity_good
@@ -155,7 +159,9 @@ async def test_production_scenarios():
         del session_manager
 
         # Create new instance (simulates restart)
-        new_session_manager = CodingSession(storage_path=str(test_dir), context_manager=context_manager)
+        new_session_manager = CodingSession(
+            storage_path=str(test_dir), context_manager=context_manager
+        )
 
         # Try to recover sessions
         recovered_sessions = []
@@ -190,7 +196,7 @@ async def test_production_scenarios():
                 await new_session_manager.add_interaction(
                     session.session_id,
                     f"Memory test interaction {j}",
-                    f"Memory test response {j}"
+                    f"Memory test response {j}",
                 )
 
         # Check active sessions don't grow unbounded
@@ -212,7 +218,9 @@ async def test_production_scenarios():
 
         # Test invalid session operations
         try:
-            await new_session_manager.add_interaction("invalid-session", "test", "response")
+            await new_session_manager.add_interaction(
+                "invalid-session", "test", "response"
+            )
             print("     ❌ Should have failed for invalid session")
         except Exception:
             error_scenarios_passed += 1
@@ -250,9 +258,7 @@ async def test_production_scenarios():
         start = time.time()
         for i in range(100):
             await new_session_manager.add_interaction(
-                perf_session.session_id,
-                f"Perf test {i}",
-                f"Perf response {i}"
+                perf_session.session_id, f"Perf test {i}", f"Perf response {i}"
             )
         benchmarks["interactions_per_second"] = 100 / (time.time() - start)
 
@@ -269,20 +275,23 @@ async def test_production_scenarios():
         benchmarks["persists_per_second"] = 10 / (time.time() - start)
 
         print(f"   Interactions/sec: {benchmarks['interactions_per_second']:.1f}")
-        print(f"   Context retrievals/sec: {benchmarks['context_retrievals_per_second']:.1f}")
+        print(
+            f"   Context retrievals/sec: {benchmarks['context_retrievals_per_second']:.1f}"
+        )
         print(f"   Persists/sec: {benchmarks['persists_per_second']:.1f}")
 
         # Performance acceptable if we can handle reasonable load
         performance_acceptable = (
-            benchmarks['interactions_per_second'] > 50 and
-            benchmarks['context_retrievals_per_second'] > 20 and
-            benchmarks['persists_per_second'] > 5
+            benchmarks["interactions_per_second"] > 50
+            and benchmarks["context_retrievals_per_second"] > 20
+            and benchmarks["persists_per_second"] > 5
         )
         results["performance"] = performance_acceptable
 
     except Exception as e:
         print(f"\n❌ Critical error during testing: {e}")
         import traceback
+
         traceback.print_exc()
         results["critical_error"] = str(e)
 
@@ -305,14 +314,10 @@ def analyze_results(results):
         "concurrent_operations",
         "database_integrity",
         "crash_recovery",
-        "error_handling"
+        "error_handling",
     ]
 
-    performance_tests = [
-        "high_volume_creation",
-        "memory_management",
-        "performance"
-    ]
+    performance_tests = ["high_volume_creation", "memory_management", "performance"]
 
     # Check critical functionality
     critical_passed = 0
@@ -347,20 +352,36 @@ def analyze_results(results):
     total_tests = critical_total + performance_total
 
     print(f"\n📊 OVERALL SCORE:")
-    print(f"   Critical Tests: {critical_passed}/{critical_total} ({critical_passed/critical_total*100:.1f}%)")
-    print(f"   Performance Tests: {performance_passed}/{performance_total} ({performance_passed/performance_total*100:.1f}%)")
-    print(f"   Total Score: {total_passed}/{total_tests} ({total_passed/total_tests*100:.1f}%)")
+    print(
+        f"   Critical Tests: {critical_passed}/{critical_total} ({critical_passed/critical_total*100:.1f}%)"
+    )
+    print(
+        f"   Performance Tests: {performance_passed}/{performance_total} ({performance_passed/performance_total*100:.1f}%)"
+    )
+    print(
+        f"   Total Score: {total_passed}/{total_tests} ({total_passed/total_tests*100:.1f}%)"
+    )
 
     # Production readiness assessment
-    critical_ready = critical_passed >= critical_total * 0.8  # 80% of critical tests must pass
-    performance_ready = performance_passed >= performance_total * 0.6  # 60% of performance tests must pass
+    critical_ready = (
+        critical_passed >= critical_total * 0.8
+    )  # 80% of critical tests must pass
+    performance_ready = (
+        performance_passed >= performance_total * 0.6
+    )  # 60% of performance tests must pass
 
     production_ready = critical_ready and performance_ready
 
     print(f"\n🎯 PRODUCTION READINESS:")
-    print(f"   Critical Functionality: {'✅ READY' if critical_ready else '❌ NOT READY'}")
-    print(f"   Performance & Scalability: {'✅ READY' if performance_ready else '❌ NOT READY'}")
-    print(f"   Overall Assessment: {'🚀 PRODUCTION READY' if production_ready else '⚠️  NEEDS WORK'}")
+    print(
+        f"   Critical Functionality: {'✅ READY' if critical_ready else '❌ NOT READY'}"
+    )
+    print(
+        f"   Performance & Scalability: {'✅ READY' if performance_ready else '❌ NOT READY'}"
+    )
+    print(
+        f"   Overall Assessment: {'🚀 PRODUCTION READY' if production_ready else '⚠️  NEEDS WORK'}"
+    )
 
     if "critical_error" in results:
         print(f"\n💥 CRITICAL ERROR DETECTED: {results['critical_error']}")

@@ -15,7 +15,14 @@ from uuid import UUID
 
 from rich.console import Console
 from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+    TimeRemainingColumn,
+)
 from rich.live import Live
 from rich.layout import Layout
 from rich.panel import Panel
@@ -31,7 +38,6 @@ from core.orchestrator.task_analyzer import TaskAnalyzer
 from core.context.manager import ContextManager
 from core.agents.base import AgentStatus, TaskPriority, ProgressUpdate
 from core.reasoning.react_engine import get_react_engine
-
 
 load_dotenv()
 
@@ -51,20 +57,28 @@ class CasperCLI:
 
     async def initialize(self):
         """Initialize the coordinator with modern loading animation."""
-        with Status("[bold bright_cyan]Initializing CASPER...", spinner="dots12", console=console) as status:
+        with Status(
+            "[bold bright_cyan]Initializing CASPER...",
+            spinner="dots12",
+            console=console,
+        ) as status:
             await asyncio.sleep(0.5)  # Brief pause for visual effect
             status.update("[bold bright_cyan]Starting agent coordinator...")
             await self.coordinator.start()
             await asyncio.sleep(0.3)
             status.update("[bold bright_cyan]Loading agent pool...")
             await asyncio.sleep(0.2)
-        
-        console.print("[bold green]✓[/bold green] [bright_white]CASPER initialized and ready[/bright_white]")
+
+        console.print(
+            "[bold green]✓[/bold green] [bright_white]CASPER initialized and ready[/bright_white]"
+        )
 
     async def shutdown(self):
         """Shutdown the coordinator."""
         await self.coordinator.stop()
-        console.print("[dim bright_white]→ CASPER shutting down gracefully[/dim bright_white]")
+        console.print(
+            "[dim bright_white]→ CASPER shutting down gracefully[/dim bright_white]"
+        )
 
     async def execute_task(self, task: str, priority: str = "medium"):
         """
@@ -74,7 +88,7 @@ class CasperCLI:
         priority_map = {
             "high": TaskPriority.HIGH,
             "medium": TaskPriority.MEDIUM,
-            "low": TaskPriority.LOW
+            "low": TaskPriority.LOW,
         }
         task_priority = priority_map.get(priority.lower(), TaskPriority.MEDIUM)
 
@@ -83,28 +97,42 @@ class CasperCLI:
 
         # Modern task header
         console.print()
-        console.print(Panel(
-            f"[bright_white]{task}[/bright_white]",
-            title="[bold bright_cyan]◆ Task Submission[/bold bright_cyan]",
-            border_style="bright_cyan",
-            padding=(0, 1)
-        ))
+        console.print(
+            Panel(
+                f"[bright_white]{task}[/bright_white]",
+                title="[bold bright_cyan]◆ Task Submission[/bold bright_cyan]",
+                border_style="bright_cyan",
+                padding=(0, 1),
+            )
+        )
 
         # Analyze task with animation
-        with Status("[bold bright_cyan]Analyzing task complexity...", spinner="dots12", console=console):
+        with Status(
+            "[bold bright_cyan]Analyzing task complexity...",
+            spinner="dots12",
+            console=console,
+        ):
             await asyncio.sleep(0.8)  # Simulate analysis time
-            metrics, required_agents, suggested_priority = self.task_analyzer.analyze_task(task)
+            metrics, required_agents, suggested_priority = (
+                self.task_analyzer.analyze_task(task)
+            )
 
         # Display analysis
         self._display_task_analysis(task, metrics, required_agents, suggested_priority)
 
         # Submit task with modern progress
-        with Status("[bold bright_green]Submitting to agent coordinator...", spinner="line", console=console) as status:
+        with Status(
+            "[bold bright_green]Submitting to agent coordinator...",
+            spinner="line",
+            console=console,
+        ) as status:
             task_id = await self.coordinator.submit_task(task, task_priority)
             self.active_task_id = task_id
             await asyncio.sleep(0.3)
 
-        console.print(f"\n[bold bright_green]✓[/bold bright_green] [bright_white]Task queued successfully[/bright_white]")
+        console.print(
+            f"\n[bold bright_green]✓[/bold bright_green] [bright_white]Task queued successfully[/bright_white]"
+        )
         console.print(f"[dim]Task ID: {task_id}[/dim]\n")
 
         # Monitor progress with modern display
@@ -147,31 +175,53 @@ class CasperCLI:
         """Display modern task analysis with clean styling."""
         # Create a sleek panel for task analysis
         table = Table(
-            title="[bold bright_cyan]◆ Task Analysis[/bold bright_cyan]", 
-            show_header=True, 
+            title="[bold bright_cyan]◆ Task Analysis[/bold bright_cyan]",
+            show_header=True,
             border_style="bright_cyan",
             header_style="bold bright_white",
-            title_style="bold bright_cyan"
+            title_style="bold bright_cyan",
         )
         table.add_column("Metric", style="bright_cyan", width=20)
         table.add_column("Value", style="bright_white", width=30)
 
         # Add rows with modern formatting
-        table.add_row("Lines of Code", f"[bright_white]~{metrics.lines_of_code_estimate:,}[/bright_white]")
-        table.add_row("Files Affected", f"[bright_white]{metrics.file_count_estimate}[/bright_white]")
-        table.add_row("Components", f"[bright_white]{metrics.component_count}[/bright_white]")
-        table.add_row("Integration Points", f"[bright_white]{metrics.integration_points}[/bright_white]")
-        table.add_row("Dependencies", f"[bright_white]{metrics.external_dependencies}[/bright_white]")
-        
+        table.add_row(
+            "Lines of Code",
+            f"[bright_white]~{metrics.lines_of_code_estimate:,}[/bright_white]",
+        )
+        table.add_row(
+            "Files Affected",
+            f"[bright_white]{metrics.file_count_estimate}[/bright_white]",
+        )
+        table.add_row(
+            "Components", f"[bright_white]{metrics.component_count}[/bright_white]"
+        )
+        table.add_row(
+            "Integration Points",
+            f"[bright_white]{metrics.integration_points}[/bright_white]",
+        )
+        table.add_row(
+            "Dependencies",
+            f"[bright_white]{metrics.external_dependencies}[/bright_white]",
+        )
+
         # Format agents with colors
-        agent_list = [f"[bright_yellow]{a.value}[/bright_yellow]" for a in required_agents]
+        agent_list = [
+            f"[bright_yellow]{a.value}[/bright_yellow]" for a in required_agents
+        ]
         table.add_row("Required Agents", ", ".join(agent_list))
-        
+
         # Priority with color coding
-        priority_colors = {"high": "bright_red", "medium": "bright_yellow", "low": "bright_green"}
+        priority_colors = {
+            "high": "bright_red",
+            "medium": "bright_yellow",
+            "low": "bright_green",
+        }
         priority_color = priority_colors.get(priority.value, "white")
-        table.add_row("Priority", f"[{priority_color}]{priority.value.upper()}[/{priority_color}]")
-        
+        table.add_row(
+            "Priority", f"[{priority_color}]{priority.value.upper()}[/{priority_color}]"
+        )
+
         # Estimated time
         est_time = TaskAnalyzer.estimate_completion_time(metrics)
         table.add_row("Est. Duration", f"[bright_white]{est_time} min[/bright_white]")
@@ -182,28 +232,50 @@ class CasperCLI:
         """Display a modern progress update with animated indicators."""
         status_config = {
             AgentStatus.IDLE: {"symbol": "○", "color": "dim white", "spinner": None},
-            AgentStatus.PLANNING: {"symbol": "◐", "color": "bright_yellow", "spinner": "dots"},
-            AgentStatus.BUILDING: {"symbol": "●", "color": "bright_blue", "spinner": "line"},
-            AgentStatus.REVIEWING: {"symbol": "◑", "color": "bright_magenta", "spinner": "arc"},
-            AgentStatus.COMPLETED: {"symbol": "✓", "color": "bright_green", "spinner": None},
+            AgentStatus.PLANNING: {
+                "symbol": "◐",
+                "color": "bright_yellow",
+                "spinner": "dots",
+            },
+            AgentStatus.BUILDING: {
+                "symbol": "●",
+                "color": "bright_blue",
+                "spinner": "line",
+            },
+            AgentStatus.REVIEWING: {
+                "symbol": "◑",
+                "color": "bright_magenta",
+                "spinner": "arc",
+            },
+            AgentStatus.COMPLETED: {
+                "symbol": "✓",
+                "color": "bright_green",
+                "spinner": None,
+            },
             AgentStatus.FAILED: {"symbol": "✗", "color": "bright_red", "spinner": None},
-            AgentStatus.BLOCKED: {"symbol": "■", "color": "red", "spinner": None}
+            AgentStatus.BLOCKED: {"symbol": "■", "color": "red", "spinner": None},
         }
 
-        config = status_config.get(update.status, {"symbol": "?", "color": "white", "spinner": None})
-        
+        config = status_config.get(
+            update.status, {"symbol": "?", "color": "white", "spinner": None}
+        )
+
         # Create progress bar for active tasks
         if update.progress > 0 and update.progress < 100:
-            progress_bar = "█" * (update.progress // 5) + "░" * (20 - (update.progress // 5))
+            progress_bar = "█" * (update.progress // 5) + "░" * (
+                20 - (update.progress // 5)
+            )
             progress_display = f"[{config['color']}]{progress_bar}[/{config['color']}] {update.progress}%"
         else:
-            progress_display = f"[{config['color']}]{config['symbol']}[/{config['color']}]"
+            progress_display = (
+                f"[{config['color']}]{config['symbol']}[/{config['color']}]"
+            )
 
         # Format message with modern styling
         agent_name = f"[bold {config['color']}]{update.status.value.upper()}[/bold {config['color']}]"
         message = f"[bright_white]{update.message}[/bright_white]"
         tokens = f"[dim]({update.token_usage.get('total', 0)} tokens)[/dim]"
-        
+
         console.print(f"  {progress_display} {agent_name} {message} {tokens}")
 
     def _display_result(self, result):
@@ -214,7 +286,7 @@ class CasperCLI:
             f"Output: {result.output[:200]}...\n"
             f"Tokens Used: {result.token_usage.get('total', 0)}",
             title=f"Result from {result.agent_role.value}",
-            border_style="green" if result.status == AgentStatus.COMPLETED else "red"
+            border_style="green" if result.status == AgentStatus.COMPLETED else "red",
         )
         console.print(panel)
 
@@ -224,10 +296,10 @@ class CasperCLI:
 
         # Create status table
         table = Table(
-            title="[bold bright_green]◆ System Status[/bold bright_green]", 
-            show_header=True, 
+            title="[bold bright_green]◆ System Status[/bold bright_green]",
+            show_header=True,
             border_style="bright_green",
-            header_style="bold bright_white"
+            header_style="bold bright_white",
         )
         table.add_column("Metric", style="bright_green", width=18)
         table.add_column("Value", style="bright_white", width=15)
@@ -243,10 +315,10 @@ class CasperCLI:
         # Show agent availability
         if stats["agent_pool"]["available_by_role"]:
             availability_table = Table(
-                title="[bold bright_blue]◆ Agent Pool[/bold bright_blue]", 
-                show_header=True, 
+                title="[bold bright_blue]◆ Agent Pool[/bold bright_blue]",
+                show_header=True,
                 border_style="bright_blue",
-                header_style="bold bright_white"
+                header_style="bold bright_white",
             )
             availability_table.add_column("Agent Role", style="bright_blue", width=15)
             availability_table.add_column("Available", style="bright_green", width=10)
@@ -266,10 +338,10 @@ class CasperCLI:
             return
 
         table = Table(
-            title="[bold bright_magenta]◆ Task History[/bold bright_magenta]", 
-            show_header=True, 
+            title="[bold bright_magenta]◆ Task History[/bold bright_magenta]",
+            show_header=True,
             border_style="bright_magenta",
-            header_style="bold bright_white"
+            header_style="bold bright_white",
         )
         table.add_column("Task ID", style="bright_cyan", width=12)
         table.add_column("Agent", style="bright_white", width=15)
@@ -282,7 +354,7 @@ class CasperCLI:
                 str(result.task_id)[:8],
                 result.agent_role.value,
                 f"[{status_color}]{result.status.value}[/{status_color}]",
-                str(result.token_usage.get("total", 0))
+                str(result.token_usage.get("total", 0)),
             )
 
         console.print(table)
@@ -339,22 +411,32 @@ class CasperCLI:
         Execute a task using the ReAct reasoning engine with streaming output.
         """
         console.print()
-        console.print(Panel(
-            f"[bright_white]{task}[/bright_white]",
-            title="[bold bright_magenta]◆ ReAct Reasoning Task[/bold bright_magenta]",
-            border_style="bright_magenta",
-            padding=(0, 1)
-        ))
+        console.print(
+            Panel(
+                f"[bright_white]{task}[/bright_white]",
+                title="[bold bright_magenta]◆ ReAct Reasoning Task[/bold bright_magenta]",
+                border_style="bright_magenta",
+                padding=(0, 1),
+            )
+        )
 
         # Initialize ReAct engine
-        with Status("[bold bright_magenta]Initializing ReAct engine...", spinner="dots12", console=console):
+        with Status(
+            "[bold bright_magenta]Initializing ReAct engine...",
+            spinner="dots12",
+            console=console,
+        ):
             project_root = os.environ.get("CASPER_PROJECT_ROOT", str(Path.cwd()))
             react_engine = get_react_engine(project_root)
             await asyncio.sleep(0.5)  # Visual pause
 
-        console.print(f"[bold green]✓[/bold green] [bright_white]ReAct engine ready[/bright_white]")
+        console.print(
+            f"[bold green]✓[/bold green] [bright_white]ReAct engine ready[/bright_white]"
+        )
         console.print(f"[dim]Model: {react_engine.get_capabilities()['model']}[/dim]")
-        console.print(f"[dim]Tools: {len(react_engine.get_capabilities()['tools'])} available[/dim]\n")
+        console.print(
+            f"[dim]Tools: {len(react_engine.get_capabilities()['tools'])} available[/dim]\n"
+        )
 
         # Stream reasoning process
         console.print("[bold bright_magenta]◆ Reasoning Chain[/bold bright_magenta]\n")
@@ -364,35 +446,53 @@ class CasperCLI:
             async for step_data in react_engine.stream_reasoning(task):
                 if step_data["type"] == "thought":
                     step_count = step_data["step"]
-                    console.print(f"[bold bright_blue]💭 Step {step_count} - Thought:[/bold bright_blue]")
+                    console.print(
+                        f"[bold bright_blue]💭 Step {step_count} - Thought:[/bold bright_blue]"
+                    )
                     console.print(f"[dim]{step_data['content']}[/dim]\n")
 
                 elif step_data["type"] == "action":
-                    console.print(f"[bold bright_green]🔧 Action:[/bold bright_green] {step_data['action']}")
-                    console.print(f"[bright_white]Input:[/bright_white] {step_data['input']}")
+                    console.print(
+                        f"[bold bright_green]🔧 Action:[/bold bright_green] {step_data['action']}"
+                    )
+                    console.print(
+                        f"[bright_white]Input:[/bright_white] {step_data['input']}"
+                    )
 
                 elif step_data["type"] == "observation":
-                    console.print(f"[bold bright_yellow]👁  Observation:[/bold bright_yellow]")
+                    console.print(
+                        f"[bold bright_yellow]👁  Observation:[/bold bright_yellow]"
+                    )
                     # Format observation nicely
-                    obs = step_data['content']
+                    obs = step_data["content"]
                     if len(obs) > 500:
                         obs = obs[:500] + "\n... (truncated)"
                     console.print(f"[dim]{obs}[/dim]")
                     console.print("-" * 60 + "\n")
 
                 elif step_data["type"] == "final_answer":
-                    console.print(f"[bold bright_green]🎯 Final Answer:[/bold bright_green]")
-                    console.print(Panel(
-                        step_data["content"],
-                        border_style="bright_green",
-                        padding=(1, 2)
-                    ))
+                    console.print(
+                        f"[bold bright_green]🎯 Final Answer:[/bold bright_green]"
+                    )
+                    console.print(
+                        Panel(
+                            step_data["content"],
+                            border_style="bright_green",
+                            padding=(1, 2),
+                        )
+                    )
 
                 elif step_data["type"] == "completion":
                     result = step_data["result"]
-                    console.print(f"\n[bold bright_green]✅ Task completed successfully![/bold bright_green]")
-                    console.print(f"[dim]Reasoning steps: {result['reasoning_steps']}[/dim]")
-                    console.print(f"[dim]Reasoning log: {result['reasoning_log_path']}[/dim]")
+                    console.print(
+                        f"\n[bold bright_green]✅ Task completed successfully![/bold bright_green]"
+                    )
+                    console.print(
+                        f"[dim]Reasoning steps: {result['reasoning_steps']}[/dim]"
+                    )
+                    console.print(
+                        f"[dim]Reasoning log: {result['reasoning_log_path']}[/dim]"
+                    )
                     return
 
                 elif step_data["type"] == "error":
@@ -428,18 +528,23 @@ async def main_async():
     task_parser = subparsers.add_parser("task", help="Execute a task")
     task_parser.add_argument("description", help="Task description")
     task_parser.add_argument(
-        "--priority", "-p",
+        "--priority",
+        "-p",
         choices=["high", "medium", "low"],
         default="medium",
-        help="Task priority"
+        help="Task priority",
     )
 
     # Analyze command
-    analyze_parser = subparsers.add_parser("analyze", help="Analyze a task without executing")
+    analyze_parser = subparsers.add_parser(
+        "analyze", help="Analyze a task without executing"
+    )
     analyze_parser.add_argument("description", help="Task description")
 
     # ReAct command
-    react_parser = subparsers.add_parser("react", help="Execute task using ReAct reasoning engine")
+    react_parser = subparsers.add_parser(
+        "react", help="Execute task using ReAct reasoning engine"
+    )
     react_parser.add_argument("description", help="Task description")
 
     # Status command
@@ -449,11 +554,14 @@ async def main_async():
     subparsers.add_parser("list", help="List recent tasks")
 
     # Init command
-    init_parser = subparsers.add_parser("init", help="Initialize CASPER in the current project")
+    init_parser = subparsers.add_parser(
+        "init", help="Initialize CASPER in the current project"
+    )
     init_parser.add_argument(
-        "--project", "-d",
+        "--project",
+        "-d",
         type=str,
-        help="Project directory (default: current directory)"
+        help="Project directory (default: current directory)",
     )
 
     # Setup command
@@ -476,7 +584,11 @@ async def main_async():
 
     try:
         if args.command == "init":
-            target = Path(args.project).resolve() if getattr(args, 'project', None) else Path.cwd()
+            target = (
+                Path(args.project).resolve()
+                if getattr(args, "project", None)
+                else Path.cwd()
+            )
             cli.init_project(target)
             return
         elif args.command == "setup":
@@ -521,7 +633,7 @@ def print_modern_banner():
         r"     _\//\\\____________\/\\\\\\\\\\\\\\\_________\////\\\___\/\\\_____________\/\\\_____________\/\\\____\//\\\___",
         r"      __\///\\\__________\/\\\\\\\\\\\\\\\__/\\\______\//\\\__\/\\\_____________\/\\\_____________\/\\\_____\//\\\__",
         r"       ____\////\\\\\\\\\_\/\\\\\\\\\\\\\\\_\///\\\\\\\\\\\/___\/\\\_____________\/\\\\\\\\\\\\\\\_\/\\\______\//\\\_",
-        r"        _______\/////////__\//__//___//__//____\///////////_____\///______________\///////////////__\///________\///__"
+        r"        _______\/////////__\//__//___//__//____\///////////_____\///______________\///////////////__\///________\///__",
     ]
 
     console.print()

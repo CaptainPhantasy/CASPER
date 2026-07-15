@@ -18,6 +18,7 @@ class CommandResult:
     Every command MUST return this structured result.
     Zero tolerance for print-only commands - all must return data.
     """
+
     success: bool
     output: str
     data: Dict[str, Any] = field(default_factory=dict)
@@ -38,6 +39,7 @@ class CommandResult:
 
 class CommandError(Exception):
     """Base exception for command execution errors"""
+
     def __init__(self, message: str, command_name: str = "", args: str = ""):
         super().__init__(message)
         self.command_name = command_name
@@ -87,7 +89,7 @@ class BaseCommand(ABC):
                     error=f"Input validation failed for command {self.name}",
                     reasoning=reasoning,
                     command_name=self.name,
-                    args=args
+                    args=args,
                 )
 
             reasoning.append(f"REASON: Input validated successfully")
@@ -98,14 +100,16 @@ class BaseCommand(ABC):
 
             # OBSERVE phase - ensure result structure
             if not isinstance(result, CommandResult):
-                reasoning.append(f"OBSERVE: Command returned invalid result type, wrapping")
+                reasoning.append(
+                    f"OBSERVE: Command returned invalid result type, wrapping"
+                )
                 return CommandResult(
                     success=False,
                     output=str(result) if result else "Command returned None",
                     error=f"Command {self.name} did not return CommandResult",
                     reasoning=reasoning,
                     command_name=self.name,
-                    args=args
+                    args=args,
                 )
 
             # Enhance result with metadata
@@ -113,7 +117,9 @@ class BaseCommand(ABC):
             result.command_name = self.name
             result.args = args
 
-            reasoning.append(f"OBSERVE: Command completed successfully with {len(result.data)} data items")
+            reasoning.append(
+                f"OBSERVE: Command completed successfully with {len(result.data)} data items"
+            )
             return result
 
         except Exception as e:
@@ -125,7 +131,7 @@ class BaseCommand(ABC):
                 data={"traceback": traceback.format_exc()},
                 reasoning=reasoning,
                 command_name=self.name,
-                args=args
+                args=args,
             )
 
     def _validate_input(self, args: str) -> bool:
@@ -141,7 +147,7 @@ class BaseCommand(ABC):
             "name": self.name,
             "description": self.description,
             "usage": self.usage,
-            "category": self.category
+            "category": self.category,
         }
 
 
@@ -160,9 +166,11 @@ class CommandRegistry:
 
     def get_command(self, name: str) -> Optional[BaseCommand]:
         """Get a command by name"""
-        return self.commands.get(name.lstrip('/'))
+        return self.commands.get(name.lstrip("/"))
 
-    async def execute_command(self, command_name: str, args: str, context: Any = None) -> CommandResult:
+    async def execute_command(
+        self, command_name: str, args: str, context: Any = None
+    ) -> CommandResult:
         """
         Execute a command by name, ensuring it returns CommandResult.
         Zero tolerance for commands that don't follow the pattern.
@@ -174,7 +182,7 @@ class CommandRegistry:
                 output=f"Command not found: {command_name}",
                 error=f"Unknown command: {command_name}",
                 command_name=command_name,
-                args=args
+                args=args,
             )
 
         return await command.safe_execute(args, context)

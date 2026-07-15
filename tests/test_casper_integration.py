@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch, AsyncMock
 
 # Add parent directory to path
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -23,7 +24,10 @@ class TestCasperIntegration:
     async def test_file_creation_with_approval(self):
         """Test complete file creation flow with approval"""
         from core.ai.enhanced_command_interpreter import EnhancedCasperInterpreter
-        from core.services.enhanced_approval import EnhancedApprovalService, ApprovalMode
+        from core.services.enhanced_approval import (
+            EnhancedApprovalService,
+            ApprovalMode,
+        )
         from core.ai.decision_orchestrator import DecisionOrchestrator
 
         # Setup components
@@ -57,7 +61,7 @@ class TestCasperIntegration:
             content="# Project Documentation",
             agent_id="test_worker",
             agent_name="Worker Agent",
-            task_context=user_input
+            task_context=user_input,
         )
 
         # Should auto-approve README.md as it's safe
@@ -68,7 +72,10 @@ class TestCasperIntegration:
     async def test_dangerous_operation_requires_manual_approval(self):
         """Test that dangerous operations require manual approval"""
         from core.ai.enhanced_command_interpreter import EnhancedCasperInterpreter
-        from core.services.enhanced_approval import EnhancedApprovalService, ApprovalMode
+        from core.services.enhanced_approval import (
+            EnhancedApprovalService,
+            ApprovalMode,
+        )
 
         # Setup
         interpreter = EnhancedCasperInterpreter()
@@ -92,7 +99,7 @@ class TestCasperIntegration:
                 path="/database",
                 content="",
                 agent_id="test_worker",
-                task_context=user_input
+                task_context=user_input,
             )
         )
 
@@ -114,13 +121,18 @@ class TestCasperIntegration:
     async def test_multi_agent_coordination(self):
         """Test multi-agent orchestration for complex tasks"""
         from core.ai.enhanced_command_interpreter import EnhancedCasperInterpreter
-        from core.ai.decision_orchestrator import DecisionOrchestrator, AgentSpecialization
+        from core.ai.decision_orchestrator import (
+            DecisionOrchestrator,
+            AgentSpecialization,
+        )
 
         interpreter = EnhancedCasperInterpreter()
         orchestrator = DecisionOrchestrator()
 
         # Complex command requiring multiple agents
-        user_input = "create a full-stack web application with frontend, backend API, and tests"
+        user_input = (
+            "create a full-stack web application with frontend, backend API, and tests"
+        )
 
         # Interpret
         command = await interpreter.interpret(user_input)
@@ -138,13 +150,18 @@ class TestCasperIntegration:
 
         # Should have multiple agents
         if len(plan.agents) > 1:
-            assert AgentSpecialization.ARCHITECT in plan.agents or \
-                   AgentSpecialization.BACKEND_DEV in plan.agents
+            assert (
+                AgentSpecialization.ARCHITECT in plan.agents
+                or AgentSpecialization.BACKEND_DEV in plan.agents
+            )
             assert plan.parallelization_factor > 0
 
     async def test_batch_approval_workflow(self):
         """Test batch approval for multiple operations"""
-        from core.services.enhanced_approval import EnhancedApprovalService, ApprovalMode
+        from core.services.enhanced_approval import (
+            EnhancedApprovalService,
+            ApprovalMode,
+        )
 
         approval_service = EnhancedApprovalService()
         approval_service.mode = ApprovalMode.STRICT
@@ -159,7 +176,7 @@ class TestCasperIntegration:
                     path=f"src/module_{i}.py",
                     content=f"# Module {i}",
                     agent_id=f"agent_{i}",
-                    task_context="Creating project structure"
+                    task_context="Creating project structure",
                 )
             )
             await asyncio.sleep(0.05)  # Small delay to register
@@ -185,7 +202,9 @@ class TestCasperIntegration:
         orchestrator = DecisionOrchestrator()
 
         # Create a multi-agent command
-        command = await interpreter.interpret("deploy application to production servers")
+        command = await interpreter.interpret(
+            "deploy application to production servers"
+        )
 
         # Simulate a failure
         error = Exception("Connection to server failed")
@@ -203,7 +222,10 @@ class TestCasperIntegration:
 
     async def test_approval_timeout_handling(self):
         """Test that approvals timeout properly"""
-        from core.services.enhanced_approval import EnhancedApprovalService, ApprovalMode
+        from core.services.enhanced_approval import (
+            EnhancedApprovalService,
+            ApprovalMode,
+        )
         from datetime import datetime, timedelta
 
         approval_service = EnhancedApprovalService()
@@ -216,14 +238,16 @@ class TestCasperIntegration:
                 resource_type="file",
                 path="test.txt",
                 content="test",
-                agent_id="test"
+                agent_id="test",
             )
         )
 
         # Hack: Set short expiration
         if approval_service.pending_requests:
             request_id = list(approval_service.pending_requests.keys())[0]
-            approval_service.pending_requests[request_id].expires_at = datetime.now() + timedelta(seconds=0.1)
+            approval_service.pending_requests[request_id].expires_at = (
+                datetime.now() + timedelta(seconds=0.1)
+            )
 
         # Wait for timeout
         await asyncio.sleep(0.2)
@@ -290,7 +314,7 @@ class TestApprovalTerminalIntegration:
                 operation_type="create",
                 resource_type="file",
                 path="test.txt",
-                agent_id="test"
+                agent_id="test",
             )
         )
         await asyncio.sleep(0.1)
@@ -329,7 +353,10 @@ class TestSystemRobustness:
     @pytest.mark.asyncio
     async def test_concurrent_approvals(self):
         """Test handling multiple concurrent approval requests"""
-        from core.services.enhanced_approval import EnhancedApprovalService, ApprovalMode
+        from core.services.enhanced_approval import (
+            EnhancedApprovalService,
+            ApprovalMode,
+        )
 
         approval_service = EnhancedApprovalService()
         approval_service.mode = ApprovalMode.AUTO
@@ -343,7 +370,7 @@ class TestSystemRobustness:
                     resource_type="file",
                     path=f"file_{i}.txt" if i < 10 else f"file_{i}.md",
                     content=f"Content {i}",
-                    agent_id=f"agent_{i}"
+                    agent_id=f"agent_{i}",
                 )
             )
             tasks.append(task)
@@ -369,7 +396,7 @@ class TestSystemRobustness:
             "!!!@#$%^&*()",
             "a" * 1000,  # Very long input
             "\n\n\n",
-            None
+            None,
         ]
 
         for input_text in malformed_inputs:
@@ -380,37 +407,44 @@ class TestSystemRobustness:
                 result = await interpreter.interpret(input_text)
                 # Should handle gracefully
                 assert result is not None
-                assert hasattr(result, 'command_type')
+                assert hasattr(result, "command_type")
             except Exception as e:
                 # Should not crash
                 assert False, f"Failed on input '{input_text}': {e}"
 
     def test_statistics_accuracy(self):
         """Test that statistics are accurately tracked"""
-        from core.services.enhanced_approval import EnhancedApprovalService, ApprovalStatus
+        from core.services.enhanced_approval import (
+            EnhancedApprovalService,
+            ApprovalStatus,
+        )
 
         service = EnhancedApprovalService()
 
         # Create various requests
         for i in range(10):
-            request = service.ApprovalRequest() if hasattr(service, 'ApprovalRequest') else type('ApprovalRequest', (), {})()
+            request = (
+                service.ApprovalRequest()
+                if hasattr(service, "ApprovalRequest")
+                else type("ApprovalRequest", (), {})()
+            )
 
             # Mock different statuses
             if i < 3:
                 service.completed_requests.append(
-                    type('Request', (), {'status': ApprovalStatus.APPROVED})()
+                    type("Request", (), {"status": ApprovalStatus.APPROVED})()
                 )
             elif i < 5:
                 service.completed_requests.append(
-                    type('Request', (), {'status': ApprovalStatus.REJECTED})()
+                    type("Request", (), {"status": ApprovalStatus.REJECTED})()
                 )
             elif i < 7:
                 service.completed_requests.append(
-                    type('Request', (), {'status': ApprovalStatus.AUTO_APPROVED})()
+                    type("Request", (), {"status": ApprovalStatus.AUTO_APPROVED})()
                 )
             else:
                 service.completed_requests.append(
-                    type('Request', (), {'status': ApprovalStatus.EXPIRED})()
+                    type("Request", (), {"status": ApprovalStatus.EXPIRED})()
                 )
 
         stats = service.get_statistics()
@@ -424,13 +458,16 @@ class TestSystemRobustness:
 
 def run_integration_tests():
     """Run all integration tests with detailed output"""
-    pytest.main([
-        __file__,
-        "-v",  # Verbose
-        "-s",  # Show print statements
-        "--tb=short",  # Short traceback
-        "-W", "ignore::DeprecationWarning"  # Ignore deprecation warnings
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",  # Verbose
+            "-s",  # Show print statements
+            "--tb=short",  # Short traceback
+            "-W",
+            "ignore::DeprecationWarning",  # Ignore deprecation warnings
+        ]
+    )
 
 
 if __name__ == "__main__":

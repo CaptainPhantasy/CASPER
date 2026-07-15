@@ -11,8 +11,12 @@ import logging
 from datetime import datetime
 
 from ..interfaces import (
-    IParser, CodingIntent, CodingAction, ParsingError,
-    MAX_COMPLETIONS, DEFAULT_TEMPERATURE
+    IParser,
+    CodingIntent,
+    CodingAction,
+    ParsingError,
+    MAX_COMPLETIONS,
+    DEFAULT_TEMPERATURE,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,144 +38,144 @@ class NLParser(IParser):
             "total_parses": 0,
             "successful_parses": 0,
             "failed_parses": 0,
-            "average_confidence": 0.0
+            "average_confidence": 0.0,
         }
 
     def _initialize_action_patterns(self) -> Dict[CodingAction, List[str]]:
         """Initialize regex patterns for different coding actions."""
         return {
             CodingAction.IMPLEMENT: [
-                r'\b(?:implement|create|build|develop|write|code|make)\b.*?(?:function|class|method|feature|component)',
-                r'\b(?:add|new)\b.*?(?:function|class|method|feature|component)',
-                r'\b(?:generate|produce)\b.*?(?:code|implementation)',
-                r'\bimplement\b',
-                r'\bcreate\b.*?\bclass\b',
-                r'\bwrite\b.*?\bfunction\b'
+                r"\b(?:implement|create|build|develop|write|code|make)\b.*?(?:function|class|method|feature|component)",
+                r"\b(?:add|new)\b.*?(?:function|class|method|feature|component)",
+                r"\b(?:generate|produce)\b.*?(?:code|implementation)",
+                r"\bimplement\b",
+                r"\bcreate\b.*?\bclass\b",
+                r"\bwrite\b.*?\bfunction\b",
             ],
             CodingAction.MODIFY: [
-                r'\b(?:modify|change|update|edit|alter|revise)\b',
-                r'\b(?:fix|correct|adjust)\b',
-                r'\b(?:refactor|restructure)\b',
-                r'\bmodify\b.*?\b(?:function|class|method|variable)\b',
-                r'\bchange\b.*?\bto\b',
-                r'\bupdate\b.*?\b(?:with|to)\b'
+                r"\b(?:modify|change|update|edit|alter|revise)\b",
+                r"\b(?:fix|correct|adjust)\b",
+                r"\b(?:refactor|restructure)\b",
+                r"\bmodify\b.*?\b(?:function|class|method|variable)\b",
+                r"\bchange\b.*?\bto\b",
+                r"\bupdate\b.*?\b(?:with|to)\b",
             ],
             CodingAction.DEBUG: [
-                r'\b(?:debug|fix|solve|troubleshoot)\b.*?\b(?:bug|error|issue|problem)',
-                r'\b(?:find|identify|locate)\b.*?\b(?:bug|error|issue|problem)',
-                r'\b(?:why|what).*?(?:not working|broken|failing|error)',
-                r'\berror\b.*?\bin\b',
-                r'\bfix\b.*?\b(?:bug|issue|error)',
-                r'\bdebug\b'
+                r"\b(?:debug|fix|solve|troubleshoot)\b.*?\b(?:bug|error|issue|problem)",
+                r"\b(?:find|identify|locate)\b.*?\b(?:bug|error|issue|problem)",
+                r"\b(?:why|what).*?(?:not working|broken|failing|error)",
+                r"\berror\b.*?\bin\b",
+                r"\bfix\b.*?\b(?:bug|issue|error)",
+                r"\bdebug\b",
             ],
             CodingAction.TEST: [
-                r'\b(?:test|check|verify|validate)\b',
-                r'\b(?:run|execute)\b.*?\b(?:test|tests)\b',
-                r'\bwrite\b.*?\b(?:test|tests)\b',
-                r'\bunit test\b',
-                r'\btest case\b',
-                r'\btesting\b'
+                r"\b(?:test|check|verify|validate)\b",
+                r"\b(?:run|execute)\b.*?\b(?:test|tests)\b",
+                r"\bwrite\b.*?\b(?:test|tests)\b",
+                r"\bunit test\b",
+                r"\btest case\b",
+                r"\btesting\b",
             ],
             CodingAction.EXPLAIN: [
-                r'\b(?:explain|describe|tell|show).*?(?:how|what|why)',
-                r'\bwhat\b.*?\b(?:does|is)\b',
-                r'\bhow\b.*?\b(?:does|do|works?)\b',
-                r'\bexplain\b',
-                r'\bdocument\b',
-                r'\bwhat is\b'
+                r"\b(?:explain|describe|tell|show).*?(?:how|what|why)",
+                r"\bwhat\b.*?\b(?:does|is)\b",
+                r"\bhow\b.*?\b(?:does|do|works?)\b",
+                r"\bexplain\b",
+                r"\bdocument\b",
+                r"\bwhat is\b",
             ],
             CodingAction.REVIEW: [
-                r'\b(?:review|check|examine|inspect|analyze)\b.*?\b(?:code|implementation)',
-                r'\bcode review\b',
-                r'\blook at\b.*?\bcode\b',
-                r'\breview\b',
-                r'\bcheck\b.*?\b(?:quality|style|standards)\b'
+                r"\b(?:review|check|examine|inspect|analyze)\b.*?\b(?:code|implementation)",
+                r"\bcode review\b",
+                r"\blook at\b.*?\bcode\b",
+                r"\breview\b",
+                r"\bcheck\b.*?\b(?:quality|style|standards)\b",
             ],
             CodingAction.REFACTOR: [
-                r'\b(?:refactor|restructure|reorganize|improve)\b',
-                r'\bclean up\b',
-                r'\boptimize\b.*?\b(?:structure|design|architecture)\b',
-                r'\brefactor\b',
-                r'\breorganize\b',
-                r'\bimprove\b.*?\b(?:structure|design)\b'
+                r"\b(?:refactor|restructure|reorganize|improve)\b",
+                r"\bclean up\b",
+                r"\boptimize\b.*?\b(?:structure|design|architecture)\b",
+                r"\brefactor\b",
+                r"\breorganize\b",
+                r"\bimprove\b.*?\b(?:structure|design)\b",
             ],
             CodingAction.OPTIMIZE: [
-                r'\b(?:optimize|improve|enhance)\b.*?\b(?:performance|speed|efficiency)',
-                r'\bmake\b.*?\b(?:faster|better|more efficient)\b',
-                r'\boptimize\b',
-                r'\bperformance\b',
-                r'\bspeed up\b'
-            ]
+                r"\b(?:optimize|improve|enhance)\b.*?\b(?:performance|speed|efficiency)",
+                r"\bmake\b.*?\b(?:faster|better|more efficient)\b",
+                r"\boptimize\b",
+                r"\bperformance\b",
+                r"\bspeed up\b",
+            ],
         }
 
     def _initialize_entity_patterns(self) -> Dict[str, str]:
         """Initialize patterns for entity extraction."""
         return {
-            'file': r'\b[\w\-\.]+\.(?:py|js|ts|jsx|tsx|java|cpp|c|h|css|html|json|yaml|yml|md|txt|sql)\b',
-            'function': r'\bdef\s+(\w+)|function\s+(\w+)|\b(\w+)\s*\(',
-            'class': r'\bclass\s+(\w+)|interface\s+(\w+)|struct\s+(\w+)',
-            'variable': r'\b(?:var|let|const|val)\s+(\w+)|(\w+)\s*=',
-            'method': r'\.(\w+)\s*\(',
-            'module': r'\bimport\s+(\w+)|from\s+(\w+)\s+import',
-            'path': r'[\'"]([\/\w\-\.]+)[\'"]',
-            'url': r'https?://[^\s]+',
-            'package': r'@[\w\/\-]+|\b[\w\-]+(?:==|>=|<=|>|<)\d+[\.\d]*'
+            "file": r"\b[\w\-\.]+\.(?:py|js|ts|jsx|tsx|java|cpp|c|h|css|html|json|yaml|yml|md|txt|sql)\b",
+            "function": r"\bdef\s+(\w+)|function\s+(\w+)|\b(\w+)\s*\(",
+            "class": r"\bclass\s+(\w+)|interface\s+(\w+)|struct\s+(\w+)",
+            "variable": r"\b(?:var|let|const|val)\s+(\w+)|(\w+)\s*=",
+            "method": r"\.(\w+)\s*\(",
+            "module": r"\bimport\s+(\w+)|from\s+(\w+)\s+import",
+            "path": r'[\'"]([\/\w\-\.]+)[\'"]',
+            "url": r"https?://[^\s]+",
+            "package": r"@[\w\/\-]+|\b[\w\-]+(?:==|>=|<=|>|<)\d+[\.\d]*",
         }
 
     def _initialize_language_patterns(self) -> Dict[str, List[str]]:
         """Initialize patterns for programming language detection."""
         return {
-            'python': [
-                r'\bdef\s+\w+\s*\(',
-                r'\bclass\s+\w+\s*:',
-                r'\bimport\s+\w+',
-                r'\bfrom\s+\w+\s+import',
+            "python": [
+                r"\bdef\s+\w+\s*\(",
+                r"\bclass\s+\w+\s*:",
+                r"\bimport\s+\w+",
+                r"\bfrom\s+\w+\s+import",
                 r'\bif\s+__name__\s*==\s*[\'"]__main__[\'"]',
-                r'\bprint\s*\(',
-                r'\.py\b'
+                r"\bprint\s*\(",
+                r"\.py\b",
             ],
-            'javascript': [
-                r'\bfunction\s+\w+\s*\(',
-                r'\bconst\s+\w+\s*=',
-                r'\blet\s+\w+\s*=',
-                r'\bvar\s+\w+\s*=',
-                r'\.js\b',
-                r'=>',
-                r'\bconsole\.log\s*\('
+            "javascript": [
+                r"\bfunction\s+\w+\s*\(",
+                r"\bconst\s+\w+\s*=",
+                r"\blet\s+\w+\s*=",
+                r"\bvar\s+\w+\s*=",
+                r"\.js\b",
+                r"=>",
+                r"\bconsole\.log\s*\(",
             ],
-            'typescript': [
-                r':\s*\w+\s*[=;]',
-                r'\binterface\s+\w+',
-                r'\btype\s+\w+\s*=',
-                r'\.ts\b',
-                r'\.tsx\b',
-                r'\bas\s+\w+'
+            "typescript": [
+                r":\s*\w+\s*[=;]",
+                r"\binterface\s+\w+",
+                r"\btype\s+\w+\s*=",
+                r"\.ts\b",
+                r"\.tsx\b",
+                r"\bas\s+\w+",
             ],
-            'java': [
-                r'\bpublic\s+class\s+\w+',
-                r'\bpublic\s+static\s+void\s+main',
-                r'\.java\b',
-                r'\bSystem\.out\.println\s*\(',
-                r'\bprivate\s+\w+\s+\w+',
-                r'\bpublic\s+\w+\s+\w+\s*\('
+            "java": [
+                r"\bpublic\s+class\s+\w+",
+                r"\bpublic\s+static\s+void\s+main",
+                r"\.java\b",
+                r"\bSystem\.out\.println\s*\(",
+                r"\bprivate\s+\w+\s+\w+",
+                r"\bpublic\s+\w+\s+\w+\s*\(",
             ],
-            'cpp': [
-                r'#include\s*<\w+>',
-                r'\bstd::\w+',
-                r'\.cpp\b',
-                r'\.hpp\b',
-                r'\bint\s+main\s*\(',
-                r'\bcout\s*<<'
+            "cpp": [
+                r"#include\s*<\w+>",
+                r"\bstd::\w+",
+                r"\.cpp\b",
+                r"\.hpp\b",
+                r"\bint\s+main\s*\(",
+                r"\bcout\s*<<",
             ],
-            'sql': [
-                r'\bSELECT\b',
-                r'\bFROM\b',
-                r'\bWHERE\b',
-                r'\bINSERT\s+INTO\b',
-                r'\bUPDATE\b',
-                r'\bDELETE\s+FROM\b',
-                r'\.sql\b'
-            ]
+            "sql": [
+                r"\bSELECT\b",
+                r"\bFROM\b",
+                r"\bWHERE\b",
+                r"\bINSERT\s+INTO\b",
+                r"\bUPDATE\b",
+                r"\bDELETE\s+FROM\b",
+                r"\.sql\b",
+            ],
         }
 
     async def parse_input(self, user_input: str) -> CodingIntent:
@@ -192,7 +196,9 @@ class NLParser(IParser):
             scope = await self._determine_scope(normalized_input, targets)
 
             # Extract required context
-            context_required = await self._extract_context_requirements(normalized_input, action)
+            context_required = await self._extract_context_requirements(
+                normalized_input, action
+            )
 
             # Calculate overall confidence
             confidence = await self._calculate_confidence(
@@ -206,16 +212,19 @@ class NLParser(IParser):
                 scope=scope,
                 original_request=user_input,
                 confidence=confidence,
-                context_required=context_required
+                context_required=context_required,
             )
 
             self.parsing_stats["successful_parses"] += 1
             self.parsing_stats["average_confidence"] = (
-                (self.parsing_stats["average_confidence"] * (self.parsing_stats["successful_parses"] - 1) + confidence)
-                / self.parsing_stats["successful_parses"]
-            )
+                self.parsing_stats["average_confidence"]
+                * (self.parsing_stats["successful_parses"] - 1)
+                + confidence
+            ) / self.parsing_stats["successful_parses"]
 
-            logger.debug(f"Parsed intent: {action.value} with confidence {confidence:.2f}")
+            logger.debug(
+                f"Parsed intent: {action.value} with confidence {confidence:.2f}"
+            )
             return intent
 
         except Exception as e:
@@ -229,7 +238,7 @@ class NLParser(IParser):
         normalized = input_text.lower().strip()
 
         # Remove extra whitespace
-        normalized = re.sub(r'\s+', ' ', normalized)
+        normalized = re.sub(r"\s+", " ", normalized)
 
         # Handle common contractions
         contractions = {
@@ -239,7 +248,7 @@ class NLParser(IParser):
             "'ll": " will",
             "'ve": " have",
             "'re": " are",
-            "'d": " would"
+            "'d": " would",
         }
 
         for contraction, expansion in contractions.items():
@@ -294,19 +303,19 @@ class NLParser(IParser):
             targets.extend(quoted)
 
             # Look for capitalized words (potential class/module names)
-            capitalized = re.findall(r'\b[A-Z]\w+\b', normalized_input)
+            capitalized = re.findall(r"\b[A-Z]\w+\b", normalized_input)
             targets.extend(capitalized[:3])  # Limit to avoid noise
 
-        return targets[:10] if targets else ['current_context']  # Limit targets
+        return targets[:10] if targets else ["current_context"]  # Limit targets
 
     async def _determine_scope(self, normalized_input: str, targets: List[str]) -> str:
         """Determine the scope of the coding operation."""
         scope_indicators = {
-            'project': ['project', 'entire', 'whole', 'all files', 'codebase'],
-            'file': ['file', 'module', 'document'],
-            'class': ['class', 'object', 'type'],
-            'function': ['function', 'method', 'procedure', 'def'],
-            'line': ['line', 'statement', 'expression']
+            "project": ["project", "entire", "whole", "all files", "codebase"],
+            "file": ["file", "module", "document"],
+            "class": ["class", "object", "type"],
+            "function": ["function", "method", "procedure", "def"],
+            "line": ["line", "statement", "expression"],
         }
 
         for scope, indicators in scope_indicators.items():
@@ -314,40 +323,45 @@ class NLParser(IParser):
                 return scope
 
         # Infer scope from targets
-        if any(target.endswith(('.py', '.js', '.ts', '.java', '.cpp')) for target in targets):
-            return 'file'
-        elif any('def ' in target or 'function' in target for target in targets):
-            return 'function'
-        elif any('class' in target.lower() for target in targets):
-            return 'class'
+        if any(
+            target.endswith((".py", ".js", ".ts", ".java", ".cpp"))
+            for target in targets
+        ):
+            return "file"
+        elif any("def " in target or "function" in target for target in targets):
+            return "function"
+        elif any("class" in target.lower() for target in targets):
+            return "class"
 
-        return 'function'  # Default scope
+        return "function"  # Default scope
 
-    async def _extract_context_requirements(self, normalized_input: str, action: CodingAction) -> List[str]:
+    async def _extract_context_requirements(
+        self, normalized_input: str, action: CodingAction
+    ) -> List[str]:
         """Extract what context is required for this operation."""
         context_requirements = []
 
         # Action-specific context requirements
         action_contexts = {
-            CodingAction.IMPLEMENT: ['requirements', 'specifications', 'interfaces'],
-            CodingAction.MODIFY: ['current_code', 'dependencies'],
-            CodingAction.DEBUG: ['error_logs', 'stack_trace', 'current_code'],
-            CodingAction.TEST: ['code_to_test', 'test_framework'],
-            CodingAction.EXPLAIN: ['code_to_explain', 'documentation'],
-            CodingAction.REVIEW: ['code_to_review', 'coding_standards'],
-            CodingAction.REFACTOR: ['current_code', 'design_goals'],
-            CodingAction.OPTIMIZE: ['current_code', 'performance_metrics']
+            CodingAction.IMPLEMENT: ["requirements", "specifications", "interfaces"],
+            CodingAction.MODIFY: ["current_code", "dependencies"],
+            CodingAction.DEBUG: ["error_logs", "stack_trace", "current_code"],
+            CodingAction.TEST: ["code_to_test", "test_framework"],
+            CodingAction.EXPLAIN: ["code_to_explain", "documentation"],
+            CodingAction.REVIEW: ["code_to_review", "coding_standards"],
+            CodingAction.REFACTOR: ["current_code", "design_goals"],
+            CodingAction.OPTIMIZE: ["current_code", "performance_metrics"],
         }
 
         context_requirements.extend(action_contexts.get(action, []))
 
         # Extract specific context mentions
         context_patterns = {
-            'database': r'\b(?:database|db|sql|table|query)\b',
-            'api': r'\b(?:api|endpoint|rest|http|request|response)\b',
-            'frontend': r'\b(?:frontend|ui|interface|react|vue|angular)\b',
-            'backend': r'\b(?:backend|server|service|controller)\b',
-            'config': r'\b(?:config|configuration|settings|environment)\b'
+            "database": r"\b(?:database|db|sql|table|query)\b",
+            "api": r"\b(?:api|endpoint|rest|http|request|response)\b",
+            "frontend": r"\b(?:frontend|ui|interface|react|vue|angular)\b",
+            "backend": r"\b(?:backend|server|service|controller)\b",
+            "config": r"\b(?:config|configuration|settings|environment)\b",
         }
 
         for context_type, pattern in context_patterns.items():
@@ -357,14 +371,20 @@ class NLParser(IParser):
         return list(set(context_requirements))  # Remove duplicates
 
     async def _calculate_confidence(
-        self, action_confidence: float, targets: List[str], scope: str, normalized_input: str
+        self,
+        action_confidence: float,
+        targets: List[str],
+        scope: str,
+        normalized_input: str,
     ) -> float:
         """Calculate overall confidence in the parsing result."""
         confidence_factors = [action_confidence]
 
         # Target clarity factor
-        if targets and targets != ['current_context']:
-            target_factor = min(len(targets) / 3.0, 1.0)  # More targets = clearer intent
+        if targets and targets != ["current_context"]:
+            target_factor = min(
+                len(targets) / 3.0, 1.0
+            )  # More targets = clearer intent
             confidence_factors.append(target_factor)
         else:
             confidence_factors.append(0.5)  # Moderate confidence for general context
@@ -375,11 +395,11 @@ class NLParser(IParser):
 
         # Scope specificity factor
         scope_factors = {
-            'line': 1.0,
-            'function': 0.9,
-            'class': 0.8,
-            'file': 0.7,
-            'project': 0.6
+            "line": 1.0,
+            "function": 0.9,
+            "class": 0.8,
+            "file": 0.7,
+            "project": 0.6,
         }
         confidence_factors.append(scope_factors.get(scope, 0.5))
 
@@ -403,7 +423,9 @@ class NLParser(IParser):
 
         return entities
 
-    async def suggest_completion(self, partial: str, context: Dict[str, Any]) -> List[str]:
+    async def suggest_completion(
+        self, partial: str, context: Dict[str, Any]
+    ) -> List[str]:
         """Suggest completions for partial input based on context."""
         try:
             # Check cache first
@@ -427,7 +449,9 @@ class NLParser(IParser):
             suggestions.extend(pattern_suggestions)
 
             # Deduplicate and limit
-            suggestions = list(dict.fromkeys(suggestions))  # Remove duplicates while preserving order
+            suggestions = list(
+                dict.fromkeys(suggestions)
+            )  # Remove duplicates while preserving order
             suggestions = suggestions[:MAX_COMPLETIONS]
 
             # Cache the result
@@ -453,7 +477,7 @@ class NLParser(IParser):
             "opt": ["optimize"],
             "add": ["add"],
             "del": ["delete"],
-            "upd": ["update"]
+            "upd": ["update"],
         }
 
         suggestions = []
@@ -465,7 +489,9 @@ class NLParser(IParser):
 
         return suggestions
 
-    async def _get_context_completions(self, partial: str, context: Dict[str, Any]) -> List[str]:
+    async def _get_context_completions(
+        self, partial: str, context: Dict[str, Any]
+    ) -> List[str]:
         """Get context-based completions."""
         suggestions = []
 
@@ -500,7 +526,7 @@ class NLParser(IParser):
             "optimize performance",
             "add feature",
             "debug error",
-            "write test for"
+            "write test for",
         ]
 
         suggestions = []
@@ -520,7 +546,9 @@ class NLParser(IParser):
             for language, patterns in self.language_patterns.items():
                 score = 0
                 for pattern in patterns:
-                    matches = len(re.findall(pattern, code_snippet, re.IGNORECASE | re.MULTILINE))
+                    matches = len(
+                        re.findall(pattern, code_snippet, re.IGNORECASE | re.MULTILINE)
+                    )
                     score += matches
 
                 if score > 0:

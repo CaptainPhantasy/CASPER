@@ -36,11 +36,13 @@ class FileOperation:
             "id": self.id,
             "operation_type": self.operation_type,
             "path": self.path,
-            "content": self.content[:200] + "..." if len(self.content) > 200 else self.content,
+            "content": (
+                self.content[:200] + "..." if len(self.content) > 200 else self.content
+            ),
             "agent_id": self.agent_id,
             "status": self.status.value,
             "created_at": self.created_at.isoformat(),
-            "approved_at": self.approved_at.isoformat() if self.approved_at else None
+            "approved_at": self.approved_at.isoformat() if self.approved_at else None,
         }
 
 
@@ -55,24 +57,30 @@ class HILApprovalService:
         self.approved_operations: List[FileOperation] = []
         self.rejected_operations: List[FileOperation] = []
         self.notification_callbacks: List[Callable] = []
-        self.set_approval_mode(os.environ.get('CASPER_APPROVAL_MODE', 'STRICT'))
+        self.set_approval_mode(os.environ.get("CASPER_APPROVAL_MODE", "STRICT"))
 
     def set_approval_mode(self, mode: str):
         """Set the approval mode (STRICT, AUTO, YOLO)."""
         self.mode = mode.upper()
-        if self.mode == 'YOLO':
-            print("🚀 HIL Approval Service in YOLO mode - auto-approving all operations")
-        elif self.mode == 'AUTO':
+        if self.mode == "YOLO":
+            print(
+                "🚀 HIL Approval Service in YOLO mode - auto-approving all operations"
+            )
+        elif self.mode == "AUTO":
             # TODO: Implement a more sophisticated auto-approval logic.
             # For now, AUTO behaves like YOLO.
-            print("🚀 HIL Approval Service in AUTO mode - auto-approving all operations")
+            print(
+                "🚀 HIL Approval Service in AUTO mode - auto-approving all operations"
+            )
         else:
-            self.mode = 'STRICT'
-            print("🚨 HIL Approval Service in STRICT mode - all operations require manual approval")
+            self.mode = "STRICT"
+            print(
+                "🚨 HIL Approval Service in STRICT mode - all operations require manual approval"
+            )
 
     @property
     def auto_approve(self):
-        return self.mode in ['YOLO', 'AUTO']
+        return self.mode in ["YOLO", "AUTO"]
 
     def add_notification_callback(self, callback: Callable):
         """Add a callback to be notified when new approvals are needed."""
@@ -89,7 +97,9 @@ class HILApprovalService:
             except Exception as e:
                 print(f"Error in approval callback: {e}")
 
-    async def request_file_write_approval(self, path: str, content: str, agent_id: str) -> str:
+    async def request_file_write_approval(
+        self, path: str, content: str, agent_id: str
+    ) -> str:
         """
         Request approval for a file write operation.
         Returns the approval result after user response.
@@ -121,7 +131,9 @@ class HILApprovalService:
 
         # Wait for approval response via API
         try:
-            result = await asyncio.wait_for(operation.future, timeout=300)  # 5 minute timeout
+            result = await asyncio.wait_for(
+                operation.future, timeout=300
+            )  # 5 minute timeout
             return result
         except asyncio.TimeoutError:
             # Auto-reject after timeout
@@ -129,8 +141,10 @@ class HILApprovalService:
             self.rejected_operations.append(operation)
             del self.pending_operations[operation.id]
             return "rejected"
-    
-    async def request_file_modify_approval(self, path: str, content: str, agent_id: str) -> str:
+
+    async def request_file_modify_approval(
+        self, path: str, content: str, agent_id: str
+    ) -> str:
         """
         Request approval for a file modification operation.
         Returns the approval result after user response.
@@ -162,7 +176,9 @@ class HILApprovalService:
 
         # Wait for approval response via API
         try:
-            result = await asyncio.wait_for(operation.future, timeout=300)  # 5 minute timeout
+            result = await asyncio.wait_for(
+                operation.future, timeout=300
+            )  # 5 minute timeout
             return result
         except asyncio.TimeoutError:
             # Auto-reject after timeout
@@ -203,7 +219,9 @@ class HILApprovalService:
 
         # Wait for approval response via API
         try:
-            result = await asyncio.wait_for(operation.future, timeout=300)  # 5 minute timeout
+            result = await asyncio.wait_for(
+                operation.future, timeout=300
+            )  # 5 minute timeout
             return result
         except asyncio.TimeoutError:
             # Auto-reject after timeout

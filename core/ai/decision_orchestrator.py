@@ -11,32 +11,38 @@ from pathlib import Path
 
 from core.agents.base import AgentRole, BaseAgent
 from core.ai.enhanced_command_interpreter import (
-    InterpretedCommand, CommandType, Priority, ErrorSeverity
+    InterpretedCommand,
+    CommandType,
+    Priority,
+    ErrorSeverity,
 )
 
 
 class ExecutionModel(Enum):
     """Execution models for multi-agent coordination"""
-    SEQUENTIAL_PIPELINE = "sequential"     # One after another
-    PARALLEL_EXECUTION = "parallel"        # All at once
-    DYNAMIC_ROUTING = "dynamic"           # Conditional flow
-    HYBRID = "hybrid"                      # Mix of parallel and sequential
+
+    SEQUENTIAL_PIPELINE = "sequential"  # One after another
+    PARALLEL_EXECUTION = "parallel"  # All at once
+    DYNAMIC_ROUTING = "dynamic"  # Conditional flow
+    HYBRID = "hybrid"  # Mix of parallel and sequential
 
 
 class AgentSpecialization(Enum):
     """Specialized agent roles based on logic plan"""
-    ARCHITECT = "architect"          # System design, architecture docs
-    FRONTEND_DEV = "frontend_dev"    # UI/UX implementation
-    BACKEND_DEV = "backend_dev"      # API/business logic
-    DEVOPS = "devops"               # CI/CD, deployment
-    QA_TESTER = "qa_tester"         # Test planning, bug detection
-    CODE_REVIEWER = "reviewer"       # Code review, best practices
-    SECURITY_AUDITOR = "security"    # Security audit
+
+    ARCHITECT = "architect"  # System design, architecture docs
+    FRONTEND_DEV = "frontend_dev"  # UI/UX implementation
+    BACKEND_DEV = "backend_dev"  # API/business logic
+    DEVOPS = "devops"  # CI/CD, deployment
+    QA_TESTER = "qa_tester"  # Test planning, bug detection
+    CODE_REVIEWER = "reviewer"  # Code review, best practices
+    SECURITY_AUDITOR = "security"  # Security audit
 
 
 @dataclass
 class ToolSelection:
     """Tool selection based on task type"""
+
     primary_tool: str
     secondary_tools: List[str]
     conditions: str
@@ -46,6 +52,7 @@ class ToolSelection:
 @dataclass
 class QualityGate:
     """Quality gates for stage validation"""
+
     name: str
     criteria: List[str]
     must_pass: bool
@@ -55,6 +62,7 @@ class QualityGate:
 @dataclass
 class OrchestrationPlan:
     """Complete orchestration plan for multi-agent execution"""
+
     task_id: str
     agents: List[AgentSpecialization]
     execution_model: ExecutionModel
@@ -76,92 +84,92 @@ class DecisionOrchestrator:
             primary_tool="Write",
             secondary_tools=["Bash (mkdir -p)"],
             conditions="Parent dir must exist",
-            fallback_strategy="Create parent directories first"
+            fallback_strategy="Create parent directories first",
         ),
         "create_multiple_files": ToolSelection(
             primary_tool="Write (multiple)",
             secondary_tools=["MultiEdit"],
             conditions="Related files",
-            fallback_strategy="Sequential creation"
+            fallback_strategy="Sequential creation",
         ),
         "edit_single_file": ToolSelection(
             primary_tool="Edit",
             secondary_tools=["MultiEdit"],
             conditions="<5 changes",
-            fallback_strategy="Use MultiEdit for complex"
+            fallback_strategy="Use MultiEdit for complex",
         ),
         "edit_multiple_spots": ToolSelection(
             primary_tool="MultiEdit",
             secondary_tools=["Edit"],
             conditions="Same file",
-            fallback_strategy="Split into multiple Edit calls"
+            fallback_strategy="Split into multiple Edit calls",
         ),
         "search_by_name": ToolSelection(
             primary_tool="Glob",
             secondary_tools=["Bash (find)"],
             conditions="Pattern matching",
-            fallback_strategy="Use find command"
+            fallback_strategy="Use find command",
         ),
         "search_by_content": ToolSelection(
             primary_tool="Grep",
             secondary_tools=["Task"],
             conditions="Text in files",
-            fallback_strategy="Complex search with Task"
+            fallback_strategy="Complex search with Task",
         ),
         "read_file": ToolSelection(
             primary_tool="Read",
             secondary_tools=[],
             conditions="Always use Read",
-            fallback_strategy="No fallback - Read is required"
+            fallback_strategy="No fallback - Read is required",
         ),
         "delete_files": ToolSelection(
             primary_tool="Bash (rm)",
             secondary_tools=[],
             conditions="With confirmation",
-            fallback_strategy="Require explicit confirmation"
+            fallback_strategy="Require explicit confirmation",
         ),
         "run_commands": ToolSelection(
             primary_tool="Bash",
             secondary_tools=["BashOutput"],
             conditions="Check sandbox",
-            fallback_strategy="Use BashOutput for long-running"
+            fallback_strategy="Use BashOutput for long-running",
         ),
         "install_packages": ToolSelection(
             primary_tool="Bash",
             secondary_tools=[],
             conditions="Detect package manager",
-            fallback_strategy="Ask user for package manager"
+            fallback_strategy="Ask user for package manager",
         ),
         "web_research": ToolSelection(
             primary_tool="WebSearch",
             secondary_tools=["WebFetch"],
             conditions="Current information",
-            fallback_strategy="Use WebFetch for specific URLs"
+            fallback_strategy="Use WebFetch for specific URLs",
         ),
         "documentation_lookup": ToolSelection(
             primary_tool="WebFetch",
             secondary_tools=["MCP tools"],
             conditions="Library docs",
-            fallback_strategy="Search online documentation"
+            fallback_strategy="Search online documentation",
         ),
         "complex_search": ToolSelection(
             primary_tool="Task",
             secondary_tools=["Glob", "Grep"],
             conditions="Multi-step exploration",
-            fallback_strategy="Break into simpler searches"
+            fallback_strategy="Break into simpler searches",
         ),
         "git_operations": ToolSelection(
             primary_tool="Bash (git)",
             secondary_tools=[],
             conditions="Follow git practices",
-            fallback_strategy="Use git GUI if available"
+            fallback_strategy="Use git GUI if available",
         ),
         "test_execution": ToolSelection(
             primary_tool="Bash",
             secondary_tools=["TodoWrite"],
             conditions="Platform-appropriate",
-            fallback_strategy="Manual test execution"
-        )
+            fallback_strategy="Manual test execution",
+        ),
     }
 
     def __init__(self):
@@ -190,7 +198,7 @@ class DecisionOrchestrator:
             "score": 0,
             "factors": [],
             "estimated_operations": 0,
-            "requires_coordination": False
+            "requires_coordination": False,
         }
 
         # Factor 1: Number of targets
@@ -203,7 +211,7 @@ class DecisionOrchestrator:
         complex_types = [
             CommandType.CODE_GENERATION,
             CommandType.MULTI_AGENT,
-            CommandType.INITIALIZATION
+            CommandType.INITIALIZATION,
         ]
         if command.command_type in complex_types:
             complexity["score"] += 40
@@ -223,7 +231,9 @@ class DecisionOrchestrator:
 
         return complexity
 
-    def _should_use_multi_agent(self, command: InterpretedCommand, complexity: Dict) -> bool:
+    def _should_use_multi_agent(
+        self, command: InterpretedCommand, complexity: Dict
+    ) -> bool:
         """Determine if multi-agent orchestration is beneficial"""
 
         # Explicit multi-agent request
@@ -239,14 +249,17 @@ class DecisionOrchestrator:
             return True
 
         # Cross-functional requirements
-        if command.command_type == CommandType.CODE_GENERATION and \
-           complexity["requires_coordination"]:
+        if (
+            command.command_type == CommandType.CODE_GENERATION
+            and complexity["requires_coordination"]
+        ):
             return True
 
         return False
 
-    async def _create_multi_agent_plan(self, command: InterpretedCommand,
-                                       complexity: Dict) -> OrchestrationPlan:
+    async def _create_multi_agent_plan(
+        self, command: InterpretedCommand, complexity: Dict
+    ) -> OrchestrationPlan:
         """Create multi-agent orchestration plan"""
 
         # Assign agent roles based on task
@@ -274,10 +287,12 @@ class DecisionOrchestrator:
             tool_matrix=tool_matrix,
             quality_gates=quality_gates,
             estimated_duration_ms=duration,
-            parallelization_factor=parallel_factor
+            parallelization_factor=parallel_factor,
         )
 
-    async def _create_single_agent_plan(self, command: InterpretedCommand) -> OrchestrationPlan:
+    async def _create_single_agent_plan(
+        self, command: InterpretedCommand
+    ) -> OrchestrationPlan:
         """Create single-agent execution plan"""
 
         # Determine primary agent
@@ -286,8 +301,7 @@ class DecisionOrchestrator:
         # Get tool selection
         tool_key = self._get_tool_key(command)
         tool_selection = self.TOOL_MATRIX.get(
-            tool_key,
-            ToolSelection("Bash", [], "Default", "Manual execution")
+            tool_key, ToolSelection("Bash", [], "Default", "Manual execution")
         )
 
         # Simple quality gate
@@ -296,7 +310,7 @@ class DecisionOrchestrator:
                 name="execution_complete",
                 criteria=["task_completed", "no_errors"],
                 must_pass=True,
-                rollback_on_fail=False
+                rollback_on_fail=False,
             )
         ]
 
@@ -307,10 +321,12 @@ class DecisionOrchestrator:
             tool_matrix={command.action: tool_selection},
             quality_gates=quality_gates,
             estimated_duration_ms=command.estimated_time_ms,
-            parallelization_factor=0.0
+            parallelization_factor=0.0,
         )
 
-    def _assign_agent_roles(self, command: InterpretedCommand, complexity: Dict) -> List[AgentSpecialization]:
+    def _assign_agent_roles(
+        self, command: InterpretedCommand, complexity: Dict
+    ) -> List[AgentSpecialization]:
         """Assign agent roles based on task requirements"""
         agents = []
 
@@ -321,7 +337,10 @@ class DecisionOrchestrator:
             # Add specialized developers
             if "frontend" in command.raw_input.lower():
                 agents.append(AgentSpecialization.FRONTEND_DEV)
-            if "backend" in command.raw_input.lower() or "api" in command.raw_input.lower():
+            if (
+                "backend" in command.raw_input.lower()
+                or "api" in command.raw_input.lower()
+            ):
                 agents.append(AgentSpecialization.BACKEND_DEV)
 
             # Add QA for complex generation
@@ -348,8 +367,9 @@ class DecisionOrchestrator:
 
         return agents
 
-    def _determine_execution_model(self, command: InterpretedCommand,
-                                   agents: List[AgentSpecialization]) -> ExecutionModel:
+    def _determine_execution_model(
+        self, command: InterpretedCommand, agents: List[AgentSpecialization]
+    ) -> ExecutionModel:
         """Determine optimal execution model"""
 
         # Single agent - always sequential
@@ -368,15 +388,18 @@ class DecisionOrchestrator:
             return ExecutionModel.HYBRID
 
         # QA and Review can be parallel
-        if AgentSpecialization.QA_TESTER in agents and \
-           AgentSpecialization.CODE_REVIEWER in agents:
+        if (
+            AgentSpecialization.QA_TESTER in agents
+            and AgentSpecialization.CODE_REVIEWER in agents
+        ):
             return ExecutionModel.PARALLEL_EXECUTION
 
         # Default to sequential for safety
         return ExecutionModel.SEQUENTIAL_PIPELINE
 
-    def _build_tool_matrix(self, command: InterpretedCommand,
-                          agents: List[AgentSpecialization]) -> Dict[str, ToolSelection]:
+    def _build_tool_matrix(
+        self, command: InterpretedCommand, agents: List[AgentSpecialization]
+    ) -> Dict[str, ToolSelection]:
         """Build tool selection matrix for agents"""
         tool_matrix = {}
 
@@ -388,11 +411,17 @@ class DecisionOrchestrator:
                 )
             elif agent == AgentSpecialization.FRONTEND_DEV:
                 tool_matrix["frontend"] = ToolSelection(
-                    "Write", ["Edit", "MultiEdit"], "Component creation", "Template generation"
+                    "Write",
+                    ["Edit", "MultiEdit"],
+                    "Component creation",
+                    "Template generation",
                 )
             elif agent == AgentSpecialization.BACKEND_DEV:
                 tool_matrix["backend"] = ToolSelection(
-                    "Write", ["Edit", "MultiEdit"], "API implementation", "Boilerplate code"
+                    "Write",
+                    ["Edit", "MultiEdit"],
+                    "API implementation",
+                    "Boilerplate code",
                 )
             elif agent == AgentSpecialization.QA_TESTER:
                 tool_matrix["testing"] = ToolSelection(
@@ -409,60 +438,77 @@ class DecisionOrchestrator:
 
         return tool_matrix
 
-    def _define_quality_gates(self, command: InterpretedCommand,
-                             complexity: Dict) -> List[QualityGate]:
+    def _define_quality_gates(
+        self, command: InterpretedCommand, complexity: Dict
+    ) -> List[QualityGate]:
         """Define quality gates based on task requirements"""
         gates = []
 
         # Basic validation gate
-        gates.append(QualityGate(
-            name="input_validation",
-            criteria=["valid_targets", "permissions_ok"],
-            must_pass=True,
-            rollback_on_fail=False
-        ))
+        gates.append(
+            QualityGate(
+                name="input_validation",
+                criteria=["valid_targets", "permissions_ok"],
+                must_pass=True,
+                rollback_on_fail=False,
+            )
+        )
 
         # Safety gate for destructive operations
-        if "delete" in command.action or command.command_type == CommandType.FILE_OPERATION:
-            gates.append(QualityGate(
-                name="safety_check",
-                criteria=["backup_exists", "user_confirmed"],
-                must_pass=True,
-                rollback_on_fail=True
-            ))
+        if (
+            "delete" in command.action
+            or command.command_type == CommandType.FILE_OPERATION
+        ):
+            gates.append(
+                QualityGate(
+                    name="safety_check",
+                    criteria=["backup_exists", "user_confirmed"],
+                    must_pass=True,
+                    rollback_on_fail=True,
+                )
+            )
 
         # Code quality gate
         if command.command_type in [CommandType.CODE_GENERATION, CommandType.DEBUGGING]:
-            gates.append(QualityGate(
-                name="code_quality",
-                criteria=["syntax_valid", "linting_passed", "no_security_issues"],
-                must_pass=False,
-                rollback_on_fail=False
-            ))
+            gates.append(
+                QualityGate(
+                    name="code_quality",
+                    criteria=["syntax_valid", "linting_passed", "no_security_issues"],
+                    must_pass=False,
+                    rollback_on_fail=False,
+                )
+            )
 
         # Test gate
         if complexity["score"] > 60:
-            gates.append(QualityGate(
-                name="test_validation",
-                criteria=["tests_pass", "coverage_maintained"],
-                must_pass=False,
-                rollback_on_fail=True
-            ))
+            gates.append(
+                QualityGate(
+                    name="test_validation",
+                    criteria=["tests_pass", "coverage_maintained"],
+                    must_pass=False,
+                    rollback_on_fail=True,
+                )
+            )
 
         # Final assembly gate
         if len(command.targets) > 3:
-            gates.append(QualityGate(
-                name="final_assembly",
-                criteria=["all_components_ready", "integration_verified"],
-                must_pass=True,
-                rollback_on_fail=True
-            ))
+            gates.append(
+                QualityGate(
+                    name="final_assembly",
+                    criteria=["all_components_ready", "integration_verified"],
+                    must_pass=True,
+                    rollback_on_fail=True,
+                )
+            )
 
         return gates
 
-    def _estimate_total_duration(self, command: InterpretedCommand,
-                                agents: List[AgentSpecialization],
-                                exec_model: ExecutionModel) -> int:
+    def _estimate_total_duration(
+        self,
+        command: InterpretedCommand,
+        agents: List[AgentSpecialization],
+        exec_model: ExecutionModel,
+    ) -> int:
         """Estimate total execution duration in milliseconds"""
 
         # Base time per agent
@@ -473,7 +519,7 @@ class DecisionOrchestrator:
             AgentSpecialization.QA_TESTER: 5000,
             AgentSpecialization.CODE_REVIEWER: 2000,
             AgentSpecialization.DEVOPS: 4000,
-            AgentSpecialization.SECURITY_AUDITOR: 6000
+            AgentSpecialization.SECURITY_AUDITOR: 6000,
         }
 
         total_time = 0
@@ -490,7 +536,9 @@ class DecisionOrchestrator:
                 total_time = agent_times[AgentSpecialization.ARCHITECT]
                 other_agents = [a for a in agents if a != AgentSpecialization.ARCHITECT]
                 if other_agents:
-                    total_time += max(agent_times.get(agent, 1000) for agent in other_agents)
+                    total_time += max(
+                        agent_times.get(agent, 1000) for agent in other_agents
+                    )
             else:
                 total_time = sum(agent_times.get(agent, 1000) for agent in agents)
 
@@ -500,8 +548,9 @@ class DecisionOrchestrator:
 
         return total_time
 
-    def _calculate_parallelization(self, agents: List[AgentSpecialization],
-                                  exec_model: ExecutionModel) -> float:
+    def _calculate_parallelization(
+        self, agents: List[AgentSpecialization], exec_model: ExecutionModel
+    ) -> float:
         """Calculate parallelization factor (0-1)"""
 
         if exec_model == ExecutionModel.PARALLEL_EXECUTION:
@@ -546,13 +595,14 @@ class DecisionOrchestrator:
             "backend_prime": AgentSpecialization.BACKEND_DEV,
             "testing_prime": AgentSpecialization.QA_TESTER,
             "devops_prime": AgentSpecialization.DEVOPS,
-            "master_prime": AgentSpecialization.ARCHITECT
+            "master_prime": AgentSpecialization.ARCHITECT,
         }
 
         return mapping.get(agent_name, AgentSpecialization.BACKEND_DEV)
 
-    async def execute_with_quality_gates(self, plan: OrchestrationPlan,
-                                        actual_execution_func) -> Dict:
+    async def execute_with_quality_gates(
+        self, plan: OrchestrationPlan, actual_execution_func
+    ) -> Dict:
         """Execute plan with quality gate checks"""
 
         results = {
@@ -561,7 +611,7 @@ class DecisionOrchestrator:
             "gates_passed": [],
             "gates_failed": [],
             "execution_time_ms": 0,
-            "outputs": []
+            "outputs": [],
         }
 
         start_time = asyncio.get_event_loop().time()
@@ -639,11 +689,15 @@ class DecisionOrchestrator:
 
         # Execute architect first if present
         if AgentSpecialization.ARCHITECT in plan.agents:
-            architect_output = await exec_func(AgentSpecialization.ARCHITECT, plan.tool_matrix)
+            architect_output = await exec_func(
+                AgentSpecialization.ARCHITECT, plan.tool_matrix
+            )
             outputs.append(architect_output)
 
             # Execute others in parallel
-            other_agents = [a for a in plan.agents if a != AgentSpecialization.ARCHITECT]
+            other_agents = [
+                a for a in plan.agents if a != AgentSpecialization.ARCHITECT
+            ]
             if other_agents:
                 parallel_outputs = await self._execute_parallel(
                     OrchestrationPlan(
@@ -653,9 +707,9 @@ class DecisionOrchestrator:
                         tool_matrix=plan.tool_matrix,
                         quality_gates=[],
                         estimated_duration_ms=0,
-                        parallelization_factor=0
+                        parallelization_factor=0,
                     ),
-                    exec_func
+                    exec_func,
                 )
                 outputs.extend(parallel_outputs)
         else:
@@ -673,14 +727,16 @@ class DecisionOrchestrator:
         print(f"Rolling back task {plan.task_id}")
         # Implement rollback logic
 
-    async def _handle_cascading_failure(self, error: Exception, plan: OrchestrationPlan):
+    async def _handle_cascading_failure(
+        self, error: Exception, plan: OrchestrationPlan
+    ):
         """Handle cascading failures according to comprehensive plan"""
 
         failure_info = {
             "error": str(error),
             "affected_agents": plan.agents,
             "containment_strategy": None,
-            "recovery_actions": []
+            "recovery_actions": [],
         }
 
         # Determine containment strategy
@@ -689,22 +745,24 @@ class DecisionOrchestrator:
             failure_info["recovery_actions"] = [
                 "retry_with_reduced_agents",
                 "fallback_to_sequential",
-                "manual_intervention"
+                "manual_intervention",
             ]
         else:
             failure_info["containment_strategy"] = "stop_execution"
             failure_info["recovery_actions"] = [
                 "log_error",
                 "notify_user",
-                "suggest_alternatives"
+                "suggest_alternatives",
             ]
 
         # Log for pattern recognition
-        self.execution_history.append({
-            "task_id": plan.task_id,
-            "failure": failure_info,
-            "timestamp": asyncio.get_event_loop().time()
-        })
+        self.execution_history.append(
+            {
+                "task_id": plan.task_id,
+                "failure": failure_info,
+                "timestamp": asyncio.get_event_loop().time(),
+            }
+        )
 
         print(f"Cascading failure handled: {failure_info}")
 

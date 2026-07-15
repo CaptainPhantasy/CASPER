@@ -61,7 +61,7 @@ _PLANNER_SYSTEM = (
 @dataclass
 class PipelineResult:
     run_id: str
-    status: str                      # done | needs_clarification | blocked | failed
+    status: str  # done | needs_clarification | blocked | failed
     spec: Optional[Dict] = None
     questions: List[Dict] = field(default_factory=list)
     units: List[Dict] = field(default_factory=list)
@@ -88,9 +88,13 @@ class Pipeline:
         self.project_root = project_root
         self.run_id = _new_id("run")
         self.compiler = InputCompiler()
-        self.router = TaskAwareRouter(provider=provider, budget=BudgetState(limit_tokens=budget_tokens))
+        self.router = TaskAwareRouter(
+            provider=provider, budget=BudgetState(limit_tokens=budget_tokens)
+        )
         self.verifier = Verifier(project_root)
-        self.healer = SelfHealingLoop(project_root, self.verifier, self.router, max_attempts=max_repair_attempts)
+        self.healer = SelfHealingLoop(
+            project_root, self.verifier, self.router, max_attempts=max_repair_attempts
+        )
         self.skills = SkillRegistry(project_root)
         ensure_seed_skills(self.skills)
         self.context = ContextManager(project_root)
@@ -121,8 +125,10 @@ class Pipeline:
         try:
             spec = await self.compiler.compile(intent, answers=answers)
         except ClarificationRequired as cr:
-            self.progress.set_stage(PipelineStage.AWAITING_CLARIFICATION,
-                                    f"{len(cr.questions)} quick question(s)")
+            self.progress.set_stage(
+                PipelineStage.AWAITING_CLARIFICATION,
+                f"{len(cr.questions)} quick question(s)",
+            )
             result.status = "needs_clarification"
             result.spec = cr.partial_spec.to_dict()
             result.questions = [q.to_dict() for q in cr.questions]
@@ -140,7 +146,9 @@ class Pipeline:
         plan = await self._plan(spec)
         result.units = [u.to_dict() for u in plan.units]
 
-        verify_plan = VerificationPlan(build_cmd=build_cmd, test_cmd=test_cmd, cwd=self.project_root)
+        verify_plan = VerificationPlan(
+            build_cmd=build_cmd, test_cmd=test_cmd, cwd=self.project_root
+        )
 
         # Execute units honoring dependencies.
         produced: List[str] = []
@@ -151,13 +159,18 @@ class Pipeline:
             if not ready:
                 break
             for unit in ready:
-                outcome, artifacts = await self._execute_unit(spec, plan, unit, verify_plan)
+                outcome, artifacts = await self._execute_unit(
+                    spec, plan, unit, verify_plan
+                )
                 plan.record(outcome)
                 produced.extend(a for a in artifacts if a not in produced)
                 if outcome and not outcome.success:
                     # Blocked: surface and stop (a real run could continue others).
                     result.status = "blocked"
-                    result.blocked_detail = {"unit": unit.to_dict(), "summary": outcome.summary}
+                    result.blocked_detail = {
+                        "unit": unit.to_dict(),
+                        "summary": outcome.summary,
+                    }
                     result.human_summary = outcome.summary
                     result.artifacts = produced
                     result.progress = self.progress.snapshot()["history"]
@@ -176,12 +189,16 @@ class Pipeline:
     # -------------------------------------------------------------- planning
     async def _plan(self, spec: FrozenSpec) -> GlobalPlan:
         # F5: does a known-good skill cover this? (records the hint on units)
-        skill = self.skills.best(spec.summary + " " + " ".join(r.text for r in spec.requirements))
+        skill = self.skills.best(
+            spec.summary + " " + " ".join(r.text for r in spec.requirements)
+        )
         units = await self._decompose(spec, skill_id=skill.id if skill else None)
         plan = GlobalPlan(spec=spec, units=units)
         return plan
 
-    async def _decompose(self, spec: FrozenSpec, skill_id: Optional[str]) -> List[TaskUnit]:
+    async def _decompose(
+        self, spec: FrozenSpec, skill_id: Optional[str]
+    ) -> List[TaskUnit]:
         reqs = "\n".join(f"- id={r.id}: {r.text}" for r in spec.requirements)
         prompt = (
             f"Spec summary: {spec.summary}\n\nRequirements:\n{reqs}\n\n"
@@ -193,41 +210,60 @@ class Pipeline:
         )
         units: List[TaskUnit] = []
         try:
-            raw = await llm_service.complete(prompt=prompt, system=_PLANNER_SYSTEM, tier="frontier", max_tokens=1500)
+            raw = await llm_service.complete(
+                prompt=prompt, system=_PLANNER_SYSTEM, tier="frontier", max_tokens=1500
+            )
             data = self._extract_json(raw)
             for u in (data or {}).get("units", []):
                 if not isinstance(u, dict) or not u.get("title"):
                     continue
                 kind = self._coerce_kind(u.get("kind"))
-                units.append(TaskUnit.new(
-                    title=str(u["title"]),
-                    description=str(u.get("description", "")),
-                    requirement_ids=[str(i) for i in (u.get("requirement_ids") or [])],
-                    relevant_paths=[str(p) for p in (u.get("relevant_paths") or [])],
-                    kind=kind,
-                    skill_id=skill_id,
-                ))
+                units.append(
+                    TaskUnit.new(
+                        title=str(u["title"]),
+                        description=str(u.get("description", "")),
+                        requirement_ids=[
+                            str(i) for i in (u.get("requirement_ids") or [])
+                        ],
+                        relevant_paths=[
+                            str(p) for p in (u.get("relevant_paths") or [])
+                        ],
+                        kind=kind,
+                        skill_id=skill_id,
+                    )
+                )
         except Exception as e:
             logger.warning(f"Planner decomposition failed: {e}")
 
         if not units:
             # Fallback: one unit covering all 'must' requirements.
-            must = [r.id for r in spec.requirements if r.priority == "must"] or spec.requirement_ids()
-            units = [TaskUnit.new(
-                title=spec.summary[:60] or "Build the requested change",
-                description=spec.summary,
-                requirement_ids=must,
-                relevant_paths=[],
-                kind=TaskKind.CODE_GEN,
-                skill_id=skill_id,
-            )]
+            must = [
+                r.id for r in spec.requirements if r.priority == "must"
+            ] or spec.requirement_ids()
+            units = [
+                TaskUnit.new(
+                    title=spec.summary[:60] or "Build the requested change",
+                    description=spec.summary,
+                    requirement_ids=must,
+                    relevant_paths=[],
+                    kind=TaskKind.CODE_GEN,
+                    skill_id=skill_id,
+                )
+            ]
         return units
 
     # ------------------------------------------------------------- execution
-    async def _execute_unit(self, spec: FrozenSpec, plan: GlobalPlan, unit: TaskUnit,
-                            verify_plan: VerificationPlan):
+    async def _execute_unit(
+        self,
+        spec: FrozenSpec,
+        plan: GlobalPlan,
+        unit: TaskUnit,
+        verify_plan: VerificationPlan,
+    ):
         # F4: route by cognitive load
-        self.progress.set_stage(PipelineStage.ROUTING, f"Assigning a specialist for: {unit.title}")
+        self.progress.set_stage(
+            PipelineStage.ROUTING, f"Assigning a specialist for: {unit.title}"
+        )
         route = await self.router.route(unit)
 
         # F3: build a minimal context slice for this unit
@@ -251,45 +287,73 @@ class Pipeline:
         # F8: self-heal on failure
         if not verification.passed:
             self.progress.set_stage(PipelineStage.REPAIRING, f"Fixing: {unit.title}")
-            healed = await self.healer.heal(spec, unit, artifacts, verification, verify_plan)
+            healed = await self.healer.heal(
+                spec, unit, artifacts, verification, verify_plan
+            )
             verification = healed.final_verification
             if not healed.success:
                 # F5: a failed skill loses confidence
                 if unit.skill_id:
                     self.skills.record_outcome(unit.skill_id, success=False)
-                return (UnitOutcome(unit_id=unit.id, success=False,
-                                    artifacts=artifacts, summary=healed.human_summary), artifacts)
+                return (
+                    UnitOutcome(
+                        unit_id=unit.id,
+                        success=False,
+                        artifacts=artifacts,
+                        summary=healed.human_summary,
+                    ),
+                    artifacts,
+                )
 
         # F5: a successful skill gains confidence
         if unit.skill_id:
             self.skills.record_outcome(unit.skill_id, success=True)
 
-        return (UnitOutcome(
-            unit_id=unit.id, success=True, artifacts=artifacts,
-            decisions=[f"Built {unit.title} using {route.model_class.value} model"],
-            summary=verification.human_summary,
-        ), artifacts)
+        return (
+            UnitOutcome(
+                unit_id=unit.id,
+                success=True,
+                artifacts=artifacts,
+                decisions=[f"Built {unit.title} using {route.model_class.value} model"],
+                summary=verification.human_summary,
+            ),
+            artifacts,
+        )
 
     # ---------------------------------------------------- default executor
-    async def _default_executor(self, ctx: WorkerContext, route: RouteDecision) -> List[str]:
+    async def _default_executor(
+        self, ctx: WorkerContext, route: RouteDecision
+    ) -> List[str]:
         """LLM file-writer with autonomy gating + ledger recording."""
-        target = ctx.unit.relevant_paths[0] if ctx.unit.relevant_paths else self._derive_path(ctx)
-        full = target if os.path.isabs(target) else os.path.join(self.project_root, target)
+        target = (
+            ctx.unit.relevant_paths[0]
+            if ctx.unit.relevant_paths
+            else self._derive_path(ctx)
+        )
+        full = (
+            target if os.path.isabs(target) else os.path.join(self.project_root, target)
+        )
         exists = os.path.isfile(full)
 
         # F7: autonomy gate
-        action = ProposedAction(action_type="modify" if exists else "create", path=target, reversible=True)
+        action = ProposedAction(
+            action_type="modify" if exists else "create", path=target, reversible=True
+        )
         decision = self.autonomy.assess(action)
         self._gate_log.append(decision.to_dict())
         if not decision.auto_approved:
             # Escalated — in a full UI this becomes a plain-language approval card.
-            logger.info(f"Autonomy gate escalated: {decision.action} ({decision.risk.value})")
+            logger.info(
+                f"Autonomy gate escalated: {decision.action} ({decision.risk.value})"
+            )
             # For non-interactive runs we still proceed for local reversible writes,
             # but record the escalation so the UI can surface it.
 
         content = await llm_service.complete(
-            prompt=(ctx.render_prompt() + "\n\nReturn ONLY the complete file content for "
-                    f"`{target}` — no explanation, no markdown fences."),
+            prompt=(
+                ctx.render_prompt() + "\n\nReturn ONLY the complete file content for "
+                f"`{target}` — no explanation, no markdown fences."
+            ),
             system="You are a precise software engineer. Output only file content.",
             model=route.model,
             max_tokens=2500,
@@ -308,14 +372,21 @@ class Pipeline:
 
         # F9: record reversible change
         if exists:
-            self.ledger.record_modify(target, backup_ref, summary=f"Updated {target} for: {ctx.unit.title}")
+            self.ledger.record_modify(
+                target, backup_ref, summary=f"Updated {target} for: {ctx.unit.title}"
+            )
         else:
-            self.ledger.record_create(target, summary=f"Created {target} for: {ctx.unit.title}")
+            self.ledger.record_create(
+                target, summary=f"Created {target} for: {ctx.unit.title}"
+            )
         return [target]
 
     # ------------------------------------------------------------- helpers
     def _derive_path(self, ctx: WorkerContext) -> str:
-        slug = re.sub(r"[^a-z0-9]+", "_", ctx.unit.title.lower()).strip("_")[:40] or "artifact"
+        slug = (
+            re.sub(r"[^a-z0-9]+", "_", ctx.unit.title.lower()).strip("_")[:40]
+            or "artifact"
+        )
         return f"{slug}.py"
 
     def _coerce_kind(self, raw) -> TaskKind:
@@ -332,7 +403,7 @@ class Pipeline:
         if s == -1 or e == -1:
             return None
         try:
-            return json.loads(cleaned[s:e + 1])
+            return json.loads(cleaned[s : e + 1])
         except Exception:
             return None
 

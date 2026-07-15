@@ -7,12 +7,16 @@ PRODUCTION GRADE - Fully functional terminal with IDE integration.
 from .main import TerminalIntegration
 from .mcp_server import MCPServer
 from .adapters import (
-    CodingSessionAdapter, StreamingOrchestratorAdapter,
-    IntentParserAdapter, check_agent_compatibility
+    CodingSessionAdapter,
+    StreamingOrchestratorAdapter,
+    IntentParserAdapter,
+    check_agent_compatibility,
 )
 from .fallbacks import (
-    FallbackSessionManager, FallbackStreamingProcessor,
-    FallbackNLParser, FallbackTerminalUI
+    FallbackSessionManager,
+    FallbackStreamingProcessor,
+    FallbackNLParser,
+    FallbackTerminalUI,
 )
 
 __all__ = [
@@ -25,7 +29,7 @@ __all__ = [
     "FallbackSessionManager",
     "FallbackStreamingProcessor",
     "FallbackNLParser",
-    "FallbackTerminalUI"
+    "FallbackTerminalUI",
 ]
 
 # Version and metadata

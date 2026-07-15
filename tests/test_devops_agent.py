@@ -8,7 +8,9 @@ from core.agents.base import ContextBundle, AgentStatus
 async def test_devops_agent_generates_artifacts(project_root):
     agent = DevOpsPrimeAgent()
     context = ContextBundle()
-    result = await agent.execute_task("Set up CI pipeline with build and deploy stages", context)
+    result = await agent.execute_task(
+        "Set up CI pipeline with build and deploy stages", context
+    )
 
     assert result.status == AgentStatus.COMPLETED
     output_path = project_root / ".casper" / "output"

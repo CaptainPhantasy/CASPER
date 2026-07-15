@@ -21,7 +21,9 @@ class CommitCommand(BaseCommand):
 
     def __init__(self):
         super().__init__(name="commit")
-        self.description = "Create git commits with automatic staging and intelligent commit messages"
+        self.description = (
+            "Create git commits with automatic staging and intelligent commit messages"
+        )
         self.usage = "/commit [message] or /commit (for auto-generated message)"
         self.category = "Git Operations"
         self.react_engine = ReActEngine()
@@ -41,8 +43,12 @@ class CommitCommand(BaseCommand):
         try:
             # REASON phase
             reasoning = self.react_engine.reason(
-                f"Execute git commit with message: '{args}'" if args else "Execute git commit with auto-generated message",
-                {"working_directory": os.getcwd(), "has_custom_message": bool(args)}
+                (
+                    f"Execute git commit with message: '{args}'"
+                    if args
+                    else "Execute git commit with auto-generated message"
+                ),
+                {"working_directory": os.getcwd(), "has_custom_message": bool(args)},
             )
 
             # Check if we're in a git repository
@@ -54,15 +60,18 @@ class CommitCommand(BaseCommand):
                     data={
                         "working_directory": os.getcwd(),
                         "git_repository": False,
-                        "timestamp": datetime.utcnow().isoformat() + "Z"
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
                     },
-                    reasoning=self.react_engine.get_reasoning_chain()
+                    reasoning=self.react_engine.get_reasoning_chain(),
                 )
 
             # ACT phase - perform git operations
             action_result = self.react_engine.act(
                 "Performing git status check and commit operations",
-                {"message": args if args else "auto-generated", "operation": "git_commit_sequence"}
+                {
+                    "message": args if args else "auto-generated",
+                    "operation": "git_commit_sequence",
+                },
             )
 
             # Execute the git commit process
@@ -72,12 +81,12 @@ class CommitCommand(BaseCommand):
             if commit_data["success"]:
                 observation = self.react_engine.observe(
                     f"Git commit completed successfully: {commit_data['commit_hash']}",
-                    commit_data
+                    commit_data,
                 )
             else:
                 observation = self.react_engine.observe(
                     f"Git commit failed: {commit_data.get('error', 'Unknown error')}",
-                    commit_data
+                    commit_data,
                 )
 
             return CommandResult(
@@ -86,17 +95,17 @@ class CommitCommand(BaseCommand):
                 data={
                     "git_operation": commit_data,
                     "reasoning_summary": self.react_engine.summarize_reasoning(),
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
                 },
                 error=commit_data.get("error"),
-                reasoning=self.react_engine.get_reasoning_chain()
+                reasoning=self.react_engine.get_reasoning_chain(),
             )
 
         except Exception as e:
             # OBSERVE phase - execution error
             self.react_engine.observe(
                 f"Git commit execution encountered error: {str(e)}",
-                {"error": str(e), "message": args}
+                {"error": str(e), "message": args},
             )
 
             return CommandResult(
@@ -107,9 +116,9 @@ class CommitCommand(BaseCommand):
                     "message": args,
                     "error_details": str(e),
                     "reasoning_summary": self.react_engine.summarize_reasoning(),
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
                 },
-                reasoning=self.react_engine.get_reasoning_chain()
+                reasoning=self.react_engine.get_reasoning_chain(),
             )
 
     async def _is_git_repository(self) -> bool:
@@ -119,13 +128,15 @@ class CommitCommand(BaseCommand):
                 ["git", "rev-parse", "--git-dir"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             return result.returncode == 0
         except Exception:
             return False
 
-    async def _perform_commit(self, custom_message: Optional[str] = None) -> Dict[str, Any]:
+    async def _perform_commit(
+        self, custom_message: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Perform the actual git commit operations.
         Returns real git operation data - not placeholders.
@@ -151,11 +162,13 @@ class CommitCommand(BaseCommand):
                     "error": "No changes to commit",
                     "summary": "Working directory clean - nothing to commit",
                     "status": status_data,
-                    "staged": stage_data
+                    "staged": stage_data,
                 }
 
             # Step 4: Generate commit message if not provided
-            commit_message = custom_message or await self._generate_commit_message(status_data)
+            commit_message = custom_message or await self._generate_commit_message(
+                status_data
+            )
 
             # Step 5: Perform the commit
             commit_result = await self._execute_commit(commit_message)
@@ -164,19 +177,20 @@ class CommitCommand(BaseCommand):
                 "success": commit_result["success"],
                 "commit_hash": commit_result.get("commit_hash"),
                 "commit_message": commit_message,
-                "files_committed": status_data["staged_files"] + status_data["unstaged_files"],
+                "files_committed": status_data["staged_files"]
+                + status_data["unstaged_files"],
                 "status_before": status_data,
                 "staging_result": stage_data,
                 "commit_result": commit_result,
                 "summary": commit_result["message"],
-                "error": commit_result.get("error")
+                "error": commit_result.get("error"),
             }
 
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "summary": f"Commit operation failed: {str(e)}"
+                "summary": f"Commit operation failed: {str(e)}",
             }
 
     async def _get_git_status(self) -> Dict[str, Any]:
@@ -186,7 +200,7 @@ class CommitCommand(BaseCommand):
                 ["git", "status", "--porcelain"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode != 0:
@@ -194,11 +208,11 @@ class CommitCommand(BaseCommand):
                     "success": False,
                     "error": f"Git status failed: {result.stderr}",
                     "staged_files": [],
-                    "unstaged_files": []
+                    "unstaged_files": [],
                 }
 
             # Parse status output
-            lines = result.stdout.strip().split('\n') if result.stdout.strip() else []
+            lines = result.stdout.strip().split("\n") if result.stdout.strip() else []
             staged_files = []
             unstaged_files = []
 
@@ -208,19 +222,21 @@ class CommitCommand(BaseCommand):
                     unstaged_status = line[1]
                     filename = line[3:].strip()
 
-                    if staged_status != ' ' and staged_status != '?':
+                    if staged_status != " " and staged_status != "?":
                         staged_files.append({"file": filename, "status": staged_status})
 
-                    if unstaged_status != ' ' and unstaged_status != '?':
-                        unstaged_files.append({"file": filename, "status": unstaged_status})
-                    elif staged_status == '?' and unstaged_status == '?':
+                    if unstaged_status != " " and unstaged_status != "?":
+                        unstaged_files.append(
+                            {"file": filename, "status": unstaged_status}
+                        )
+                    elif staged_status == "?" and unstaged_status == "?":
                         unstaged_files.append({"file": filename, "status": "untracked"})
 
             return {
                 "success": True,
                 "staged_files": staged_files,
                 "unstaged_files": unstaged_files,
-                "total_changes": len(staged_files) + len(unstaged_files)
+                "total_changes": len(staged_files) + len(unstaged_files),
             }
 
         except Exception as e:
@@ -228,7 +244,7 @@ class CommitCommand(BaseCommand):
                 "success": False,
                 "error": str(e),
                 "staged_files": [],
-                "unstaged_files": []
+                "unstaged_files": [],
             }
 
     async def _stage_changes(self) -> Dict[str, Any]:
@@ -236,38 +252,32 @@ class CommitCommand(BaseCommand):
         try:
             # Add all changes
             result = subprocess.run(
-                ["git", "add", "."],
-                capture_output=True,
-                text=True,
-                timeout=30
+                ["git", "add", "."], capture_output=True, text=True, timeout=30
             )
 
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Git add failed: {result.stderr}",
-                    "staged": 0
+                    "staged": 0,
                 }
 
             return {
                 "success": True,
                 "staged": "all_changes",
-                "message": "All changes staged successfully"
+                "message": "All changes staged successfully",
             }
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "staged": 0
-            }
+            return {"success": False, "error": str(e), "staged": 0}
 
     async def _generate_commit_message(self, status_data: Dict[str, Any]) -> str:
         """Generate an intelligent commit message based on changes"""
         try:
             # Get list of changed files
-            all_files = [f["file"] for f in status_data["staged_files"]] + \
-                       [f["file"] for f in status_data["unstaged_files"]]
+            all_files = [f["file"] for f in status_data["staged_files"]] + [
+                f["file"] for f in status_data["unstaged_files"]
+            ]
 
             # Analyze file types and changes
             extensions = {}
@@ -304,40 +314,40 @@ class CommitCommand(BaseCommand):
                 ["git", "commit", "-m", message],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": result.stderr,
-                    "message": f"Git commit failed: {result.stderr}"
+                    "message": f"Git commit failed: {result.stderr}",
                 }
 
             # Extract commit hash from output
             commit_hash = None
             if result.stdout:
-                lines = result.stdout.split('\n')
+                lines = result.stdout.split("\n")
                 for line in lines:
-                    if '[' in line and ']' in line:
+                    if "[" in line and "]" in line:
                         # Look for pattern like "[main abc1234]"
-                        parts = line.split('[')
+                        parts = line.split("[")
                         if len(parts) > 1:
-                            hash_part = parts[1].split(']')[0]
-                            if ' ' in hash_part:
-                                commit_hash = hash_part.split(' ')[-1]
+                            hash_part = parts[1].split("]")[0]
+                            if " " in hash_part:
+                                commit_hash = hash_part.split(" ")[-1]
                         break
 
             return {
                 "success": True,
                 "commit_hash": commit_hash,
                 "message": f"Commit created successfully: {commit_hash}",
-                "output": result.stdout
+                "output": result.stdout,
             }
 
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": f"Commit execution failed: {str(e)}"
+                "message": f"Commit execution failed: {str(e)}",
             }

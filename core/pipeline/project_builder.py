@@ -47,15 +47,20 @@ _SCAFFOLD_SYSTEM = (
 
 @dataclass
 class BuildAttempt:
-    stage: str            # setup | build | test
+    stage: str  # setup | build | test
     cmd: List[str]
     exit_code: int
     ok: bool
     output_tail: str
 
     def to_dict(self) -> dict:
-        return {"stage": self.stage, "cmd": self.cmd, "exit_code": self.exit_code,
-                "ok": self.ok, "output_tail": self.output_tail}
+        return {
+            "stage": self.stage,
+            "cmd": self.cmd,
+            "exit_code": self.exit_code,
+            "ok": self.ok,
+            "output_tail": self.output_tail,
+        }
 
 
 @dataclass
@@ -70,9 +75,13 @@ class ProjectBuildResult:
 
     def to_dict(self) -> dict:
         return {
-            "success": self.success, "project_root": self.project_root, "files": self.files,
-            "build_system": self.build_system, "repair_rounds": self.repair_rounds,
-            "attempts": [a.to_dict() for a in self.attempts], "human_summary": self.human_summary,
+            "success": self.success,
+            "project_root": self.project_root,
+            "files": self.files,
+            "build_system": self.build_system,
+            "repair_rounds": self.repair_rounds,
+            "attempts": [a.to_dict() for a in self.attempts],
+            "human_summary": self.human_summary,
         }
 
 
@@ -95,7 +104,9 @@ class ProjectBuilder:
         self.gh = GitHubKnowledge(project_root)
 
     # --- knowledge -------------------------------------------------------
-    def gather_knowledge(self, spec: FrozenSpec, github_repos: Optional[List[str]] = None) -> str:
+    def gather_knowledge(
+        self, spec: FrozenSpec, github_repos: Optional[List[str]] = None
+    ) -> str:
         """Build a reference brief from web docs + (optional) GitHub example files."""
         query = spec.summary + " " + " ".join(r.text for r in spec.requirements)
         brief = self.web.research_brief(query, max_chars=7000)
@@ -109,20 +120,33 @@ class ProjectBuilder:
         return brief
 
     # --- scaffold --------------------------------------------------------
-    async def scaffold(self, spec: FrozenSpec, knowledge: str, model: Optional[str] = None) -> List[str]:
-        reqs = "\n".join(f"- {r.text} (acceptance: {'; '.join(r.acceptance_criteria) or 'n/a'})"
-                         for r in spec.requirements)
+    async def scaffold(
+        self, spec: FrozenSpec, knowledge: str, model: Optional[str] = None
+    ) -> List[str]:
+        reqs = "\n".join(
+            f"- {r.text} (acceptance: {'; '.join(r.acceptance_criteria) or 'n/a'})"
+            for r in spec.requirements
+        )
         constraints = "\n".join(f"- {c}" for c in spec.constraints) or "- (none)"
         prompt = (
             f"Build this project so it COMPILES and runs.\n\n"
             f"GOAL: {spec.summary}\n\nREQUIREMENTS:\n{reqs}\n\nCONSTRAINTS:\n{constraints}\n\n"
-            + (f"REFERENCE DOCS (use these for correct, current APIs):\n{knowledge}\n\n" if knowledge else "")
+            + (
+                f"REFERENCE DOCS (use these for correct, current APIs):\n{knowledge}\n\n"
+                if knowledge
+                else ""
+            )
             + "Output the COMPLETE project as a file manifest, each file as:\n"
             "<<<FILE relative/path>>>\n<file content>\n<<<ENDFILE>>>\n\n"
             "Include every file needed to build (manifests, sources, config). Make it compile."
         )
-        raw = await llm_service.complete(prompt=prompt, system=_SCAFFOLD_SYSTEM,
-                                         model=model, tier="frontier", max_tokens=8000)
+        raw = await llm_service.complete(
+            prompt=prompt,
+            system=_SCAFFOLD_SYSTEM,
+            model=model,
+            tier="frontier",
+            max_tokens=8000,
+        )
         files = parse_manifest(raw)
         return self._write_files(files)
 
@@ -145,13 +169,29 @@ class ProjectBuilder:
     # --- build -----------------------------------------------------------
     def _run(self, stage: str, cmd: List[str]) -> BuildAttempt:
         try:
-            r = subprocess.run(cmd, cwd=self.project_root, capture_output=True, text=True, timeout=self.timeout)
+            r = subprocess.run(
+                cmd,
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+            )
             tail = ((r.stdout or "")[-1500:] + "\n" + (r.stderr or "")[-2500:]).strip()
-            return BuildAttempt(stage=stage, cmd=cmd, exit_code=r.returncode, ok=(r.returncode == 0), output_tail=tail)
+            return BuildAttempt(
+                stage=stage,
+                cmd=cmd,
+                exit_code=r.returncode,
+                ok=(r.returncode == 0),
+                output_tail=tail,
+            )
         except subprocess.TimeoutExpired:
-            return BuildAttempt(stage=stage, cmd=cmd, exit_code=124, ok=False, output_tail="timed out")
+            return BuildAttempt(
+                stage=stage, cmd=cmd, exit_code=124, ok=False, output_tail="timed out"
+            )
         except Exception as e:
-            return BuildAttempt(stage=stage, cmd=cmd, exit_code=1, ok=False, output_tail=str(e))
+            return BuildAttempt(
+                stage=stage, cmd=cmd, exit_code=1, ok=False, output_tail=str(e)
+            )
 
     def build(self, bs: BuildSystem) -> List[BuildAttempt]:
         attempts: List[BuildAttempt] = []
@@ -165,7 +205,9 @@ class ProjectBuilder:
         return attempts
 
     # --- repair ----------------------------------------------------------
-    async def repair(self, spec: FrozenSpec, error_log: str, model: Optional[str] = None) -> List[str]:
+    async def repair(
+        self, spec: FrozenSpec, error_log: str, model: Optional[str] = None
+    ) -> List[str]:
         existing = self._list_project_files()
         listing = "\n".join(existing[:60])
         prompt = (
@@ -176,15 +218,25 @@ class ProjectBuilder:
             "<<<FILE relative/path>>>\n<complete new content>\n<<<ENDFILE>>>\n"
             "Return complete file contents (not diffs). Fix the actual cause of the error."
         )
-        raw = await llm_service.complete(prompt=prompt, system=_SCAFFOLD_SYSTEM,
-                                         model=model, tier="frontier", max_tokens=6000)
+        raw = await llm_service.complete(
+            prompt=prompt,
+            system=_SCAFFOLD_SYSTEM,
+            model=model,
+            tier="frontier",
+            max_tokens=6000,
+        )
         files = parse_manifest(raw)
         return self._write_files(files)
 
     def _list_project_files(self) -> List[str]:
         out: List[str] = []
         for p in Path(self.project_root).rglob("*"):
-            if p.is_file() and ".build" not in p.parts and "node_modules" not in p.parts and ".git" not in p.parts:
+            if (
+                p.is_file()
+                and ".build" not in p.parts
+                and "node_modules" not in p.parts
+                and ".git" not in p.parts
+            ):
                 out.append(str(p.relative_to(self.project_root)))
         return out
 
@@ -213,7 +265,10 @@ class ProjectBuilder:
         bs = detect_build_system(self.project_root)
         if not bs.available:
             return ProjectBuildResult(
-                success=False, project_root=self.project_root, files=files, build_system=bs.to_dict(),
+                success=False,
+                project_root=self.project_root,
+                files=files,
+                build_system=bs.to_dict(),
                 human_summary=f"Generated the project, but the '{bs.toolchain or bs.kind}' toolchain isn't installed to build it.",
             )
 
@@ -228,19 +283,24 @@ class ProjectBuilder:
             err = _first_failure_log(attempts)
             progress("repairing", f"Fixing build error (round {repair_rounds})")
             await self.repair(spec, err, model=model)
-            bs = detect_build_system(self.project_root)  # files may have changed manifest
+            bs = detect_build_system(
+                self.project_root
+            )  # files may have changed manifest
             attempts = self.build(bs)
             all_attempts += attempts
 
         ok = _attempts_ok(attempts)
         return ProjectBuildResult(
-            success=ok, project_root=self.project_root,
-            files=self._list_project_files(), build_system=bs.to_dict(),
-            attempts=all_attempts, repair_rounds=repair_rounds,
+            success=ok,
+            project_root=self.project_root,
+            files=self._list_project_files(),
+            build_system=bs.to_dict(),
+            attempts=all_attempts,
+            repair_rounds=repair_rounds,
             human_summary=(
                 f"Built and verified ✓ ({bs.kind}) after {repair_rounds} self-repair round(s)."
-                if ok else
-                f"Couldn't get a clean build after {repair_rounds} repair attempt(s). Last error preserved."
+                if ok
+                else f"Couldn't get a clean build after {repair_rounds} repair attempt(s). Last error preserved."
             ),
         )
 

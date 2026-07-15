@@ -25,7 +25,11 @@ class SessionManager(ISession):
     Handles session lifecycle, persistence, and context management.
     """
 
-    def __init__(self, persistence_path: str = ".casper/terminal_sessions", session_timeout: int = 30):
+    def __init__(
+        self,
+        persistence_path: str = ".casper/terminal_sessions",
+        session_timeout: int = 30,
+    ):
         """Initialize session manager with persistence and configuration."""
         self.persistence_path = Path(persistence_path)
         self.session_timeout = session_timeout  # minutes
@@ -58,7 +62,7 @@ class SessionManager(ISession):
                 files_modified=[],
                 conversation_history=[],
                 knowledge_base_id=f"kb_{session_id}",
-                active=True
+                active=True,
             )
 
             # Set as current session
@@ -92,7 +96,7 @@ class SessionManager(ISession):
                 "timestamp": datetime.now().isoformat(),
                 "user_input": user_input,
                 "response": response,
-                "tokens_used": self._estimate_tokens(user_input + response)
+                "tokens_used": self._estimate_tokens(user_input + response),
             }
 
             self.current_session.conversation_history.append(interaction)
@@ -104,7 +108,9 @@ class SessionManager(ISession):
             # Manage context size - rotate old conversations if needed
             await self._manage_context_size()
 
-            logger.debug(f"Added interaction to session {self.current_session.session_id}")
+            logger.debug(
+                f"Added interaction to session {self.current_session.session_id}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to add interaction: {e}")
@@ -138,7 +144,7 @@ class SessionManager(ISession):
                 "files_info": files_info,
                 "recent_history": recent_history,
                 "knowledge_base_id": self.current_session.knowledge_base_id,
-                "session_active": self.current_session.active
+                "session_active": self.current_session.active,
             }
 
             return context
@@ -182,7 +188,7 @@ class SessionManager(ISession):
                 raise SessionError(f"Session {session_id} not found")
 
             # Load session metadata
-            async with aiofiles.open(session_file, 'r') as f:
+            async with aiofiles.open(session_file, "r") as f:
                 session_data = json.loads(await f.read())
 
             # Reconstruct SessionState
@@ -194,11 +200,13 @@ class SessionManager(ISession):
                 files_modified=session_data["files_modified"],
                 conversation_history=[],  # Will be loaded separately
                 knowledge_base_id=session_data["knowledge_base_id"],
-                active=session_data["active"]
+                active=session_data["active"],
             )
 
             # Load conversation history
-            session_state.conversation_history = await self._load_conversation_history(session_id)
+            session_state.conversation_history = await self._load_conversation_history(
+                session_id
+            )
 
             # Cache and activate session
             self.sessions_cache[session_id] = session_state
@@ -253,11 +261,11 @@ class SessionManager(ISession):
             "context_tokens": session_state.context_tokens,
             "files_modified": session_state.files_modified,
             "knowledge_base_id": session_state.knowledge_base_id,
-            "active": session_state.active
+            "active": session_state.active,
         }
 
         metadata_file = session_dir / "metadata.json"
-        async with aiofiles.open(metadata_file, 'w') as f:
+        async with aiofiles.open(metadata_file, "w") as f:
             await f.write(json.dumps(metadata, indent=2))
 
     async def _save_conversation_history(self, session_state: SessionState) -> None:
@@ -265,7 +273,7 @@ class SessionManager(ISession):
         session_dir = self.sessions_data_dir / session_state.session_id
         history_file = session_dir / "conversation_history.json"
 
-        async with aiofiles.open(history_file, 'w') as f:
+        async with aiofiles.open(history_file, "w") as f:
             await f.write(json.dumps(session_state.conversation_history, indent=2))
 
     async def _load_conversation_history(self, session_id: str) -> List[Dict[str, str]]:
@@ -275,7 +283,7 @@ class SessionManager(ISession):
         if not history_file.exists():
             return []
 
-        async with aiofiles.open(history_file, 'r') as f:
+        async with aiofiles.open(history_file, "r") as f:
             return json.loads(await f.read())
 
     async def _update_sessions_index(self, session_id: str, action: str) -> None:
@@ -285,7 +293,9 @@ class SessionManager(ISession):
         sessions_index[session_id] = {
             "action": action,
             "timestamp": datetime.now().isoformat(),
-            "last_activity": datetime.now().isoformat() if self.current_session else None
+            "last_activity": (
+                datetime.now().isoformat() if self.current_session else None
+            ),
         }
 
         await self._save_sessions_index(sessions_index)
@@ -296,14 +306,14 @@ class SessionManager(ISession):
             return {}
 
         try:
-            async with aiofiles.open(self.sessions_index_file, 'r') as f:
+            async with aiofiles.open(self.sessions_index_file, "r") as f:
                 return json.loads(await f.read())
         except Exception:
             return {}
 
     async def _save_sessions_index(self, sessions_index: Dict[str, Any]) -> None:
         """Save sessions index to persistent storage."""
-        async with aiofiles.open(self.sessions_index_file, 'w') as f:
+        async with aiofiles.open(self.sessions_index_file, "w") as f:
             await f.write(json.dumps(sessions_index, indent=2))
 
     async def _remove_session(self, session_id: str) -> None:
@@ -316,6 +326,7 @@ class SessionManager(ISession):
         session_dir = self.sessions_data_dir / session_id
         if session_dir.exists():
             import shutil
+
             shutil.rmtree(session_dir)
 
     async def _get_files_info(self) -> List[Dict[str, Any]]:
@@ -328,11 +339,15 @@ class SessionManager(ISession):
             try:
                 if os.path.exists(file_path):
                     stat = os.stat(file_path)
-                    files_info.append({
-                        "path": file_path,
-                        "size": stat.st_size,
-                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
-                    })
+                    files_info.append(
+                        {
+                            "path": file_path,
+                            "size": stat.st_size,
+                            "modified": datetime.fromtimestamp(
+                                stat.st_mtime
+                            ).isoformat(),
+                        }
+                    )
             except Exception as e:
                 logger.warning(f"Could not get info for file {file_path}: {e}")
 
@@ -352,14 +367,18 @@ class SessionManager(ISession):
 
             # Recalculate token count
             new_token_count = sum(
-                self._estimate_tokens(conv.get("user_input", "") + conv.get("response", ""))
+                self._estimate_tokens(
+                    conv.get("user_input", "") + conv.get("response", "")
+                )
                 for conv in recent_conversations
             )
 
             self.current_session.conversation_history = recent_conversations
             self.current_session.context_tokens = new_token_count
 
-            logger.info(f"Rotated context for session {self.current_session.session_id}")
+            logger.info(
+                f"Rotated context for session {self.current_session.session_id}"
+            )
 
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count for text (approximate)."""

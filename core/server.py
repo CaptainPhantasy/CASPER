@@ -13,7 +13,15 @@ from uuid import UUID, uuid4
 
 import os
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request, Response
+from fastapi import (
+    FastAPI,
+    WebSocket,
+    WebSocketDisconnect,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -43,7 +51,6 @@ from core.services.metrics import (
     set_build_info,
 )
 
-
 load_dotenv()
 
 # Rate limiter configuration - externalized via environment
@@ -72,7 +79,13 @@ default_origins = [
 ]
 cors_origins_env = os.environ.get("CORS_ALLOWED_ORIGINS", "")
 allowed_origins = cors_origins_env.split(",") if cors_origins_env else default_origins
-app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"],)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Request/Response Models
@@ -228,11 +241,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         # Send initial connection confirmation
-        await websocket.send_json({
-            "type": "connection",
-            "message": "Connected to CASPER Prime",
-            "timestamp": datetime.now().isoformat()
-        })
+        await websocket.send_json(
+            {
+                "type": "connection",
+                "message": "Connected to CASPER Prime",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
         # Keep connection alive and handle incoming messages
         while True:
@@ -241,13 +256,9 @@ async def websocket_endpoint(websocket: WebSocket):
             if data.get("type") == "submit_task":
                 # Handle task submission via WebSocket
                 task_response = await submit_task_internal(
-                    data.get("task", ""),
-                    data.get("priority", "medium")
+                    data.get("task", ""), data.get("priority", "medium")
                 )
-                await websocket.send_json({
-                    "type": "task_submitted",
-                    **task_response
-                })
+                await websocket.send_json({"type": "task_submitted", **task_response})
 
             elif data.get("type") == "chat_message":
                 chat_message = data.get("message", "")
@@ -257,12 +268,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 response_message = await chat_service.get_chat_response(chat_message)
 
                 # Send response back to the client
-                await websocket.send_json({
-                    "type": "agent_response",
-                    "message": response_message,
-                    "agent_role": "master",
-                    "timestamp": datetime.now().isoformat()
-                })
+                await websocket.send_json(
+                    {
+                        "type": "agent_response",
+                        "message": response_message,
+                        "agent_role": "master",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
             elif data.get("type") == "ping":
                 # Respond to ping
@@ -291,7 +304,11 @@ async def broadcast_progress_update(update: ProgressUpdate):
     update_data = {
         "type": "agent_update",
         "id": str(update.agent_id),
-        "status": update.status.value if hasattr(update.status, 'value') else str(update.status),
+        "status": (
+            update.status.value
+            if hasattr(update.status, "value")
+            else str(update.status)
+        ),
         "progress": update.progress,
         "message": update.message,
         # Keep legacy top-level tokenUsage numeric
@@ -299,14 +316,18 @@ async def broadcast_progress_update(update: ProgressUpdate):
         "timestamp": update.timestamp.isoformat(),
         # Modern structured payload for UI store
         "data": {
-            "status": update.status.value if hasattr(update.status, 'value') else str(update.status),
+            "status": (
+                update.status.value
+                if hasattr(update.status, "value")
+                else str(update.status)
+            ),
             "progress": update.progress,
             "token_usage": {
                 "current": update.token_usage.get("total", 0),
                 "limit": 1000000,
                 "efficiency": 0,
             },
-            "decisions": getattr(update, 'decisions', []),
+            "decisions": getattr(update, "decisions", []),
             "context_size": update.token_usage.get("total", 0),
         },
     }
@@ -338,7 +359,9 @@ async def broadcast_context_update():
         metrics = context_manager.calculate_token_efficiency(session_id)
         efficiency_scores.append(metrics.get("efficiency_score", 0.0))
 
-    efficiency = sum(efficiency_scores) / len(efficiency_scores) if efficiency_scores else 0.0
+    efficiency = (
+        sum(efficiency_scores) / len(efficiency_scores) if efficiency_scores else 0.0
+    )
 
     cost_usd: Optional[float] = None
     cost_rate = os.environ.get("CASPER_COST_PER_1K_TOKENS")
@@ -353,7 +376,7 @@ async def broadcast_context_update():
         "type": "context_update",
         "totalTokens": total_tokens,
         "efficiency": efficiency,
-        "activeSessions": stats.get("context_sessions", 0)
+        "activeSessions": stats.get("context_sessions", 0),
     }
 
     if cost_usd is not None:
@@ -373,10 +396,7 @@ async def broadcast_context_update():
 
 async def broadcast_approval_request(operation):
     """Broadcast approval requests to all connected WebSocket clients."""
-    approval_data = {
-        "type": "approval_request",
-        **operation.to_dict()
-    }
+    approval_data = {"type": "approval_request", **operation.to_dict()}
 
     disconnected = []
     for websocket in websocket_connections:
@@ -416,7 +436,7 @@ async def submit_task_internal(task: str, priority: str) -> dict:
     priority_map = {
         "high": TaskPriority.HIGH,
         "medium": TaskPriority.MEDIUM,
-        "low": TaskPriority.LOW
+        "low": TaskPriority.LOW,
     }
     task_priority = priority_map.get(priority.lower(), TaskPriority.MEDIUM)
 
@@ -435,7 +455,7 @@ async def submit_task_internal(task: str, priority: str) -> dict:
         "priority": priority,
         "assignedAgents": [a.value for a in required_agents],
         "tokenUsage": 0,
-        "createdAt": datetime.now().isoformat()
+        "createdAt": datetime.now().isoformat(),
     }
 
     for websocket in websocket_connections:
@@ -447,7 +467,7 @@ async def submit_task_internal(task: str, priority: str) -> dict:
     return {
         "task_id": str(task_id),
         "status": "submitted",
-        "message": f"Task submitted with {len(required_agents)} agents"
+        "message": f"Task submitted with {len(required_agents)} agents",
     }
 
 
@@ -464,7 +484,7 @@ async def get_system_status():
         queued_tasks=stats["queued_tasks"],
         total_agents=stats["agent_pool"]["total_agents"],
         busy_agents=stats["agent_pool"]["busy_agents"],
-        context_sessions=stats["context_sessions"]
+        context_sessions=stats["context_sessions"],
     )
 
 
@@ -498,12 +518,16 @@ async def get_recent_results(limit: int = 10):
     return [
         {
             "agent_id": str(r.agent_id),
-            "agent_role": r.agent_role.value if hasattr(r.agent_role, 'value') else str(r.agent_role),
+            "agent_role": (
+                r.agent_role.value
+                if hasattr(r.agent_role, "value")
+                else str(r.agent_role)
+            ),
             "task_id": str(r.task_id),
-            "status": r.status.value if hasattr(r.status, 'value') else str(r.status),
+            "status": r.status.value if hasattr(r.status, "value") else str(r.status),
             "output": r.output[:500],  # Truncate long outputs
             "token_usage": r.token_usage,
-            "errors": r.errors
+            "errors": r.errors,
         }
         for r in results
     ]
@@ -552,13 +576,16 @@ async def prometheus_metrics():
 async def monitoring_dashboard():
     """Serve the CASPER monitoring dashboard HTML page."""
     from pathlib import Path
+
     dashboard_path = Path(__file__).parent.parent / "dashboard" / "monitoring.html"
     if dashboard_path.exists():
         return Response(
             content=dashboard_path.read_text(),
             media_type="text/html",
         )
-    return Response(content="<h1>Monitoring dashboard not found</h1>", media_type="text/html")
+    return Response(
+        content="<h1>Monitoring dashboard not found</h1>", media_type="text/html"
+    )
 
 
 @app.middleware("http")
@@ -570,7 +597,9 @@ async def metrics_middleware(request: Request, call_next):
     # Normalize path to avoid high cardinality (strip IDs)
     path = request.url.path
     # Replace UUIDs and numeric IDs with placeholders
-    path = re.sub(r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "/{id}", path)
+    path = re.sub(
+        r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "/{id}", path
+    )
     path = re.sub(r"/\d+", "/{id}", path)
     record_http_request(
         method=request.method,
@@ -581,39 +610,50 @@ async def metrics_middleware(request: Request, call_next):
     return response
 
 
-
 @app.post("/api/task/analyze")
 @limiter.limit(ANALYSIS_RATE_LIMIT)
 async def analyze_task_endpoint(request: Request, task_data: Dict[str, str]):
     """Analyze a task to determine complexity and requirements."""
     if not task_analyzer:
         raise HTTPException(status_code=503, detail="Task analyzer not initialized")
-    
+
     task_description = task_data.get("task") or task_data.get("description") or ""
     if not task_description.strip():
         raise HTTPException(status_code=400, detail="Task description is required")
-    
+
     # Analyze the task
     metrics, required_agents, priority = task_analyzer.analyze_task(task_description)
-    
+
     # Map AgentRole enum values to strings for frontend
-    agent_roles = [role.value.replace("_prime", "").replace("_", " ").title() for role in required_agents]
-    
+    agent_roles = [
+        role.value.replace("_prime", "").replace("_", " ").title()
+        for role in required_agents
+    ]
+
     complexity_map = {
-        1: "low", 2: "low", 3: "low", 4: "low",  # 1-4 -> low
-        5: "medium", 6: "medium", 7: "medium",   # 5-7 -> medium
-        8: "high", 9: "high", 10: "high"        # 8-10 -> high
+        1: "low",
+        2: "low",
+        3: "low",
+        4: "low",  # 1-4 -> low
+        5: "medium",
+        6: "medium",
+        7: "medium",  # 5-7 -> medium
+        8: "high",
+        9: "high",
+        10: "high",  # 8-10 -> high
     }
-    complexity_score = task_analyzer._calculate_complexity_score(task_description.lower())
+    complexity_score = task_analyzer._calculate_complexity_score(
+        task_description.lower()
+    )
     complexity_level = complexity_map.get(complexity_score, "medium")
-    
+
     priority_map = {
         TaskPriority.LOW: "low",
-        TaskPriority.MEDIUM: "medium", 
-        TaskPriority.HIGH: "high"
+        TaskPriority.MEDIUM: "medium",
+        TaskPriority.HIGH: "high",
     }
     suggested_priority = priority_map.get(priority, "medium")
-    
+
     return {
         "complexity": complexity_level,
         "metrics": {
@@ -624,8 +664,8 @@ async def analyze_task_endpoint(request: Request, task_data: Dict[str, str]):
             "externalDependencies": metrics.external_dependencies,
             "estimatedTokens": metrics.lines_of_code_estimate * 2,  # Rough estimate
             "suggestedPriority": suggested_priority,
-            "requiredAgents": agent_roles
-        }
+            "requiredAgents": agent_roles,
+        },
     }
 
 
@@ -635,7 +675,7 @@ async def get_pending_approvals():
     """Get all pending approval requests."""
     return {
         "pending": approval_service.get_pending_approvals_dict(),
-        "count": len(approval_service.pending_operations)
+        "count": len(approval_service.pending_operations),
     }
 
 
@@ -651,7 +691,7 @@ async def approve_operation(approval_id: str):
         "type": "approval_response",
         "id": approval_id,
         "status": "approved",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
     disconnected = []
@@ -680,7 +720,7 @@ async def reject_operation(approval_id: str):
         "type": "approval_response",
         "id": approval_id,
         "status": "rejected",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
     disconnected = []
@@ -708,7 +748,7 @@ async def get_terminal_status():
     return {
         "status": "running",
         "stats": stats,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -719,10 +759,7 @@ async def list_terminal_sessions():
         raise HTTPException(status_code=503, detail="Terminal handler not initialized")
 
     sessions = terminal_handler.pty_manager.list_sessions()
-    return {
-        "sessions": sessions,
-        "count": len(sessions)
-    }
+    return {"sessions": sessions, "count": len(sessions)}
 
 
 @app.post("/api/terminal/sessions/{session_id}/command")
@@ -742,7 +779,9 @@ async def execute_terminal_command(session_id: str, command_data: Dict[str, str]
         raise HTTPException(status_code=403, detail=f"Command blocked: {str(e)}")
 
     # Send command to session
-    success = await terminal_handler.pty_manager.write_to_session(session_id, command + "\n")
+    success = await terminal_handler.pty_manager.write_to_session(
+        session_id, command + "\n"
+    )
     if not success:
         raise HTTPException(status_code=404, detail="Session not found or inactive")
 
@@ -760,7 +799,7 @@ async def get_terminal_security_stats():
         "status": "active",
         "security_enabled": True,
         "audit_summary": summary,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -783,7 +822,7 @@ async def get_security_audit_log(hours: int = 24, risk_level: str = None):
         "events": filtered_events,
         "total_events": len(filtered_events),
         "hours": hours,
-        "risk_level_filter": risk_level
+        "risk_level_filter": risk_level,
     }
 
 
@@ -805,14 +844,14 @@ async def validate_command_security(command_data: Dict[str, str]):
         return {
             "valid": True,
             "command": command,
-            "message": "Command passed security validation"
+            "message": "Command passed security validation",
         }
     except Exception as e:
         return {
             "valid": False,
             "command": command,
             "reason": str(e),
-            "message": "Command blocked by security policy"
+            "message": "Command blocked by security policy",
         }
 
 
@@ -826,7 +865,7 @@ async def get_active_terminal_sessions():
     return {
         "sessions": sessions,
         "count": len(sessions),
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -844,12 +883,14 @@ async def get_approval_details(approval_id: str):
 async def database_migration(request: MigrationRequest):
     """Database migration management."""
     try:
-        result = await development_service.manage_migration(request.action, request.name)
+        result = await development_service.manage_migration(
+            request.action, request.name
+        )
         return {
             "success": result,
             "action": request.action,
             "name": request.name,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
@@ -859,12 +900,14 @@ async def database_migration(request: MigrationRequest):
 async def database_seeding(request: SeedRequest):
     """Database seeding management."""
     try:
-        result = await development_service.manage_seeding(request.action, request.seeder_name)
+        result = await development_service.manage_seeding(
+            request.action, request.seeder_name
+        )
         return {
             "success": result,
             "action": request.action,
             "seeder_name": request.seeder_name,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Seeding failed: {str(e)}")
@@ -874,14 +917,16 @@ async def database_seeding(request: SeedRequest):
 async def security_scan(request: SecurityScanRequest):
     """Security vulnerability scanning."""
     try:
-        issues = await development_service.security_scan(request.target, request.auto_fix)
+        issues = await development_service.security_scan(
+            request.target, request.auto_fix
+        )
 
         # Group issues by severity
         summary = {
             "critical": len([i for i in issues if i.severity == "critical"]),
             "high": len([i for i in issues if i.severity == "high"]),
             "medium": len([i for i in issues if i.severity == "medium"]),
-            "low": len([i for i in issues if i.severity == "low"])
+            "low": len([i for i in issues if i.severity == "low"]),
         }
 
         return {
@@ -890,15 +935,18 @@ async def security_scan(request: SecurityScanRequest):
             "auto_fix": request.auto_fix,
             "summary": summary,
             "total_issues": len(issues),
-            "issues": [{
-                "severity": issue.severity,
-                "type": issue.type,
-                "package": issue.package,
-                "version": issue.version,
-                "description": issue.description,
-                "recommendation": issue.recommendation
-            } for issue in issues],
-            "timestamp": datetime.now().isoformat()
+            "issues": [
+                {
+                    "severity": issue.severity,
+                    "type": issue.type,
+                    "package": issue.package,
+                    "version": issue.version,
+                    "description": issue.description,
+                    "recommendation": issue.recommendation,
+                }
+                for issue in issues
+            ],
+            "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Security scan failed: {str(e)}")
@@ -909,9 +957,7 @@ async def code_linting(request: LintRequest):
     """Code linting with auto-fix capabilities."""
     try:
         results = await development_service.run_linting(
-            request.file_pattern,
-            request.auto_fix,
-            request.scan_all
+            request.file_pattern, request.auto_fix, request.scan_all
         )
 
         total_issues = sum(r.total for r in results)
@@ -925,15 +971,18 @@ async def code_linting(request: LintRequest):
             "summary": {
                 "files_checked": len(results),
                 "total_issues": total_issues,
-                "fixable_issues": fixable_issues
+                "fixable_issues": fixable_issues,
             },
-            "results": [{
-                "file": result.file,
-                "total": result.total,
-                "fixable": result.fixable,
-                "issues": result.issues
-            } for result in results],
-            "timestamp": datetime.now().isoformat()
+            "results": [
+                {
+                    "file": result.file,
+                    "total": result.total,
+                    "fixable": result.fixable,
+                    "issues": result.issues,
+                }
+                for result in results
+            ],
+            "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Linting failed: {str(e)}")
@@ -947,7 +996,7 @@ async def api_generation(request: APIGenerationRequest):
             request.api_type,
             request.resource_name,
             request.include_crud,
-            request.include_auth
+            request.include_auth,
         )
 
         return {
@@ -956,7 +1005,7 @@ async def api_generation(request: APIGenerationRequest):
             "resource_name": request.resource_name,
             "include_crud": request.include_crud,
             "include_auth": request.include_auth,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"API generation failed: {str(e)}")
@@ -964,9 +1013,7 @@ async def api_generation(request: APIGenerationRequest):
 
 @app.get("/api/dev/logs")
 async def log_analysis(
-    action: str = "tail",
-    pattern: Optional[str] = None,
-    follow: bool = False
+    action: str = "tail", pattern: Optional[str] = None, follow: bool = False
 ):
     """Intelligent log analysis and error detection."""
     try:
@@ -977,7 +1024,7 @@ async def log_analysis(
             "action": action,
             "pattern": pattern,
             "follow": follow,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Log analysis failed: {str(e)}")
@@ -992,7 +1039,7 @@ async def create_proposal(request: ProposalRequest):
             client_name=request.client_name,
             project_description=request.project_description,
             template_type=request.template_type,
-            include_hours=request.include_hours
+            include_hours=request.include_hours,
         )
 
         if success:
@@ -1001,7 +1048,7 @@ async def create_proposal(request: ProposalRequest):
                 "message": f"Proposal generated for {request.client_name}",
                 "client": request.client_name,
                 "template": request.template_type,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to generate proposal")
@@ -1017,7 +1064,7 @@ async def create_estimate(request: EstimateRequest):
         estimate = await business_service.estimate_project(
             project_description=request.project_description,
             detailed=request.detailed,
-            include_risks=request.include_risks
+            include_risks=request.include_risks,
         )
 
         return {
@@ -1029,7 +1076,7 @@ async def create_estimate(request: EstimateRequest):
             "risks": estimate.risks,
             "confidence_level": estimate.confidence_level,
             "rate_per_hour": estimate.rate_per_hour,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
@@ -1044,7 +1091,7 @@ async def create_invoice(request: InvoiceRequest):
             client_name=request.client_name,
             project_name=request.project_name or None,
             hours=request.hours,
-            template=request.template
+            template=request.template,
         )
 
         if success:
@@ -1055,7 +1102,7 @@ async def create_invoice(request: InvoiceRequest):
                 "project": request.project_name,
                 "hours": request.hours,
                 "template": request.template,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to generate invoice")
@@ -1079,13 +1126,19 @@ async def get_business_history():
             for proposal_file in proposals_dir.glob("*.md"):
                 try:
                     stat = proposal_file.stat()
-                    proposals.append({
-                        "filename": proposal_file.name,
-                        "path": str(proposal_file),
-                        "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                        "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                        "size": stat.st_size
-                    })
+                    proposals.append(
+                        {
+                            "filename": proposal_file.name,
+                            "path": str(proposal_file),
+                            "created_at": datetime.fromtimestamp(
+                                stat.st_ctime
+                            ).isoformat(),
+                            "modified_at": datetime.fromtimestamp(
+                                stat.st_mtime
+                            ).isoformat(),
+                            "size": stat.st_size,
+                        }
+                    )
                 except Exception:
                     continue
 
@@ -1094,18 +1147,20 @@ async def get_business_history():
         if estimates_dir.exists():
             for estimate_file in estimates_dir.glob("*.json"):
                 try:
-                    with open(estimate_file, 'r') as f:
+                    with open(estimate_file, "r") as f:
                         estimate_data = json.load(f)
-                    estimates.append({
-                        "filename": estimate_file.name,
-                        "path": str(estimate_file),
-                        "project": estimate_data.get("project", "Unknown"),
-                        "total_hours": estimate_data.get("total_hours", 0),
-                        "total_cost": estimate_data.get("total_cost", 0),
-                        "confidence": estimate_data.get("confidence", "Medium"),
-                        "created_at": estimate_data.get("created_at", ""),
-                        "risks_count": len(estimate_data.get("risks", []))
-                    })
+                    estimates.append(
+                        {
+                            "filename": estimate_file.name,
+                            "path": str(estimate_file),
+                            "project": estimate_data.get("project", "Unknown"),
+                            "total_hours": estimate_data.get("total_hours", 0),
+                            "total_cost": estimate_data.get("total_cost", 0),
+                            "confidence": estimate_data.get("confidence", "Medium"),
+                            "created_at": estimate_data.get("created_at", ""),
+                            "risks_count": len(estimate_data.get("risks", [])),
+                        }
+                    )
                 except Exception:
                     continue
 
@@ -1114,18 +1169,20 @@ async def get_business_history():
         if invoices_dir.exists():
             for invoice_file in invoices_dir.glob("*.json"):
                 try:
-                    with open(invoice_file, 'r') as f:
+                    with open(invoice_file, "r") as f:
                         invoice_data = json.load(f)
-                    invoices.append({
-                        "filename": invoice_file.name,
-                        "invoice_number": invoice_data.get("invoice_number", ""),
-                        "client": invoice_data.get("client", ""),
-                        "project": invoice_data.get("project", ""),
-                        "hours": invoice_data.get("hours", 0),
-                        "total": invoice_data.get("total", 0),
-                        "created_at": invoice_data.get("created_at", ""),
-                        "due_date": invoice_data.get("due_date", "")
-                    })
+                    invoices.append(
+                        {
+                            "filename": invoice_file.name,
+                            "invoice_number": invoice_data.get("invoice_number", ""),
+                            "client": invoice_data.get("client", ""),
+                            "project": invoice_data.get("project", ""),
+                            "hours": invoice_data.get("hours", 0),
+                            "total": invoice_data.get("total", 0),
+                            "created_at": invoice_data.get("created_at", ""),
+                            "due_date": invoice_data.get("due_date", ""),
+                        }
+                    )
                 except Exception:
                     continue
 
@@ -1142,16 +1199,19 @@ async def get_business_history():
                 "total_proposals": len(proposals),
                 "total_estimates": len(estimates),
                 "total_invoices": len(invoices),
-                "total_invoice_amount": sum(inv.get("total", 0) for inv in invoices)
+                "total_invoice_amount": sum(inv.get("total", 0) for inv in invoices),
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve business history: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve business history: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", "8742"))
     uvicorn.run(app, host="0.0.0.0", port=port)

@@ -17,10 +17,14 @@ class GoalError(ValueError):
 class GoalEngine:
     """Persist one active goal per project and enforce proof before completion."""
 
-    def __init__(self, storage_path: Optional[Path] = None, project_root: Optional[Path] = None):
+    def __init__(
+        self, storage_path: Optional[Path] = None, project_root: Optional[Path] = None
+    ):
         root = (project_root or Path.cwd()).resolve()
         project_key = hashlib.sha256(str(root).encode("utf-8")).hexdigest()[:16]
-        self.storage_path = storage_path or Path.home() / ".casper" / "goals" / f"{project_key}.json"
+        self.storage_path = (
+            storage_path or Path.home() / ".casper" / "goals" / f"{project_key}.json"
+        )
         self.project_root = root
 
     @staticmethod
@@ -49,20 +53,24 @@ class GoalEngine:
 
         current = self.load()
         if current and current.get("status") == "active":
-            raise GoalError("An active goal already exists. Complete, block, or clear it first.")
+            raise GoalError(
+                "An active goal already exists. Complete, block, or clear it first."
+            )
 
         now = self._now()
-        return self._store({
-            "id": str(uuid4()),
-            "objective": objective,
-            "project_root": str(self.project_root),
-            "status": "active",
-            "created_at": now,
-            "updated_at": now,
-            "evidence": [],
-            "verification": None,
-            "blocker": None,
-        })
+        return self._store(
+            {
+                "id": str(uuid4()),
+                "objective": objective,
+                "project_root": str(self.project_root),
+                "status": "active",
+                "created_at": now,
+                "updated_at": now,
+                "evidence": [],
+                "verification": None,
+                "blocker": None,
+            }
+        )
 
     def add_evidence(self, evidence: str) -> Dict[str, Any]:
         goal = self._require_active()
@@ -115,5 +123,7 @@ class GoalEngine:
         if not goal:
             raise GoalError("No goal exists. Start one with /goal <objective>.")
         if goal.get("status") != "active":
-            raise GoalError(f"Goal is {goal.get('status')}; only active goals can be changed.")
+            raise GoalError(
+                f"Goal is {goal.get('status')}; only active goals can be changed."
+            )
         return goal

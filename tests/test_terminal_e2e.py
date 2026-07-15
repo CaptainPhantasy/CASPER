@@ -6,7 +6,13 @@ Comprehensive E2E tests using Playwright for terminal UI and backend integration
 import asyncio
 import json
 import pytest
-from playwright.async_api import async_playwright, Page, BrowserContext, WebSocket as PWWebSocket
+from playwright.async_api import (
+    BrowserContext,
+    Page,
+    WebSocket as PWWebSocket,
+    async_playwright,
+    expect,
+)
 from typing import List, Dict, Any
 import time
 import tempfile
@@ -37,7 +43,9 @@ class TerminalE2ETestBase:
                 await terminal_toggle.click()
 
             # Wait for terminal component to load
-            await page.wait_for_selector('[data-testid="terminal-component"]', timeout=5000)
+            await page.wait_for_selector(
+                '[data-testid="terminal-component"]', timeout=5000
+            )
 
             yield page
 
@@ -52,7 +60,9 @@ class TerminalE2ETestBase:
         # Create a basic project structure
         (temp_dir / "src").mkdir()
         (temp_dir / "tests").mkdir()
-        (temp_dir / "package.json").write_text('{"name": "test-project", "version": "1.0.0"}')
+        (temp_dir / "package.json").write_text(
+            '{"name": "test-project", "version": "1.0.0"}'
+        )
         (temp_dir / "src" / "main.py").write_text('print("Hello, World!")')
 
         yield temp_dir
@@ -74,7 +84,7 @@ class TestTerminalBasicFunctionality:
         await expect(terminal_container).to_be_visible()
 
         # Check XTerm.js terminal element
-        xterm_element = page.locator('.xterm')
+        xterm_element = page.locator(".xterm")
         await expect(xterm_element).to_be_visible()
 
         # Check terminal has correct dimensions
@@ -113,7 +123,11 @@ class TestTerminalBasicFunctionality:
         assert "connected" in websocket_messages
 
         # Check for connection confirmation message
-        connection_msgs = [msg for msg in websocket_messages if isinstance(msg, dict) and msg.get("type") == "connection"]
+        connection_msgs = [
+            msg
+            for msg in websocket_messages
+            if isinstance(msg, dict) and msg.get("type") == "connection"
+        ]
         assert len(connection_msgs) > 0
 
     @pytest.mark.asyncio
@@ -122,18 +136,18 @@ class TestTerminalBasicFunctionality:
         page = page_with_terminal
 
         # Wait for terminal to be ready
-        await page.wait_for_selector('.xterm-cursor', timeout=5000)
+        await page.wait_for_selector(".xterm-cursor", timeout=5000)
 
         # Type a simple command
-        terminal_element = page.locator('.xterm-helper-textarea')
+        terminal_element = page.locator(".xterm-helper-textarea")
         await terminal_element.fill("echo 'Hello Terminal'")
-        await page.keyboard.press('Enter')
+        await page.keyboard.press("Enter")
 
         # Wait for command output
         await page.wait_for_timeout(2000)
 
         # Check terminal content for output
-        terminal_screen = page.locator('.xterm-screen')
+        terminal_screen = page.locator(".xterm-screen")
         terminal_text = await terminal_screen.text_content()
         assert "Hello Terminal" in terminal_text
 
@@ -142,23 +156,18 @@ class TestTerminalBasicFunctionality:
         """Test executing multiple commands in sequence."""
         page = page_with_terminal
 
-        commands = [
-            "pwd",
-            "ls -la",
-            "date",
-            "whoami"
-        ]
+        commands = ["pwd", "ls -la", "date", "whoami"]
 
         for command in commands:
             # Type command
-            await page.type('.xterm-helper-textarea', command)
-            await page.keyboard.press('Enter')
+            await page.type(".xterm-helper-textarea", command)
+            await page.keyboard.press("Enter")
 
             # Wait for execution
             await page.wait_for_timeout(1000)
 
         # Check that commands were executed
-        terminal_text = await page.locator('.xterm-screen').text_content()
+        terminal_text = await page.locator(".xterm-screen").text_content()
 
         # Should contain command prompts or output
         assert any(cmd in terminal_text for cmd in commands)
@@ -168,17 +177,20 @@ class TestTerminalBasicFunctionality:
         """Test terminal resize functionality."""
         page = page_with_terminal
 
-        terminal_element = page.locator('.xterm')
+        terminal_element = page.locator(".xterm")
         initial_size = await terminal_element.bounding_box()
 
         # Resize the terminal pane
         resize_handle = page.locator('[data-testid="terminal-resize-handle"]')
         if await resize_handle.is_visible():
             # Drag to resize
-            await resize_handle.drag_to(page.locator('body'), target_position={
-                "x": initial_size["x"] + initial_size["width"] + 100,
-                "y": initial_size["y"] + initial_size["height"] / 2
-            })
+            await resize_handle.drag_to(
+                page.locator("body"),
+                target_position={
+                    "x": initial_size["x"] + initial_size["width"] + 100,
+                    "y": initial_size["y"] + initial_size["height"] / 2,
+                },
+            )
 
             await page.wait_for_timeout(1000)
 
@@ -192,16 +204,16 @@ class TestTerminalBasicFunctionality:
         page = page_with_terminal
 
         # Set a variable in terminal
-        await page.type('.xterm-helper-textarea', 'TEST_VAR="persistent_value"')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", 'TEST_VAR="persistent_value"')
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(1000)
 
         # Check the variable
-        await page.type('.xterm-helper-textarea', 'echo $TEST_VAR')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", "echo $TEST_VAR")
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(1000)
 
-        terminal_text = await page.locator('.xterm-screen').text_content()
+        terminal_text = await page.locator(".xterm-screen").text_content()
         assert "persistent_value" in terminal_text
 
         # Reload page
@@ -222,27 +234,33 @@ class TestTerminalCASPERIntegration:
         page = page_with_terminal
 
         # Execute CASPER help command
-        await page.type('.xterm-helper-textarea', 'casper help')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", "casper help")
+        await page.keyboard.press("Enter")
 
         # Wait for command output
         await page.wait_for_timeout(3000)
 
         # Check for help output
-        terminal_text = await page.locator('.xterm-screen').text_content()
-        assert any(keyword in terminal_text.lower() for keyword in ['help', 'commands', 'usage', 'casper'])
+        terminal_text = await page.locator(".xterm-screen").text_content()
+        assert any(
+            keyword in terminal_text.lower()
+            for keyword in ["help", "commands", "usage", "casper"]
+        )
 
     @pytest.mark.asyncio
     async def test_casper_status_command(self, page_with_terminal):
         """Test CASPER status command."""
         page = page_with_terminal
 
-        await page.type('.xterm-helper-textarea', 'casper status')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", "casper status")
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(3000)
 
-        terminal_text = await page.locator('.xterm-screen').text_content()
-        assert any(keyword in terminal_text.lower() for keyword in ['status', 'agents', 'tasks', 'active'])
+        terminal_text = await page.locator(".xterm-screen").text_content()
+        assert any(
+            keyword in terminal_text.lower()
+            for keyword in ["status", "agents", "tasks", "active"]
+        )
 
     @pytest.mark.asyncio
     async def test_casper_task_submission(self, page_with_terminal, temp_project_dir):
@@ -250,30 +268,38 @@ class TestTerminalCASPERIntegration:
         page = page_with_terminal
 
         # Change to project directory
-        await page.type('.xterm-helper-textarea', f'cd {temp_project_dir}')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", f"cd {temp_project_dir}")
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(1000)
 
         # Submit a simple task
-        await page.type('.xterm-helper-textarea', 'casper task "Create a README file"')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", 'casper task "Create a README file"')
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(5000)
 
         # Check for task submission confirmation
-        terminal_text = await page.locator('.xterm-screen').text_content()
-        assert any(keyword in terminal_text.lower() for keyword in ['task', 'submitted', 'success', 'id'])
+        terminal_text = await page.locator(".xterm-screen").text_content()
+        assert any(
+            keyword in terminal_text.lower()
+            for keyword in ["task", "submitted", "success", "id"]
+        )
 
     @pytest.mark.asyncio
     async def test_casper_analyze_command(self, page_with_terminal):
         """Test CASPER task analysis command."""
         page = page_with_terminal
 
-        await page.type('.xterm-helper-textarea', 'casper analyze "Implement user authentication"')
-        await page.keyboard.press('Enter')
+        await page.type(
+            ".xterm-helper-textarea", 'casper analyze "Implement user authentication"'
+        )
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(4000)
 
-        terminal_text = await page.locator('.xterm-screen').text_content()
-        assert any(keyword in terminal_text.lower() for keyword in ['analysis', 'complexity', 'agents', 'estimate'])
+        terminal_text = await page.locator(".xterm-screen").text_content()
+        assert any(
+            keyword in terminal_text.lower()
+            for keyword in ["analysis", "complexity", "agents", "estimate"]
+        )
 
 
 class TestTerminalSecurityFeatures:
@@ -285,20 +311,23 @@ class TestTerminalSecurityFeatures:
         page = page_with_terminal
 
         dangerous_commands = [
-            'rm -rf /',
-            'sudo rm -rf /',
-            'mkfs /dev/sda',
-            'dd if=/dev/zero of=/dev/sda'
+            "rm -rf /",
+            "sudo rm -rf /",
+            "mkfs /dev/sda",
+            "dd if=/dev/zero of=/dev/sda",
         ]
 
         for cmd in dangerous_commands:
-            await page.type('.xterm-helper-textarea', cmd)
-            await page.keyboard.press('Enter')
+            await page.type(".xterm-helper-textarea", cmd)
+            await page.keyboard.press("Enter")
             await page.wait_for_timeout(2000)
 
-            terminal_text = await page.locator('.xterm-screen').text_content()
+            terminal_text = await page.locator(".xterm-screen").text_content()
             # Command should be blocked or show security warning
-            assert any(keyword in terminal_text.lower() for keyword in ['blocked', 'denied', 'security', 'forbidden'])
+            assert any(
+                keyword in terminal_text.lower()
+                for keyword in ["blocked", "denied", "security", "forbidden"]
+            )
 
     @pytest.mark.asyncio
     async def test_command_audit_logging(self, page_with_terminal):
@@ -306,17 +335,17 @@ class TestTerminalSecurityFeatures:
         page = page_with_terminal
 
         # Execute some commands
-        commands = ['ls', 'pwd', 'echo "test"']
+        commands = ["ls", "pwd", 'echo "test"']
 
         for cmd in commands:
-            await page.type('.xterm-helper-textarea', cmd)
-            await page.keyboard.press('Enter')
+            await page.type(".xterm-helper-textarea", cmd)
+            await page.keyboard.press("Enter")
             await page.wait_for_timeout(1000)
 
         # Check if audit endpoint shows command history
         # This would require API call to security endpoint
         # For now, we verify commands executed without errors
-        terminal_text = await page.locator('.xterm-screen').text_content()
+        terminal_text = await page.locator(".xterm-screen").text_content()
         assert len(terminal_text) > 0
 
     @pytest.mark.asyncio
@@ -325,20 +354,20 @@ class TestTerminalSecurityFeatures:
         page = page_with_terminal
 
         # Execute initial command
-        await page.type('.xterm-helper-textarea', 'echo "before timeout"')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", 'echo "before timeout"')
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(2000)
 
         # Simulate long idle time (this would need backend configuration)
         # For testing, we can check reconnection behavior
 
         # Try to execute command after "timeout"
-        await page.type('.xterm-helper-textarea', 'echo "after timeout"')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", 'echo "after timeout"')
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(2000)
 
         # Should either work normally or show reconnection message
-        terminal_text = await page.locator('.xterm-screen').text_content()
+        terminal_text = await page.locator(".xterm-screen").text_content()
         assert "after timeout" in terminal_text or "reconnect" in terminal_text.lower()
 
 
@@ -396,10 +425,10 @@ class TestTerminalUIInteractions:
         """Test terminal context menu functionality."""
         page = page_with_terminal
 
-        terminal_element = page.locator('.xterm')
+        terminal_element = page.locator(".xterm")
 
         # Right-click to open context menu
-        await terminal_element.click(button='right')
+        await terminal_element.click(button="right")
         await page.wait_for_timeout(500)
 
         # Check if context menu appears
@@ -422,8 +451,10 @@ class TestTerminalUIInteractions:
         page = page_with_terminal
 
         # Execute commands to create searchable content
-        await page.type('.xterm-helper-textarea', 'echo "searchable content for testing"')
-        await page.keyboard.press('Enter')
+        await page.type(
+            ".xterm-helper-textarea", 'echo "searchable content for testing"'
+        )
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(1000)
 
         # Open search if available
@@ -437,7 +468,7 @@ class TestTerminalUIInteractions:
                 await page.wait_for_timeout(1000)
 
                 # Check if search highlights appear
-                highlights = page.locator('.xterm-search-result')
+                highlights = page.locator(".xterm-search-result")
                 if await highlights.first.is_visible():
                     highlight_count = await highlights.count()
                     assert highlight_count > 0
@@ -455,7 +486,7 @@ class TestTerminalPerformance:
         start_time = time.time()
 
         # Wait for terminal to be interactive
-        await page.wait_for_selector('.xterm-cursor', timeout=10000)
+        await page.wait_for_selector(".xterm-cursor", timeout=10000)
 
         load_time = time.time() - start_time
 
@@ -472,13 +503,13 @@ class TestTerminalPerformance:
         for i in range(5):
             start_time = time.time()
 
-            await page.type('.xterm-helper-textarea', f'echo "test command {i}"')
-            await page.keyboard.press('Enter')
+            await page.type(".xterm-helper-textarea", f'echo "test command {i}"')
+            await page.keyboard.press("Enter")
 
             # Wait for command output to appear
             await page.wait_for_function(
                 f'() => document.querySelector(".xterm-screen").textContent.includes("test command {i}")',
-                timeout=5000
+                timeout=5000,
             )
 
             latency = time.time() - start_time
@@ -498,24 +529,30 @@ class TestTerminalPerformance:
         page = page_with_terminal
 
         # Get initial memory usage
-        initial_memory = await page.evaluate('() => performance.memory ? performance.memory.usedJSHeapSize : 0')
+        initial_memory = await page.evaluate(
+            "() => performance.memory ? performance.memory.usedJSHeapSize : 0"
+        )
 
         # Execute many commands to test memory growth
         for i in range(50):
-            await page.type('.xterm-helper-textarea', f'echo "Memory test command {i}"')
-            await page.keyboard.press('Enter')
+            await page.type(".xterm-helper-textarea", f'echo "Memory test command {i}"')
+            await page.keyboard.press("Enter")
             await page.wait_for_timeout(100)  # Short delay
 
         # Wait for all commands to complete
         await page.wait_for_timeout(2000)
 
         # Get final memory usage
-        final_memory = await page.evaluate('() => performance.memory ? performance.memory.usedJSHeapSize : 0')
+        final_memory = await page.evaluate(
+            "() => performance.memory ? performance.memory.usedJSHeapSize : 0"
+        )
 
         if initial_memory > 0 and final_memory > 0:
             memory_growth = final_memory - initial_memory
             # Memory growth should be reasonable (less than 50MB)
-            assert memory_growth < 50 * 1024 * 1024, f"Memory grew by {memory_growth} bytes"
+            assert (
+                memory_growth < 50 * 1024 * 1024
+            ), f"Memory grew by {memory_growth} bytes"
 
     @pytest.mark.asyncio
     async def test_terminal_scroll_performance(self, page_with_terminal):
@@ -523,8 +560,11 @@ class TestTerminalPerformance:
         page = page_with_terminal
 
         # Generate lots of output
-        await page.type('.xterm-helper-textarea', 'for i in {1..100}; do echo "Line $i of scrolling test"; done')
-        await page.keyboard.press('Enter')
+        await page.type(
+            ".xterm-helper-textarea",
+            'for i in {1..100}; do echo "Line $i of scrolling test"; done',
+        )
+        await page.keyboard.press("Enter")
 
         # Wait for command to complete
         await page.wait_for_timeout(3000)
@@ -533,16 +573,16 @@ class TestTerminalPerformance:
         start_time = time.time()
 
         # Scroll up and down
-        terminal_element = page.locator('.xterm')
+        terminal_element = page.locator(".xterm")
         await terminal_element.scroll_into_view_if_needed()
 
         # Simulate scrolling
         for _ in range(10):
-            await page.keyboard.press('PageUp')
+            await page.keyboard.press("PageUp")
             await page.wait_for_timeout(50)
 
         for _ in range(10):
-            await page.keyboard.press('PageDown')
+            await page.keyboard.press("PageDown")
             await page.wait_for_timeout(50)
 
         scroll_time = time.time() - start_time
@@ -560,8 +600,8 @@ class TestTerminalErrorHandling:
         page = page_with_terminal
 
         # Execute initial command
-        await page.type('.xterm-helper-textarea', 'echo "before disconnect"')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", 'echo "before disconnect"')
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(1000)
 
         # Simulate network disconnection (this is tricky in E2E tests)
@@ -571,11 +611,11 @@ class TestTerminalErrorHandling:
         await page.wait_for_timeout(2000)
 
         # Execute command after potential reconnection
-        await page.type('.xterm-helper-textarea', 'echo "after reconnect"')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", 'echo "after reconnect"')
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(2000)
 
-        terminal_text = await page.locator('.xterm-screen').text_content()
+        terminal_text = await page.locator(".xterm-screen").text_content()
         assert "after reconnect" in terminal_text
 
     @pytest.mark.asyncio
@@ -584,19 +624,19 @@ class TestTerminalErrorHandling:
         page = page_with_terminal
 
         invalid_commands = [
-            'nonexistent_command_12345',
-            'casper invalid_subcommand',
-            ''  # empty command
+            "nonexistent_command_12345",
+            "casper invalid_subcommand",
+            "",  # empty command
         ]
 
         for cmd in invalid_commands:
             if cmd:  # Skip empty command test for now
-                await page.type('.xterm-helper-textarea', cmd)
-                await page.keyboard.press('Enter')
+                await page.type(".xterm-helper-textarea", cmd)
+                await page.keyboard.press("Enter")
                 await page.wait_for_timeout(1500)
 
         # Terminal should handle invalid commands gracefully
-        terminal_text = await page.locator('.xterm-screen').text_content()
+        terminal_text = await page.locator(".xterm-screen").text_content()
         assert len(terminal_text) > 0  # Should have some output
 
     @pytest.mark.asyncio
@@ -605,8 +645,8 @@ class TestTerminalErrorHandling:
         page = page_with_terminal
 
         # Execute initial command
-        await page.type('.xterm-helper-textarea', 'echo "before potential crash"')
-        await page.keyboard.press('Enter')
+        await page.type(".xterm-helper-textarea", 'echo "before potential crash"')
+        await page.keyboard.press("Enter")
         await page.wait_for_timeout(1000)
 
         # Check if error boundary or recovery mechanisms work
@@ -614,24 +654,26 @@ class TestTerminalErrorHandling:
 
         if error_indicators == 0:
             # No errors detected, try normal operation
-            await page.type('.xterm-helper-textarea', 'echo "recovery test"')
-            await page.keyboard.press('Enter')
+            await page.type(".xterm-helper-textarea", 'echo "recovery test"')
+            await page.keyboard.press("Enter")
             await page.wait_for_timeout(1000)
 
-            terminal_text = await page.locator('.xterm-screen').text_content()
+            terminal_text = await page.locator(".xterm-screen").text_content()
             assert "recovery test" in terminal_text
 
 
 # Helper function to run E2E tests
 def run_e2e_tests():
     """Run all E2E tests."""
-    pytest.main([
-        __file__,
-        "-v",
-        "--tb=short",
-        "--browser=chromium",
-        "--headed"  # Run with visible browser for debugging
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "--browser=chromium",
+            "--headed",  # Run with visible browser for debugging
+        ]
+    )
 
 
 if __name__ == "__main__":

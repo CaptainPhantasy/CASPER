@@ -13,8 +13,14 @@ from uuid import uuid4
 import logging
 
 from ..interfaces import (
-    IStreaming, CodingIntent, CodingAction, StreamChunk, WSMessageType,
-    StreamingError, MAX_CONTEXT_TOKENS, STREAMING_CHUNK_SIZE
+    IStreaming,
+    CodingIntent,
+    CodingAction,
+    StreamChunk,
+    WSMessageType,
+    StreamingError,
+    MAX_CONTEXT_TOKENS,
+    STREAMING_CHUNK_SIZE,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +32,11 @@ class StreamingProcessor(IStreaming):
     Handles real-time streaming of coding assistance responses.
     """
 
-    def __init__(self, chunk_size: int = STREAMING_CHUNK_SIZE, max_context_tokens: int = MAX_CONTEXT_TOKENS):
+    def __init__(
+        self,
+        chunk_size: int = STREAMING_CHUNK_SIZE,
+        max_context_tokens: int = MAX_CONTEXT_TOKENS,
+    ):
         """Initialize streaming processor with configuration."""
         self.chunk_size = chunk_size
         self.max_context_tokens = max_context_tokens
@@ -36,7 +46,7 @@ class StreamingProcessor(IStreaming):
             "active_streams": 0,
             "bytes_streamed": 0,
             "avg_chunk_time": 0.0,
-            "errors": 0
+            "errors": 0,
         }
 
         # Stream backpressure management
@@ -44,9 +54,7 @@ class StreamingProcessor(IStreaming):
         self.backpressure_threshold = 100  # chunks per second
 
     async def stream_response(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any]
+        self, intent: CodingIntent, session_context: Dict[str, Any]
     ) -> AsyncIterator[StreamChunk]:
         """Stream response chunks for the given intent with full processing pipeline."""
 
@@ -60,7 +68,7 @@ class StreamingProcessor(IStreaming):
                 "intent": intent,
                 "start_time": start_time,
                 "chunks_sent": 0,
-                "bytes_sent": 0
+                "bytes_sent": 0,
             }
             self.stream_metrics["total_streams"] += 1
             self.stream_metrics["active_streams"] += 1
@@ -72,13 +80,15 @@ class StreamingProcessor(IStreaming):
                 content=f"Processing {intent.action.value} request for {', '.join(intent.targets)}",
                 metadata={"intent": intent.action.value, "targets": intent.targets},
                 timestamp=datetime.now(),
-                sequence_number=sequence_number
+                sequence_number=sequence_number,
             )
             yield thought_chunk
             await self._track_chunk(stream_id, thought_chunk)
 
             # Process based on coding action
-            async for chunk in self._process_by_action(intent, session_context, stream_id, sequence_number):
+            async for chunk in self._process_by_action(
+                intent, session_context, stream_id, sequence_number
+            ):
                 sequence_number += 1
                 chunk.sequence_number = sequence_number
                 yield chunk
@@ -92,10 +102,10 @@ class StreamingProcessor(IStreaming):
                 metadata={
                     "intent": intent.action.value,
                     "duration": time.time() - start_time,
-                    "chunks_sent": self.active_streams[stream_id]["chunks_sent"]
+                    "chunks_sent": self.active_streams[stream_id]["chunks_sent"],
                 },
                 timestamp=datetime.now(),
-                sequence_number=sequence_number
+                sequence_number=sequence_number,
             )
             yield result_chunk
             await self._track_chunk(stream_id, result_chunk)
@@ -110,7 +120,7 @@ class StreamingProcessor(IStreaming):
                 content=f"Error processing request: {str(e)}",
                 metadata={"error_type": type(e).__name__, "stream_id": stream_id},
                 timestamp=datetime.now(),
-                sequence_number=sequence_number + 1
+                sequence_number=sequence_number + 1,
             )
             yield error_chunk
 
@@ -125,7 +135,7 @@ class StreamingProcessor(IStreaming):
         intent: CodingIntent,
         session_context: Dict[str, Any],
         stream_id: str,
-        start_sequence: int
+        start_sequence: int,
     ) -> AsyncIterator[StreamChunk]:
         """Process intent based on specific coding action."""
 
@@ -137,7 +147,7 @@ class StreamingProcessor(IStreaming):
             CodingAction.EXPLAIN: self._process_explain,
             CodingAction.REVIEW: self._process_review,
             CodingAction.REFACTOR: self._process_refactor,
-            CodingAction.OPTIMIZE: self._process_optimize
+            CodingAction.OPTIMIZE: self._process_optimize,
         }
 
         processor = action_processors.get(intent.action, self._process_generic)
@@ -145,10 +155,7 @@ class StreamingProcessor(IStreaming):
             yield chunk
 
     async def _process_implement(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any],
-        stream_id: str
+        self, intent: CodingIntent, session_context: Dict[str, Any], stream_id: str
     ) -> AsyncIterator[StreamChunk]:
         """Process implementation request with detailed steps."""
 
@@ -158,7 +165,7 @@ class StreamingProcessor(IStreaming):
             content="Analyzing implementation requirements...",
             metadata={"phase": "analysis", "targets": intent.targets},
             timestamp=datetime.now(),
-            sequence_number=0
+            sequence_number=0,
         )
         await asyncio.sleep(0.1)  # Simulate processing time
 
@@ -168,7 +175,7 @@ class StreamingProcessor(IStreaming):
             content="Designing implementation architecture...",
             metadata={"phase": "design", "scope": intent.scope},
             timestamp=datetime.now(),
-            sequence_number=0
+            sequence_number=0,
         )
         await asyncio.sleep(0.1)
 
@@ -181,10 +188,10 @@ class StreamingProcessor(IStreaming):
                 metadata={
                     "target": target,
                     "language": await self._detect_language_for_target(target),
-                    "phase": "implementation"
+                    "phase": "implementation",
                 },
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
             await asyncio.sleep(0.1)
 
@@ -194,14 +201,11 @@ class StreamingProcessor(IStreaming):
             content=await self._generate_test_for_implementation(intent),
             metadata={"phase": "testing", "test_type": "unit"},
             timestamp=datetime.now(),
-            sequence_number=0
+            sequence_number=0,
         )
 
     async def _process_modify(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any],
-        stream_id: str
+        self, intent: CodingIntent, session_context: Dict[str, Any], stream_id: str
     ) -> AsyncIterator[StreamChunk]:
         """Process modification request."""
 
@@ -210,7 +214,7 @@ class StreamingProcessor(IStreaming):
             content=f"Analyzing current state of {', '.join(intent.targets)}...",
             metadata={"phase": "analysis", "action": "modify"},
             timestamp=datetime.now(),
-            sequence_number=0
+            sequence_number=0,
         )
         await asyncio.sleep(0.1)
 
@@ -223,7 +227,7 @@ class StreamingProcessor(IStreaming):
                     content=f"Current code for {target}:\n{current_code}",
                     metadata={"target": target, "phase": "current"},
                     timestamp=datetime.now(),
-                    sequence_number=0
+                    sequence_number=0,
                 )
 
             # Show modified code
@@ -233,15 +237,12 @@ class StreamingProcessor(IStreaming):
                 content=f"Modified code for {target}:\n{modified_code}",
                 metadata={"target": target, "phase": "modified"},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
             await asyncio.sleep(0.1)
 
     async def _process_debug(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any],
-        stream_id: str
+        self, intent: CodingIntent, session_context: Dict[str, Any], stream_id: str
     ) -> AsyncIterator[StreamChunk]:
         """Process debugging request."""
 
@@ -250,7 +251,7 @@ class StreamingProcessor(IStreaming):
             content="Analyzing code for potential issues...",
             metadata={"phase": "analysis", "action": "debug"},
             timestamp=datetime.now(),
-            sequence_number=0
+            sequence_number=0,
         )
         await asyncio.sleep(0.1)
 
@@ -263,7 +264,7 @@ class StreamingProcessor(IStreaming):
                     content=f"Found {len(issues)} potential issues in {target}",
                     metadata={"target": target, "issues_count": len(issues)},
                     timestamp=datetime.now(),
-                    sequence_number=0
+                    sequence_number=0,
                 )
 
                 # Show fixes
@@ -271,17 +272,14 @@ class StreamingProcessor(IStreaming):
                     yield StreamChunk(
                         type="code",
                         content=f"Fix for {issue['type']}: {issue['solution']}",
-                        metadata={"target": target, "issue_type": issue['type']},
+                        metadata={"target": target, "issue_type": issue["type"]},
                         timestamp=datetime.now(),
-                        sequence_number=0
+                        sequence_number=0,
                     )
             await asyncio.sleep(0.1)
 
     async def _process_test(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any],
-        stream_id: str
+        self, intent: CodingIntent, session_context: Dict[str, Any], stream_id: str
     ) -> AsyncIterator[StreamChunk]:
         """Process testing request."""
 
@@ -290,7 +288,7 @@ class StreamingProcessor(IStreaming):
             content="Generating test cases...",
             metadata={"phase": "test_generation", "action": "test"},
             timestamp=datetime.now(),
-            sequence_number=0
+            sequence_number=0,
         )
         await asyncio.sleep(0.1)
 
@@ -301,7 +299,7 @@ class StreamingProcessor(IStreaming):
                 content=test_code,
                 metadata={"target": target, "test_framework": "pytest"},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
             await asyncio.sleep(0.1)
 
@@ -312,7 +310,7 @@ class StreamingProcessor(IStreaming):
                 content="Executing tests...",
                 metadata={"phase": "test_execution"},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
             test_results = await self._execute_tests(intent.targets)
@@ -321,14 +319,11 @@ class StreamingProcessor(IStreaming):
                 content=f"Test results: {test_results}",
                 metadata={"test_results": test_results},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
     async def _process_explain(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any],
-        stream_id: str
+        self, intent: CodingIntent, session_context: Dict[str, Any], stream_id: str
     ) -> AsyncIterator[StreamChunk]:
         """Process explanation request."""
 
@@ -345,18 +340,15 @@ class StreamingProcessor(IStreaming):
                     metadata={
                         "target": target,
                         "chunk": i + 1,
-                        "total_chunks": len(explanation_chunks)
+                        "total_chunks": len(explanation_chunks),
                     },
                     timestamp=datetime.now(),
-                    sequence_number=0
+                    sequence_number=0,
                 )
                 await asyncio.sleep(0.05)  # Slower for reading
 
     async def _process_review(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any],
-        stream_id: str
+        self, intent: CodingIntent, session_context: Dict[str, Any], stream_id: str
     ) -> AsyncIterator[StreamChunk]:
         """Process code review request."""
 
@@ -368,7 +360,7 @@ class StreamingProcessor(IStreaming):
                 content=f"Code review for {target}:",
                 metadata={"target": target, "review_type": "comprehensive"},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
             for category, findings in review_results.items():
@@ -378,15 +370,12 @@ class StreamingProcessor(IStreaming):
                         content=f"{category}: {', '.join(findings)}",
                         metadata={"target": target, "category": category},
                         timestamp=datetime.now(),
-                        sequence_number=0
+                        sequence_number=0,
                     )
             await asyncio.sleep(0.1)
 
     async def _process_refactor(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any],
-        stream_id: str
+        self, intent: CodingIntent, session_context: Dict[str, Any], stream_id: str
     ) -> AsyncIterator[StreamChunk]:
         """Process refactoring request."""
 
@@ -398,7 +387,7 @@ class StreamingProcessor(IStreaming):
                 content=f"Refactoring plan for {target}:",
                 metadata={"target": target, "phase": "planning"},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
             for step in refactor_plan:
@@ -407,25 +396,24 @@ class StreamingProcessor(IStreaming):
                     content=f"Step: {step}",
                     metadata={"target": target, "phase": "execution"},
                     timestamp=datetime.now(),
-                    sequence_number=0
+                    sequence_number=0,
                 )
                 await asyncio.sleep(0.1)
 
             # Show refactored code
-            refactored_code = await self._generate_refactored_code(target, refactor_plan)
+            refactored_code = await self._generate_refactored_code(
+                target, refactor_plan
+            )
             yield StreamChunk(
                 type="code",
                 content=refactored_code,
                 metadata={"target": target, "phase": "result"},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
     async def _process_optimize(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any],
-        stream_id: str
+        self, intent: CodingIntent, session_context: Dict[str, Any], stream_id: str
     ) -> AsyncIterator[StreamChunk]:
         """Process optimization request."""
 
@@ -437,34 +425,33 @@ class StreamingProcessor(IStreaming):
                 content=f"Optimization opportunities for {target}:",
                 metadata={"target": target, "phase": "analysis"},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
             for opportunity in optimization_analysis:
                 yield StreamChunk(
                     type="action",
                     content=f"• {opportunity['description']} (Impact: {opportunity['impact']})",
-                    metadata={"target": target, "optimization": opportunity['type']},
+                    metadata={"target": target, "optimization": opportunity["type"]},
                     timestamp=datetime.now(),
-                    sequence_number=0
+                    sequence_number=0,
                 )
                 await asyncio.sleep(0.1)
 
             # Show optimized code
-            optimized_code = await self._generate_optimized_code(target, optimization_analysis)
+            optimized_code = await self._generate_optimized_code(
+                target, optimization_analysis
+            )
             yield StreamChunk(
                 type="code",
                 content=optimized_code,
                 metadata={"target": target, "phase": "optimized"},
                 timestamp=datetime.now(),
-                sequence_number=0
+                sequence_number=0,
             )
 
     async def _process_generic(
-        self,
-        intent: CodingIntent,
-        session_context: Dict[str, Any],
-        stream_id: str
+        self, intent: CodingIntent, session_context: Dict[str, Any], stream_id: str
     ) -> AsyncIterator[StreamChunk]:
         """Process generic coding request."""
 
@@ -473,7 +460,7 @@ class StreamingProcessor(IStreaming):
             content=f"Processing {intent.action.value} request...",
             metadata={"action": intent.action.value},
             timestamp=datetime.now(),
-            sequence_number=0
+            sequence_number=0,
         )
         await asyncio.sleep(0.2)
 
@@ -482,7 +469,7 @@ class StreamingProcessor(IStreaming):
             content=f"Generic processing completed for {intent.action.value}",
             metadata={"action": intent.action.value, "targets": intent.targets},
             timestamp=datetime.now(),
-            sequence_number=0
+            sequence_number=0,
         )
 
     async def handle_backpressure(self) -> None:
@@ -505,7 +492,7 @@ class StreamingProcessor(IStreaming):
         return {
             **self.stream_metrics,
             "timestamp": datetime.now().isoformat(),
-            "active_stream_ids": list(self.active_streams.keys())
+            "active_stream_ids": list(self.active_streams.keys()),
         }
 
     async def _track_chunk(self, stream_id: str, chunk: StreamChunk) -> None:
@@ -533,11 +520,11 @@ def {target.lower().replace(' ', '_')}():
 
     async def _detect_language_for_target(self, target: str) -> str:
         """Detect programming language for target."""
-        if target.endswith('.py'):
+        if target.endswith(".py"):
             return "python"
-        elif target.endswith('.js'):
+        elif target.endswith(".js"):
             return "javascript"
-        elif target.endswith('.ts'):
+        elif target.endswith(".ts"):
             return "typescript"
         else:
             return "python"  # Default
@@ -595,4 +582,4 @@ class Test{intent.targets[0].replace(' ', '')}:
 
     def _split_into_chunks(self, text: str, chunk_size: int) -> list:
         """Split text into chunks of specified size."""
-        return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+        return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]

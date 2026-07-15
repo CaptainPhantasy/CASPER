@@ -7,11 +7,7 @@ with multi-pane layout, streaming support, and advanced input handling.
 
 from .terminal_ui import TerminalUI, create_terminal_ui, PaneState
 
-__all__ = [
-    "TerminalUI",
-    "create_terminal_ui",
-    "PaneState"
-]
+__all__ = ["TerminalUI", "create_terminal_ui", "PaneState"]
 
 # Version information
 __version__ = "1.0.0"

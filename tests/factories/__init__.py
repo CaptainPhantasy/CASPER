@@ -14,7 +14,7 @@ from .terminal_factories import (
     WebSocketMessageFactory,
     generate_random_string,
     generate_test_file_content,
-    create_test_workspace
+    create_test_workspace,
 )
 
 __all__ = [
@@ -28,5 +28,5 @@ __all__ = [
     "WebSocketMessageFactory",
     "generate_random_string",
     "generate_test_file_content",
-    "create_test_workspace"
+    "create_test_workspace",
 ]

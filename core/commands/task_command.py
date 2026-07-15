@@ -19,7 +19,9 @@ class TaskCommand(BaseCommand):
 
     def __init__(self):
         super().__init__(name="task")
-        self.description = "Execute a task using CASPER's agent system with ReAct reasoning"
+        self.description = (
+            "Execute a task using CASPER's agent system with ReAct reasoning"
+        )
         self.usage = "/task <task_description>"
         self.category = "Agent Execution"
         self.react_engine = ReActEngine()
@@ -40,18 +42,21 @@ class TaskCommand(BaseCommand):
             # REASON phase
             reasoning = self.react_engine.reason(
                 f"Execute task: {args}",
-                {"context_type": str(type(context)), "has_context": context is not None}
+                {
+                    "context_type": str(type(context)),
+                    "has_context": context is not None,
+                },
             )
 
             # ACT phase - integrate with existing CASPER CLI
             action_result = self.react_engine.act(
                 "Delegating to CASPER agent system",
-                {"task": args, "delegation_method": "casper_cli_integration"}
+                {"task": args, "delegation_method": "casper_cli_integration"},
             )
 
             # Try to use existing CASPER CLI if available
             execution_data = {}
-            if hasattr(context, 'execute_task'):
+            if hasattr(context, "execute_task"):
                 # CASPER CLI context available
                 try:
                     # Execute through existing system
@@ -60,13 +65,13 @@ class TaskCommand(BaseCommand):
                         "method": "casper_cli_delegation",
                         "task": args,
                         "status": "delegated",
-                        "timestamp": datetime.utcnow().isoformat() + "Z"
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
                     }
 
                     # OBSERVE phase - successful delegation
                     observation = self.react_engine.observe(
                         "Task successfully delegated to CASPER agent system",
-                        execution_data
+                        execution_data,
                     )
 
                 except Exception as e:
@@ -75,13 +80,12 @@ class TaskCommand(BaseCommand):
                         "task": args,
                         "status": "failed",
                         "error": str(e),
-                        "timestamp": datetime.utcnow().isoformat() + "Z"
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
                     }
 
                     # OBSERVE phase - delegation failed
                     observation = self.react_engine.observe(
-                        f"Task delegation failed: {str(e)}",
-                        execution_data
+                        f"Task delegation failed: {str(e)}", execution_data
                     )
 
                     return CommandResult(
@@ -89,7 +93,7 @@ class TaskCommand(BaseCommand):
                         output=f"Task execution failed: {str(e)}",
                         error=str(e),
                         data=execution_data,
-                        reasoning=self.react_engine.get_reasoning_chain()
+                        reasoning=self.react_engine.get_reasoning_chain(),
                     )
 
             else:
@@ -101,13 +105,12 @@ class TaskCommand(BaseCommand):
                     "plan": task_plan,
                     "status": "planned",
                     "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "next_steps": task_plan.get("steps", [])
+                    "next_steps": task_plan.get("steps", []),
                 }
 
                 # OBSERVE phase - task planned
                 observation = self.react_engine.observe(
-                    "Task analyzed and execution plan created",
-                    execution_data
+                    "Task analyzed and execution plan created", execution_data
                 )
 
             # Return structured result with all data
@@ -118,16 +121,16 @@ class TaskCommand(BaseCommand):
                     "task": args,
                     "execution": execution_data,
                     "reasoning_summary": self.react_engine.summarize_reasoning(),
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
                 },
-                reasoning=self.react_engine.get_reasoning_chain()
+                reasoning=self.react_engine.get_reasoning_chain(),
             )
 
         except Exception as e:
             # OBSERVE phase - execution error
             self.react_engine.observe(
                 f"Task execution encountered error: {str(e)}",
-                {"error": str(e), "task": args}
+                {"error": str(e), "task": args},
             )
 
             return CommandResult(
@@ -138,9 +141,9 @@ class TaskCommand(BaseCommand):
                     "task": args,
                     "error_details": str(e),
                     "reasoning_summary": self.react_engine.summarize_reasoning(),
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
                 },
-                reasoning=self.react_engine.get_reasoning_chain()
+                reasoning=self.react_engine.get_reasoning_chain(),
             )
 
     def _create_task_plan(self, task: str) -> Dict[str, Any]:
@@ -154,7 +157,9 @@ class TaskCommand(BaseCommand):
         complexity = "low"
         required_agents = []
 
-        if any(word in task_lower for word in ["create", "build", "implement", "develop"]):
+        if any(
+            word in task_lower for word in ["create", "build", "implement", "develop"]
+        ):
             complexity = "medium"
             required_agents.append("development_agent")
 
@@ -166,15 +171,26 @@ class TaskCommand(BaseCommand):
             complexity = "medium"
             required_agents.append("testing_agent")
 
-        if any(word in task_lower for word in ["deploy", "release", "publish", "production"]):
+        if any(
+            word in task_lower
+            for word in ["deploy", "release", "publish", "production"]
+        ):
             complexity = "high"
             required_agents.extend(["deployment_agent", "qa_agent"])
 
         # Create execution steps
         steps = [
-            {"step": 1, "action": "Task analysis and validation", "agent": "master_agent"},
-            {"step": 2, "action": f"Execute task: {task}", "agent": required_agents[0] if required_agents else "general_agent"},
-            {"step": 3, "action": "Verify completion and results", "agent": "qa_agent"}
+            {
+                "step": 1,
+                "action": "Task analysis and validation",
+                "agent": "master_agent",
+            },
+            {
+                "step": 2,
+                "action": f"Execute task: {task}",
+                "agent": required_agents[0] if required_agents else "general_agent",
+            },
+            {"step": 3, "action": "Verify completion and results", "agent": "qa_agent"},
         ]
 
         return {
@@ -182,6 +198,8 @@ class TaskCommand(BaseCommand):
             "complexity": complexity,
             "required_agents": required_agents,
             "steps": steps,
-            "estimated_duration": "5-15 minutes" if complexity == "low" else "15-45 minutes",
-            "plan_created_at": datetime.utcnow().isoformat() + "Z"
+            "estimated_duration": (
+                "5-15 minutes" if complexity == "low" else "15-45 minutes"
+            ),
+            "plan_created_at": datetime.utcnow().isoformat() + "Z",
         }

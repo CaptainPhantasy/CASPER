@@ -45,7 +45,7 @@ class TerminalSessionFactory:
             "is_active": True,
             "command_history": [],
             "sandbox_enabled": True,
-            "security_level": "standard"
+            "security_level": "standard",
         }
         defaults.update(kwargs)
         return defaults
@@ -60,8 +60,7 @@ class TerminalSessionFactory:
         """Create an expired session."""
         expired_time = datetime.now() - timedelta(hours=hours_ago)
         return cls.create_session_data(
-            last_activity=expired_time.isoformat(),
-            is_active=False
+            last_activity=expired_time.isoformat(), is_active=False
         )
 
 
@@ -98,6 +97,7 @@ class MockWebSocketFactory:
     @classmethod
     def create_slow_websocket(cls, delay: float = 0.1) -> Mock:
         """Create a WebSocket with artificial delays."""
+
         async def delayed_send(*args, **kwargs):
             await asyncio.sleep(delay)
 
@@ -130,7 +130,7 @@ class TerminalCommandFactory:
         "which python",
         "date",
         "history",
-        "env | grep PATH"
+        "env | grep PATH",
     ]
 
     DANGEROUS_COMMANDS = [
@@ -148,7 +148,7 @@ class TerminalCommandFactory:
         "poweroff",
         "fdisk /dev/sda",
         "parted /dev/sda",
-        "wipefs -a /dev/sda"
+        "wipefs -a /dev/sda",
     ]
 
     SUSPICIOUS_COMMANDS = [
@@ -161,7 +161,7 @@ class TerminalCommandFactory:
         "sqlmap -u 'http://target/vulnerable.php?id=1'",
         "john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt",
         "hydra -l admin -P passwords.txt ssh://target",
-        "base64 -d <<< 'encoded_payload' | bash"
+        "base64 -d <<< 'encoded_payload' | bash",
     ]
 
     CASPER_COMMANDS = [
@@ -172,7 +172,7 @@ class TerminalCommandFactory:
         ("list", ["10"]),
         ("help", []),
         ("init", []),
-        ("init", ["--project", "/tmp/test-project"])
+        ("init", ["--project", "/tmp/test-project"]),
     ]
 
     @classmethod
@@ -196,7 +196,9 @@ class TerminalCommandFactory:
         return random.choice(cls.CASPER_COMMANDS)
 
     @classmethod
-    def create_command_batch(cls, count: int = 10, command_type: str = "safe") -> List[str]:
+    def create_command_batch(
+        cls, count: int = 10, command_type: str = "safe"
+    ) -> List[str]:
         """Create a batch of commands."""
         if command_type == "safe":
             source = cls.SAFE_COMMANDS
@@ -258,7 +260,7 @@ class SecurityEventFactory:
         "AUTHENTICATION_FAILURE",
         "RATE_LIMIT_EXCEEDED",
         "SANDBOX_CREATED",
-        "SANDBOX_CLEANUP"
+        "SANDBOX_CLEANUP",
     ]
 
     RISK_LEVELS = ["low", "medium", "high", "critical"]
@@ -276,7 +278,7 @@ class SecurityEventFactory:
             "reason": "Test security event",
             "timestamp": datetime.now().isoformat(),
             "ip_address": cls._generate_ip_address(),
-            "user_agent": "CASPER-Terminal/1.0"
+            "user_agent": "CASPER-Terminal/1.0",
         }
         defaults.update(kwargs)
         return defaults
@@ -289,7 +291,7 @@ class SecurityEventFactory:
             command=command or TerminalCommandFactory.create_dangerous_command(),
             risk_level="high",
             allowed=False,
-            reason="Command blocked by security policy"
+            reason="Command blocked by security policy",
         )
 
     @classmethod
@@ -300,11 +302,13 @@ class SecurityEventFactory:
             command=command or TerminalCommandFactory.create_safe_command(),
             risk_level="low",
             allowed=True,
-            reason="Command executed successfully"
+            reason="Command executed successfully",
         )
 
     @classmethod
-    def create_event_batch(cls, count: int = 50, hours_span: int = 24) -> List[Dict[str, Any]]:
+    def create_event_batch(
+        cls, count: int = 50, hours_span: int = 24
+    ) -> List[Dict[str, Any]]:
         """Create a batch of audit events over time."""
         events = []
         start_time = datetime.now() - timedelta(hours=hours_span)
@@ -313,9 +317,7 @@ class SecurityEventFactory:
             # Distribute events over time
             event_time = start_time + timedelta(hours=random.uniform(0, hours_span))
 
-            event = cls.create_audit_event(
-                timestamp=event_time.isoformat()
-            )
+            event = cls.create_audit_event(timestamp=event_time.isoformat())
             events.append(event)
 
         return sorted(events, key=lambda x: x["timestamp"])
@@ -335,7 +337,7 @@ class PerformanceDataFactory:
         value: float,
         unit: str,
         threshold: float = None,
-        description: str = ""
+        description: str = "",
     ) -> Dict[str, Any]:
         """Create a performance metric."""
         return {
@@ -345,7 +347,7 @@ class PerformanceDataFactory:
             "threshold": threshold or value * 1.2,
             "description": description,
             "timestamp": datetime.now().isoformat(),
-            "passed": threshold is None or value <= threshold
+            "passed": threshold is None or value <= threshold,
         }
 
     @classmethod
@@ -359,18 +361,22 @@ class PerformanceDataFactory:
             else:
                 latency = random.uniform(1, 100)
 
-            metrics.append(cls.create_performance_metric(
-                name=f"command_latency_{i}",
-                value=latency,
-                unit="ms",
-                threshold=200,
-                description=f"Command execution latency test {i}"
-            ))
+            metrics.append(
+                cls.create_performance_metric(
+                    name=f"command_latency_{i}",
+                    value=latency,
+                    unit="ms",
+                    threshold=200,
+                    description=f"Command execution latency test {i}",
+                )
+            )
 
         return metrics
 
     @classmethod
-    def create_throughput_metrics(cls, operations: int = 1000, duration: float = 10.0) -> Dict[str, Any]:
+    def create_throughput_metrics(
+        cls, operations: int = 1000, duration: float = 10.0
+    ) -> Dict[str, Any]:
         """Create throughput metrics."""
         throughput = operations / duration
         return cls.create_performance_metric(
@@ -378,7 +384,7 @@ class PerformanceDataFactory:
             value=throughput,
             unit="ops/s",
             threshold=50,
-            description=f"Terminal throughput: {operations} operations in {duration}s"
+            description=f"Terminal throughput: {operations} operations in {duration}s",
         )
 
     @classmethod
@@ -393,7 +399,7 @@ class PerformanceDataFactory:
             value=total_memory,
             unit="MB",
             threshold=500,  # 500MB threshold
-            description=f"Memory usage for {sessions} terminal sessions"
+            description=f"Memory usage for {sessions} terminal sessions",
         )
 
 
@@ -411,7 +417,7 @@ class MockPTYManagerFactory:
                 "session_id": "session-1",
                 "is_active": True,
                 "last_activity": datetime.now().timestamp(),
-                "process_pid": 12345
+                "process_pid": 12345,
             }
         }
 
@@ -446,6 +452,7 @@ class MockPTYManagerFactory:
     @classmethod
     def create_slow_pty_manager(cls, delay: float = 0.1) -> Mock:
         """Create a PTY manager with artificial delays."""
+
         async def delayed_operation(*args, **kwargs):
             await asyncio.sleep(delay)
             return True
@@ -476,14 +483,14 @@ class SandboxFactory:
                 "PATH": str(sandbox_dir / "bin") + ":/usr/bin:/bin",
                 "TERM": "xterm-256color",
                 "CASPER_SANDBOX": "true",
-                "TMPDIR": str(sandbox_dir / "tmp")
+                "TMPDIR": str(sandbox_dir / "tmp"),
             },
             "restrictions": {
                 "network": False,
                 "filesystem": True,
                 "max_memory": "100M",
-                "max_cpu": "50%"
-            }
+                "max_cpu": "50%",
+            },
         }
 
     @classmethod
@@ -507,16 +514,13 @@ class WebSocketMessageFactory:
         "casper_command",
         "security_event",
         "session_created",
-        "session_closed"
+        "session_closed",
     ]
 
     @classmethod
     def create_message(cls, message_type: str, **data) -> Dict[str, Any]:
         """Create a WebSocket message."""
-        base_message = {
-            "type": message_type,
-            "timestamp": datetime.now().isoformat()
-        }
+        base_message = {"type": message_type, "timestamp": datetime.now().isoformat()}
         base_message.update(data)
         return base_message
 
@@ -536,7 +540,7 @@ class WebSocketMessageFactory:
         return cls.create_message(
             "output",
             data=data,
-            session_id=session_id or TerminalSessionFactory.create_session_id()
+            session_id=session_id or TerminalSessionFactory.create_session_id(),
         )
 
     @classmethod
@@ -547,20 +551,14 @@ class WebSocketMessageFactory:
     @classmethod
     def create_error_message(cls, error_type: str, message: str) -> Dict[str, Any]:
         """Create an error message."""
-        return cls.create_message(
-            "error",
-            error_type=error_type,
-            message=message
-        )
+        return cls.create_message("error", error_type=error_type, message=message)
 
     @classmethod
-    def create_casper_command_message(cls, command: str, args: List[str] = None) -> Dict[str, Any]:
+    def create_casper_command_message(
+        cls, command: str, args: List[str] = None
+    ) -> Dict[str, Any]:
         """Create a CASPER command message."""
-        return cls.create_message(
-            "casper_command",
-            command=command,
-            args=args or []
-        )
+        return cls.create_message("casper_command", command=command, args=args or [])
 
     @classmethod
     def create_message_batch(cls, count: int = 20) -> List[Dict[str, Any]]:
@@ -579,7 +577,9 @@ class WebSocketMessageFactory:
                 messages.append(cls.create_resize_message(24 + i % 10, 80 + i % 20))
             else:
                 casper_cmd, casper_args = TerminalCommandFactory.create_casper_command()
-                messages.append(cls.create_casper_command_message(casper_cmd, casper_args))
+                messages.append(
+                    cls.create_casper_command_message(casper_cmd, casper_args)
+                )
 
         return messages
 
@@ -597,7 +597,7 @@ class WebSocketMessageFactory:
 # Utility functions for test data generation
 def generate_random_string(length: int = 10) -> str:
     """Generate a random string."""
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+    return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
 def generate_test_file_content(file_type: str = "python") -> str:
@@ -613,44 +613,33 @@ if __name__ == "__main__":
     hello_world()
 '''
     elif file_type == "javascript":
-        return '''// Test JavaScript file
+        return """// Test JavaScript file
 function helloWorld() {
     console.log("Hello, World!");
 }
 
 helloWorld();
-'''
+"""
     elif file_type == "json":
-        return json.dumps({
-            "name": "test-project",
-            "version": "1.0.0",
-            "description": "Test project for CASPER terminal",
-            "scripts": {
-                "test": "echo 'test'",
-                "start": "node index.js"
-            }
-        }, indent=2)
+        return json.dumps(
+            {
+                "name": "test-project",
+                "version": "1.0.0",
+                "description": "Test project for CASPER terminal",
+                "scripts": {"test": "echo 'test'", "start": "node index.js"},
+            },
+            indent=2,
+        )
     else:
         return f"Test content for {file_type} file"
 
 
 def create_test_workspace(base_path: Path) -> Dict[str, Any]:
     """Create a complete test workspace."""
-    workspace = {
-        "path": str(base_path),
-        "files": {},
-        "directories": []
-    }
+    workspace = {"path": str(base_path), "files": {}, "directories": []}
 
     # Create directory structure
-    directories = [
-        "src",
-        "tests",
-        "docs",
-        ".git",
-        "node_modules",
-        ".casper"
-    ]
+    directories = ["src", "tests", "docs", ".git", "node_modules", ".casper"]
 
     for directory in directories:
         dir_path = base_path / directory
@@ -664,7 +653,7 @@ def create_test_workspace(base_path: Path) -> Dict[str, Any]:
         "src/main.py": generate_test_file_content("python"),
         "src/index.js": generate_test_file_content("javascript"),
         "tests/test_main.py": "import unittest\n\nclass TestMain(unittest.TestCase):\n    def test_example(self):\n        self.assertTrue(True)",
-        ".gitignore": "node_modules/\n*.pyc\n__pycache__/\n.pytest_cache/"
+        ".gitignore": "node_modules/\n*.pyc\n__pycache__/\n.pytest_cache/",
     }
 
     for file_path, content in files.items():
@@ -688,5 +677,5 @@ __all__ = [
     "WebSocketMessageFactory",
     "generate_random_string",
     "generate_test_file_content",
-    "create_test_workspace"
+    "create_test_workspace",
 ]

@@ -23,7 +23,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Awaitable, Callable, Dict, List, Optional
 
-from core.pipeline.models import FrozenSpec, SpecRequirement, TaskUnit, VerificationResult
+from core.pipeline.models import (
+    FrozenSpec,
+    SpecRequirement,
+    TaskUnit,
+    VerificationResult,
+)
 from core.pipeline.routing import TaskAwareRouter
 from core.pipeline.verifier import Verifier, VerificationPlan
 from core.services.llm import llm_service
@@ -107,16 +112,26 @@ class SelfHealingLoop:
             # Escalate model on each retry: bump the unit's attempt count and re-route.
             unit.attempts += 1
             route = await self.router.route(unit)
-            notes.append(f"Routing repair to {route.model_class.value} ({route.model}).")
+            notes.append(
+                f"Routing repair to {route.model_class.value} ({route.model})."
+            )
 
             req_map = {r.id: r for r in spec.requirements}
-            unmet_reqs = [req_map[i] for i in current.unmet_requirements if i in req_map]
+            unmet_reqs = [
+                req_map[i] for i in current.unmet_requirements if i in req_map
+            ]
 
             try:
-                artifacts = await self.repair_executor(RepairRequest(
-                    spec=spec, unit=unit, artifacts=artifacts,
-                    diagnosis=diagnosis, model=route.model, unmet=unmet_reqs,
-                ))
+                artifacts = await self.repair_executor(
+                    RepairRequest(
+                        spec=spec,
+                        unit=unit,
+                        artifacts=artifacts,
+                        diagnosis=diagnosis,
+                        model=route.model,
+                        unmet=unmet_reqs,
+                    )
+                )
             except Exception as e:
                 notes.append(f"Repair step errored: {e}")
                 break
@@ -125,15 +140,20 @@ class SelfHealingLoop:
 
         if current.passed:
             return HealingOutcome(
-                success=True, attempts=unit.attempts, final_verification=current,
+                success=True,
+                attempts=unit.attempts,
+                final_verification=current,
                 repair_notes=notes,
                 human_summary="Found and fixed the issue automatically; the work now passes verification.",
             )
 
         # Could not self-heal — surface in plain language with options.
         return HealingOutcome(
-            success=False, attempts=unit.attempts, final_verification=current,
-            repair_notes=notes, blocked=True,
+            success=False,
+            attempts=unit.attempts,
+            final_verification=current,
+            repair_notes=notes,
+            blocked=True,
             user_options=[
                 "Give me a bit more detail about what you want and I'll retry.",
                 "Skip this part for now and continue with the rest.",
@@ -162,14 +182,25 @@ class SelfHealingLoop:
         target = next((a for a in req.artifacts if self._is_textual(a)), None)
         if not target:
             return req.artifacts
-        full = target if os.path.isabs(target) else os.path.join(self.project_root, target)
+        full = (
+            target if os.path.isabs(target) else os.path.join(self.project_root, target)
+        )
         try:
-            current = Path(full).read_text(encoding="utf-8", errors="replace") if os.path.isfile(full) else ""
+            current = (
+                Path(full).read_text(encoding="utf-8", errors="replace")
+                if os.path.isfile(full)
+                else ""
+            )
         except Exception:
             current = ""
 
-        reqs = "\n".join(f"- {r.text} (acceptance: {'; '.join(r.acceptance_criteria) or 'n/a'})"
-                         for r in req.unmet) or "- Satisfy the original task."
+        reqs = (
+            "\n".join(
+                f"- {r.text} (acceptance: {'; '.join(r.acceptance_criteria) or 'n/a'})"
+                for r in req.unmet
+            )
+            or "- Satisfy the original task."
+        )
         prompt = (
             f"The file `{target}` failed verification.\n\n"
             f"PROBLEMS:\n{req.diagnosis}\n\n"
@@ -177,8 +208,9 @@ class SelfHealingLoop:
             f"CURRENT FILE CONTENT:\n{current}\n\n"
             "Return the COMPLETE corrected file content only."
         )
-        fixed = await llm_service.complete(prompt=prompt, system=_REPAIR_SYSTEM,
-                                           model=req.model, max_tokens=2000)
+        fixed = await llm_service.complete(
+            prompt=prompt, system=_REPAIR_SYSTEM, model=req.model, max_tokens=2000
+        )
         fixed = self._strip_fences(fixed)
         if fixed.strip():
             try:
@@ -189,8 +221,23 @@ class SelfHealingLoop:
 
     @staticmethod
     def _is_textual(path: str) -> bool:
-        return any(path.endswith(ext) for ext in
-                   (".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".txt", ".css", ".html", ".yaml", ".yml"))
+        return any(
+            path.endswith(ext)
+            for ext in (
+                ".py",
+                ".ts",
+                ".tsx",
+                ".js",
+                ".jsx",
+                ".json",
+                ".md",
+                ".txt",
+                ".css",
+                ".html",
+                ".yaml",
+                ".yml",
+            )
+        )
 
     @staticmethod
     def _strip_fences(text: str) -> str:

@@ -20,7 +20,7 @@ from rich.text import Text
 from core.services.enhanced_approval import (
     EnhancedApprovalService,
     ApprovalRequest,
-    ApprovalMode
+    ApprovalMode,
 )
 
 
@@ -87,7 +87,7 @@ class SeamlessApprovalHandler:
             "low": "green",
             "medium": "yellow",
             "high": "orange",
-            "critical": "red bold"
+            "critical": "red bold",
         }
         risk_color = risk_colors.get(request.risk_level, "white")
 
@@ -99,7 +99,9 @@ class SeamlessApprovalHandler:
         table.add_row("Agent:", request.agent_name)
         table.add_row("Operation:", f"{request.operation_type} {request.resource_type}")
         table.add_row("Path:", request.path)
-        table.add_row("Risk:", f"[{risk_color}]{request.risk_level.upper()}[/{risk_color}]")
+        table.add_row(
+            "Risk:", f"[{risk_color}]{request.risk_level.upper()}[/{risk_color}]"
+        )
 
         if request.task_context:
             table.add_row("Context:", request.task_context[:50] + "...")
@@ -108,7 +110,7 @@ class SeamlessApprovalHandler:
         panel = Panel(
             table,
             title=f"[bold yellow]⚠ APPROVAL REQUIRED[/bold yellow] [{request.id[:8]}]",
-            border_style="yellow"
+            border_style="yellow",
         )
 
         self.console.print(panel)
@@ -120,7 +122,7 @@ class SeamlessApprovalHandler:
             "[cyan]v[/cyan]=view  "
             "[yellow]a[/yellow]=approve-all  "
             "[dim]s[/dim]=skip",
-            style="bold"
+            style="bold",
         )
 
     async def _get_user_response(self, request: ApprovalRequest) -> str:
@@ -146,6 +148,7 @@ class SeamlessApprovalHandler:
 
             # Run input in thread to not block
             import threading
+
             input_thread = threading.Thread(target=get_input, daemon=True)
             input_thread.start()
 
@@ -162,11 +165,11 @@ class SeamlessApprovalHandler:
         """Handle user response to approval request"""
 
         # Parse response
-        if response in ['y', 'yes', 'approve']:
+        if response in ["y", "yes", "approve"]:
             self.approval_service.approve(request.id)
             self.console.print("[green]✓ Approved[/green]")
 
-        elif response in ['n', 'no', 'reject']:
+        elif response in ["n", "no", "reject"]:
             reason = ""
             try:
                 reason = input("Rejection reason (optional): ").strip()
@@ -175,19 +178,19 @@ class SeamlessApprovalHandler:
             self.approval_service.reject(request.id, reason)
             self.console.print("[red]✗ Rejected[/red]")
 
-        elif response == 'v':
+        elif response == "v":
             # View full content
             self.console.print("\n[bold]Full Content:[/bold]")
             self.console.print(request.content)
             # Re-prompt
             await self.display_and_handle(request)
 
-        elif response == 'a':
+        elif response == "a":
             # Approve all
             count = self.approval_service.approve_all()
             self.console.print(f"[green]✓ Approved {count} pending requests[/green]")
 
-        elif response in ['s', 'skip', 'timeout', '']:
+        elif response in ["s", "skip", "timeout", ""]:
             # Skip - leave pending
             self.console.print("[dim]Skipped - will ask again later[/dim]")
 
@@ -198,9 +201,13 @@ class SeamlessApprovalHandler:
         """Enable/disable batch approval mode"""
         self.batch_mode = enabled
         if enabled:
-            self.console.print(f"[yellow]⚡ Batch mode enabled - auto-approving pattern: {pattern}[/yellow]")
+            self.console.print(
+                f"[yellow]⚡ Batch mode enabled - auto-approving pattern: {pattern}[/yellow]"
+            )
         else:
-            self.console.print("[green]Batch mode disabled - manual approval restored[/green]")
+            self.console.print(
+                "[green]Batch mode disabled - manual approval restored[/green]"
+            )
 
     def show_pending(self):
         """Show all pending approvals"""
@@ -224,7 +231,7 @@ class SeamlessApprovalHandler:
                     "low": "green",
                     "medium": "yellow",
                     "high": "orange",
-                    "critical": "red"
+                    "critical": "red",
                 }
                 color = risk_colors.get(risk, "white")
 
@@ -250,7 +257,9 @@ class SeamlessApprovalHandler:
                 self.approval_service.approve(request.id)
                 self.console.print(f"[green]✓ Approved {request.path}[/green]")
             else:
-                self.console.print(f"[red]No request found matching '{partial_id}'[/red]")
+                self.console.print(
+                    f"[red]No request found matching '{partial_id}'[/red]"
+                )
         else:
             # Approve latest
             pending = self.approval_service.get_pending()
@@ -269,7 +278,9 @@ class SeamlessApprovalHandler:
                 self.approval_service.reject(request.id)
                 self.console.print(f"[red]✗ Rejected {request.path}[/red]")
             else:
-                self.console.print(f"[red]No request found matching '{partial_id}'[/red]")
+                self.console.print(
+                    f"[red]No request found matching '{partial_id}'[/red]"
+                )
         else:
             # Reject latest
             pending = self.approval_service.get_pending()
@@ -392,7 +403,9 @@ _approval_handler: Optional[SeamlessApprovalHandler] = None
 _command_parser: Optional[InlineApprovalCommand] = None
 
 
-def initialize_approval_handler(console: Console, approval_service: EnhancedApprovalService):
+def initialize_approval_handler(
+    console: Console, approval_service: EnhancedApprovalService
+):
     """Initialize the global approval handler"""
     global _approval_handler, _command_parser
     _approval_handler = SeamlessApprovalHandler(console, approval_service)

@@ -28,13 +28,14 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 
+
 class PipelineStage(str, Enum):
     """User-visible pipeline stages (Feature 9 — legible progress)."""
+
     INTAKE = "intake"
     COMPILING = "compiling"
     AWAITING_CLARIFICATION = "awaiting_clarification"
@@ -68,32 +69,35 @@ STAGE_LABELS: Dict[str, str] = {
 
 class TaskKind(str, Enum):
     """Cognitive load classification used by the task-aware router (Feature 4)."""
-    ARCHITECTURE = "architecture"     # system design, hard tradeoffs
-    REASONING = "reasoning"           # multi-step problem solving
-    DEBUGGING = "debugging"           # diagnose a failure
-    REPAIR = "repair"                 # fix after a failed verification
-    CODE_GEN = "code_gen"             # write new feature code
-    MECHANICAL = "mechanical"         # rename/move/delete, simple edits
-    FORMATTING = "formatting"         # lint/format/style
-    ORGANIZATION = "organization"     # repo cleanup, file shuffling
-    CLASSIFICATION = "classification" # routing/labeling decisions
+
+    ARCHITECTURE = "architecture"  # system design, hard tradeoffs
+    REASONING = "reasoning"  # multi-step problem solving
+    DEBUGGING = "debugging"  # diagnose a failure
+    REPAIR = "repair"  # fix after a failed verification
+    CODE_GEN = "code_gen"  # write new feature code
+    MECHANICAL = "mechanical"  # rename/move/delete, simple edits
+    FORMATTING = "formatting"  # lint/format/style
+    ORGANIZATION = "organization"  # repo cleanup, file shuffling
+    CLASSIFICATION = "classification"  # routing/labeling decisions
 
 
 class ModelClass(str, Enum):
     """Abstract model tiers; resolved to concrete model ids at runtime."""
-    FRONTIER = "frontier"   # most capable (architecture, debugging, repair)
-    STANDARD = "standard"   # balanced default (most code generation)
-    CHEAP = "cheap"         # fast/cheap (mechanical, formatting, organization)
-    TINY = "tiny"           # smallest (classification/routing)
+
+    FRONTIER = "frontier"  # most capable (architecture, debugging, repair)
+    STANDARD = "standard"  # balanced default (most code generation)
+    CHEAP = "cheap"  # fast/cheap (mechanical, formatting, organization)
+    TINY = "tiny"  # smallest (classification/routing)
 
 
 class RiskLevel(str, Enum):
     """Risk tiers for graduated autonomy (Feature 7)."""
-    SAFE = "safe"           # reversible, local, no cost — auto-approve
-    LOW = "low"             # reversible, minor — auto-approve
-    MODERATE = "moderate"   # reversible but notable — auto with note
-    HIGH = "high"           # irreversible / costly / credential — escalate
-    CRITICAL = "critical"   # public impact / destructive — always escalate
+
+    SAFE = "safe"  # reversible, local, no cost — auto-approve
+    LOW = "low"  # reversible, minor — auto-approve
+    MODERATE = "moderate"  # reversible but notable — auto with note
+    HIGH = "high"  # irreversible / costly / credential — escalate
+    CRITICAL = "critical"  # public impact / destructive — always escalate
 
 
 class CheckKind(str, Enum):
@@ -116,12 +120,14 @@ def _new_id(prefix: str) -> str:
 # Input compiler artifacts (Feature 1)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ClarifyingQuestion:
     """A single bounded question the compiler needs answered before freezing."""
+
     id: str
     question: str
-    why: str                                  # why this matters, in plain language
+    why: str  # why this matters, in plain language
     options: List[str] = field(default_factory=list)  # optional multiple-choice
     required: bool = True
     answer: Optional[str] = None
@@ -133,9 +139,10 @@ class ClarifyingQuestion:
 @dataclass
 class Assumption:
     """An assumption the compiler made to fill a gap, surfaced for confirmation."""
-    statement: str                # "I'm assuming React with no authentication"
-    basis: str                    # why the assumption is reasonable
-    confidence: float = 0.5       # 0..1
+
+    statement: str  # "I'm assuming React with no authentication"
+    basis: str  # why the assumption is reasonable
+    confidence: float = 0.5  # 0..1
     confirmed: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -145,10 +152,11 @@ class Assumption:
 @dataclass
 class SpecRequirement:
     """One atomic, independently-verifiable requirement."""
+
     id: str
     text: str
     acceptance_criteria: List[str] = field(default_factory=list)
-    priority: str = "must"        # must | should | could
+    priority: str = "must"  # must | should | could
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -161,6 +169,7 @@ class FrozenSpec:
     sealed with a content hash; downstream stages verify against `requirements`
     and `content_hash`.
     """
+
     spec_id: str
     source_intent: str
     summary: str
@@ -180,7 +189,10 @@ class FrozenSpec:
             "source_intent": self.source_intent,
             "summary": self.summary,
             "requirements": sorted(
-                ([r.id, r.text, sorted(r.acceptance_criteria), r.priority] for r in self.requirements),
+                (
+                    [r.id, r.text, sorted(r.acceptance_criteria), r.priority]
+                    for r in self.requirements
+                ),
                 key=lambda x: x[0],
             ),
             "constraints": sorted(self.constraints),
@@ -226,12 +238,15 @@ class FrozenSpec:
 
     @staticmethod
     def new(source_intent: str, summary: str = "") -> "FrozenSpec":
-        return FrozenSpec(spec_id=_new_id("spec"), source_intent=source_intent, summary=summary)
+        return FrozenSpec(
+            spec_id=_new_id("spec"), source_intent=source_intent, summary=summary
+        )
 
 
 # ---------------------------------------------------------------------------
 # Planning / execution units (Feature 3)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class TaskUnit:
@@ -240,6 +255,7 @@ class TaskUnit:
     needs (subtask + relevant paths + the spec slice it satisfies) so workers
     are never polluted with full project knowledge.
     """
+
     id: str
     title: str
     description: str
@@ -264,13 +280,14 @@ class TaskUnit:
 # Verification (Feature 2)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class VerificationCheck:
     name: str
     kind: CheckKind
     passed: bool
-    detail: str = ""                 # raw/technical detail (logs, errors)
-    human_summary: str = ""          # plain-language summary
+    detail: str = ""  # raw/technical detail (logs, errors)
+    human_summary: str = ""  # plain-language summary
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -306,14 +323,15 @@ class VerificationResult:
 # Graduated autonomy (Feature 7)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class AutonomyDecision:
     action: str
     risk: RiskLevel
     auto_approved: bool
-    consequence: str                 # plain-language "what this will do"
-    recommendation: str = ""         # plain-language suggestion
-    rationale: str = ""              # why this risk level
+    consequence: str  # plain-language "what this will do"
+    recommendation: str = ""  # plain-language suggestion
+    rationale: str = ""  # why this risk level
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -325,14 +343,15 @@ class AutonomyDecision:
 # Reversibility ledger (Feature 9)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ChangeLedgerEntry:
     id: str
-    action: str                      # create | modify | delete | move | command
+    action: str  # create | modify | delete | move | command
     path: Optional[str]
     summary: str
     reversible: bool
-    undo_ref: Optional[str] = None   # e.g. quarantine path or git ref/backup
+    undo_ref: Optional[str] = None  # e.g. quarantine path or git ref/backup
     ts: float = field(default_factory=_now)
     undone: bool = False
 
@@ -340,17 +359,27 @@ class ChangeLedgerEntry:
         return asdict(self)
 
     @staticmethod
-    def new(action: str, path: Optional[str], summary: str, reversible: bool,
-            undo_ref: Optional[str] = None) -> "ChangeLedgerEntry":
+    def new(
+        action: str,
+        path: Optional[str],
+        summary: str,
+        reversible: bool,
+        undo_ref: Optional[str] = None,
+    ) -> "ChangeLedgerEntry":
         return ChangeLedgerEntry(
-            id=_new_id("chg"), action=action, path=path, summary=summary,
-            reversible=reversible, undo_ref=undo_ref,
+            id=_new_id("chg"),
+            action=action,
+            path=path,
+            summary=summary,
+            reversible=reversible,
+            undo_ref=undo_ref,
         )
 
 
 # ---------------------------------------------------------------------------
 # Errors
 # ---------------------------------------------------------------------------
+
 
 class PipelineError(Exception):
     """Base class for pipeline errors."""
@@ -366,4 +395,6 @@ class ClarificationRequired(PipelineError):
     def __init__(self, questions: List[ClarifyingQuestion], partial_spec: FrozenSpec):
         self.questions = questions
         self.partial_spec = partial_spec
-        super().__init__(f"{len(questions)} clarifying question(s) required before execution.")
+        super().__init__(
+            f"{len(questions)} clarifying question(s) required before execution."
+        )

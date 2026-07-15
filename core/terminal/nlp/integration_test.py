@@ -88,7 +88,7 @@ async def test_interface_compliance():
     code_samples = [
         "def hello(): print('world')",
         "function hello() { console.log('world'); }",
-        "public class Hello { public static void main() {} }"
+        "public class Hello { public static void main() {} }",
     ]
 
     for i, code in enumerate(code_samples, 1):
@@ -125,7 +125,7 @@ async def test_interface_compliance():
     performance_tests = [
         "Simple request",
         "Create a comprehensive authentication system with OAuth2, JWT tokens, and refresh functionality",
-        "Debug the complex async payment processing pipeline that handles multiple concurrent transactions"
+        "Debug the complex async payment processing pipeline that handles multiple concurrent transactions",
     ]
 
     all_fast = True
@@ -169,28 +169,28 @@ async def test_real_world_scenarios():
         {
             "input": "I need to add error handling to the payment processing function",
             "expected_action": CodingAction.MODIFY,
-            "description": "Error handling enhancement"
+            "description": "Error handling enhancement",
         },
         {
             "input": "Create unit tests for the new authentication module",
             "expected_action": CodingAction.TEST,
-            "description": "Test creation request"
+            "description": "Test creation request",
         },
         {
             "input": "The database queries are slow, can you optimize them?",
             "expected_action": CodingAction.OPTIMIZE,
-            "description": "Performance optimization"
+            "description": "Performance optimization",
         },
         {
             "input": "Show me how the user registration workflow works",
             "expected_action": CodingAction.EXPLAIN,
-            "description": "Documentation/explanation request"
+            "description": "Documentation/explanation request",
         },
         {
             "input": "There's a memory leak in the image processing code",
             "expected_action": CodingAction.DEBUG,
-            "description": "Debugging request"
-        }
+            "description": "Debugging request",
+        },
     ]
 
     correct_classifications = 0
@@ -200,20 +200,24 @@ async def test_real_world_scenarios():
         print(f"\n{i}. {scenario['description']}")
         print(f"   Input: '{scenario['input']}'")
 
-        intent = await parser.parse_input(scenario['input'])
+        intent = await parser.parse_input(scenario["input"])
 
-        if intent.action == scenario['expected_action']:
+        if intent.action == scenario["expected_action"]:
             print(f"   ✅ Correctly classified as: {intent.action.value}")
             correct_classifications += 1
         else:
-            print(f"   ❌ Expected: {scenario['expected_action'].value}, Got: {intent.action.value}")
+            print(
+                f"   ❌ Expected: {scenario['expected_action'].value}, Got: {intent.action.value}"
+            )
 
         print(f"   Confidence: {intent.confidence:.2f}")
         print(f"   Targets: {intent.targets}")
         print(f"   Scope: {intent.scope}")
 
     accuracy = (correct_classifications / total_scenarios) * 100
-    print(f"\n📊 Classification Accuracy: {accuracy:.1f}% ({correct_classifications}/{total_scenarios})")
+    print(
+        f"\n📊 Classification Accuracy: {accuracy:.1f}% ({correct_classifications}/{total_scenarios})"
+    )
 
     if accuracy >= 80:
         print("✅ Excellent classification performance")

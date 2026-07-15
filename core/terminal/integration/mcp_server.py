@@ -18,8 +18,11 @@ from pydantic import BaseModel, Field
 import uvicorn
 
 from ..interfaces import (
-    CodingIntent, CodingAction, StreamChunk, TerminalError,
-    WSMessageType
+    CodingIntent,
+    CodingAction,
+    StreamChunk,
+    TerminalError,
+    WSMessageType,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,6 +31,7 @@ logger = logging.getLogger(__name__)
 # MCP Protocol Models
 class MCPRequest(BaseModel):
     """Base MCP request model."""
+
     id: str = Field(default_factory=lambda: str(uuid4()))
     method: str
     params: Dict[str, Any] = Field(default_factory=dict)
@@ -36,6 +40,7 @@ class MCPRequest(BaseModel):
 
 class MCPResponse(BaseModel):
     """Base MCP response model."""
+
     id: str
     result: Optional[Dict[str, Any]] = None
     error: Optional[Dict[str, Any]] = None
@@ -44,6 +49,7 @@ class MCPResponse(BaseModel):
 
 class MCPNotification(BaseModel):
     """MCP notification model."""
+
     method: str
     params: Dict[str, Any] = Field(default_factory=dict)
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
@@ -51,6 +57,7 @@ class MCPNotification(BaseModel):
 
 class CodeCompletionRequest(BaseModel):
     """Code completion request model."""
+
     text: str
     position: int
     language: Optional[str] = "python"
@@ -59,6 +66,7 @@ class CodeCompletionRequest(BaseModel):
 
 class CodeAnalysisRequest(BaseModel):
     """Code analysis request model."""
+
     code: str
     language: Optional[str] = "python"
     analysis_type: str = "comprehensive"  # comprehensive, security, performance
@@ -66,6 +74,7 @@ class CodeAnalysisRequest(BaseModel):
 
 class TerminalCommandRequest(BaseModel):
     """Terminal command request model."""
+
     command: str
     context: Dict[str, Any] = Field(default_factory=dict)
     stream: bool = True
@@ -84,7 +93,7 @@ class MCPServer:
         self.app = FastAPI(
             title="CASPER Prime MCP Server",
             description="Model Context Protocol server for IDE integration",
-            version="1.0.0"
+            version="1.0.0",
         )
 
         # Connection management
@@ -96,7 +105,7 @@ class MCPServer:
             "total_connections": 0,
             "active_connections": 0,
             "requests_processed": 0,
-            "errors_encountered": 0
+            "errors_encountered": 0,
         }
 
         # Setup FastAPI app
@@ -142,25 +151,32 @@ class MCPServer:
                     "completion": {
                         "supports_streaming": True,
                         "supports_context": True,
-                        "languages": ["python", "javascript", "typescript", "java", "cpp", "sql"]
+                        "languages": [
+                            "python",
+                            "javascript",
+                            "typescript",
+                            "java",
+                            "cpp",
+                            "sql",
+                        ],
                     },
                     "analysis": {
                         "supports_security": True,
                         "supports_performance": True,
                         "supports_quality": True,
-                        "supports_streaming": True
+                        "supports_streaming": True,
                     },
                     "terminal": {
                         "supports_interactive": True,
                         "supports_streaming": True,
-                        "supports_context": True
+                        "supports_context": True,
                     },
                     "project": {
                         "supports_context": True,
-                        "supports_file_operations": True
-                    }
+                        "supports_file_operations": True,
+                    },
                 },
-                "stats": self.stats
+                "stats": self.stats,
             }
 
         @self.app.get("/mcp/health")
@@ -170,7 +186,7 @@ class MCPServer:
                 "status": "healthy",
                 "timestamp": datetime.now().isoformat(),
                 "active_connections": len(self.connections),
-                "integration_available": self.integration is not None
+                "integration_available": self.integration is not None,
             }
 
         @self.app.post("/mcp/completion")
@@ -178,17 +194,18 @@ class MCPServer:
             """HTTP endpoint for code completion."""
             try:
                 if not self.integration or not self.integration.nlp_parser:
-                    raise HTTPException(status_code=503, detail="Integration not available")
+                    raise HTTPException(
+                        status_code=503, detail="Integration not available"
+                    )
 
                 suggestions = await self.integration.nlp_parser.suggest_completion(
-                    request.text[:request.position],
-                    request.context
+                    request.text[: request.position], request.context
                 )
 
                 return {
                     "suggestions": suggestions,
                     "position": request.position,
-                    "language": request.language
+                    "language": request.language,
                 }
 
             except Exception as e:
@@ -200,21 +217,30 @@ class MCPServer:
             """HTTP endpoint for code analysis."""
             try:
                 if not self.integration or not self.integration.nlp_parser:
-                    raise HTTPException(status_code=503, detail="Integration not available")
+                    raise HTTPException(
+                        status_code=503, detail="Integration not available"
+                    )
 
                 # Detect language if not provided
-                language = request.language or await self.integration.nlp_parser.detect_language(request.code)
+                language = (
+                    request.language
+                    or await self.integration.nlp_parser.detect_language(request.code)
+                )
 
                 # Extract entities from code
-                entities = await self.integration.nlp_parser.extract_entities(request.code)
+                entities = await self.integration.nlp_parser.extract_entities(
+                    request.code
+                )
 
                 # Basic analysis
                 analysis = {
                     "language": language,
                     "entities": entities,
                     "complexity": self._analyze_complexity(request.code),
-                    "suggestions": await self._get_code_suggestions(request.code, request.analysis_type),
-                    "metrics": self._calculate_code_metrics(request.code)
+                    "suggestions": await self._get_code_suggestions(
+                        request.code, request.analysis_type
+                    ),
+                    "metrics": self._calculate_code_metrics(request.code),
                 }
 
                 return analysis
@@ -233,7 +259,7 @@ class MCPServer:
             self.connection_metadata[connection_id] = {
                 "connected_at": datetime.now().isoformat(),
                 "requests_processed": 0,
-                "last_activity": datetime.now().isoformat()
+                "last_activity": datetime.now().isoformat(),
             }
 
             self.stats["total_connections"] += 1
@@ -248,8 +274,8 @@ class MCPServer:
                     "server": "CASPER Prime MCP Server",
                     "version": "1.0.0",
                     "connection_id": connection_id,
-                    "capabilities": await self._get_capabilities()
-                }
+                    "capabilities": await self._get_capabilities(),
+                },
             )
             await websocket.send_text(welcome.json())
 
@@ -260,7 +286,9 @@ class MCPServer:
                     await self._process_mcp_message(connection_id, data)
 
                     # Update activity
-                    self.connection_metadata[connection_id]["last_activity"] = datetime.now().isoformat()
+                    self.connection_metadata[connection_id][
+                        "last_activity"
+                    ] = datetime.now().isoformat()
 
                 except WebSocketDisconnect:
                     break
@@ -294,16 +322,22 @@ class MCPServer:
                 await self._handle_analysis_request(websocket, message_id, params)
 
             elif method == "terminal.command":
-                await self._handle_terminal_command(websocket, message_id, params, connection_id)
+                await self._handle_terminal_command(
+                    websocket, message_id, params, connection_id
+                )
 
             elif method == "project.context":
                 await self._handle_project_context(websocket, message_id, params)
 
             elif method == "stream.subscribe":
-                await self._handle_stream_subscription(websocket, message_id, params, connection_id)
+                await self._handle_stream_subscription(
+                    websocket, message_id, params, connection_id
+                )
 
             else:
-                await self._send_error(websocket, "unknown_method", f"Unknown method: {method}", message_id)
+                await self._send_error(
+                    websocket, "unknown_method", f"Unknown method: {method}", message_id
+                )
 
         except json.JSONDecodeError as e:
             await self._send_error(websocket, "invalid_json", str(e))
@@ -311,7 +345,9 @@ class MCPServer:
             logger.error(f"Message processing error: {e}")
             await self._send_error(websocket, "processing_error", str(e))
 
-    async def _handle_completion_request(self, websocket: WebSocket, message_id: str, params: Dict[str, Any]) -> None:
+    async def _handle_completion_request(
+        self, websocket: WebSocket, message_id: str, params: Dict[str, Any]
+    ) -> None:
         """Handle code completion request."""
         try:
             text = params.get("text", "")
@@ -330,8 +366,8 @@ class MCPServer:
                 result={
                     "suggestions": suggestions,
                     "position": position,
-                    "context": context
-                }
+                    "context": context,
+                },
             )
 
             await websocket.send_text(response.json())
@@ -339,7 +375,9 @@ class MCPServer:
         except Exception as e:
             await self._send_error(websocket, "completion_error", str(e), message_id)
 
-    async def _handle_analysis_request(self, websocket: WebSocket, message_id: str, params: Dict[str, Any]) -> None:
+    async def _handle_analysis_request(
+        self, websocket: WebSocket, message_id: str, params: Dict[str, Any]
+    ) -> None:
         """Handle code analysis request."""
         try:
             code = params.get("code", "")
@@ -347,7 +385,9 @@ class MCPServer:
             analysis_type = params.get("type", "comprehensive")
 
             if self.integration and self.integration.nlp_parser:
-                detected_language = await self.integration.nlp_parser.detect_language(code)
+                detected_language = await self.integration.nlp_parser.detect_language(
+                    code
+                )
                 entities = await self.integration.nlp_parser.extract_entities(code)
             else:
                 detected_language = language
@@ -358,20 +398,23 @@ class MCPServer:
                 "entities": entities,
                 "complexity": self._analyze_complexity(code),
                 "suggestions": await self._get_code_suggestions(code, analysis_type),
-                "metrics": self._calculate_code_metrics(code)
+                "metrics": self._calculate_code_metrics(code),
             }
 
-            response = MCPResponse(
-                id=message_id,
-                result=analysis_result
-            )
+            response = MCPResponse(id=message_id, result=analysis_result)
 
             await websocket.send_text(response.json())
 
         except Exception as e:
             await self._send_error(websocket, "analysis_error", str(e), message_id)
 
-    async def _handle_terminal_command(self, websocket: WebSocket, message_id: str, params: Dict[str, Any], connection_id: str) -> None:
+    async def _handle_terminal_command(
+        self,
+        websocket: WebSocket,
+        message_id: str,
+        params: Dict[str, Any],
+        connection_id: str,
+    ) -> None:
         """Handle terminal command request."""
         try:
             command = params.get("command", "")
@@ -379,7 +422,12 @@ class MCPServer:
             stream = params.get("stream", True)
 
             if not self.integration:
-                await self._send_error(websocket, "integration_unavailable", "Terminal integration not available", message_id)
+                await self._send_error(
+                    websocket,
+                    "integration_unavailable",
+                    "Terminal integration not available",
+                    message_id,
+                )
                 return
 
             # Create terminal session for this connection
@@ -387,18 +435,22 @@ class MCPServer:
 
             if stream:
                 # Handle streaming terminal command
-                await self._handle_streaming_command(websocket, message_id, command, session_id, context)
+                await self._handle_streaming_command(
+                    websocket, message_id, command, session_id, context
+                )
             else:
                 # Handle non-streaming command
-                result = await self._execute_terminal_command(command, session_id, context)
+                result = await self._execute_terminal_command(
+                    command, session_id, context
+                )
 
                 response = MCPResponse(
                     id=message_id,
                     result={
                         "command": command,
                         "result": result,
-                        "session_id": session_id
-                    }
+                        "session_id": session_id,
+                    },
                 )
 
                 await websocket.send_text(response.json())
@@ -406,7 +458,14 @@ class MCPServer:
         except Exception as e:
             await self._send_error(websocket, "terminal_error", str(e), message_id)
 
-    async def _handle_streaming_command(self, websocket: WebSocket, message_id: str, command: str, session_id: str, context: Dict[str, Any]) -> None:
+    async def _handle_streaming_command(
+        self,
+        websocket: WebSocket,
+        message_id: str,
+        command: str,
+        session_id: str,
+        context: Dict[str, Any],
+    ) -> None:
         """Handle streaming terminal command."""
         try:
             # Parse command using NLP parser
@@ -415,18 +474,21 @@ class MCPServer:
             else:
                 # Fallback intent creation
                 from ..interfaces import CodingIntent, CodingAction
+
                 intent = CodingIntent(
                     action=CodingAction.EXPLAIN,
                     targets=[command],
                     scope="function",
                     original_request=command,
                     confidence=0.5,
-                    context_required=[]
+                    context_required=[],
                 )
 
             # Start session if needed
             if session_id not in self.integration.active_sessions:
-                session_state = await self.integration.session_manager.start_session(session_id)
+                session_state = await self.integration.session_manager.start_session(
+                    session_id
+                )
                 self.integration.active_sessions[session_id] = session_state
 
             # Get session context
@@ -434,21 +496,20 @@ class MCPServer:
 
             # Stream response
             if self.integration.streaming_processor:
-                async for chunk in self.integration.streaming_processor.stream_response(intent, session_context):
+                async for chunk in self.integration.streaming_processor.stream_response(
+                    intent, session_context
+                ):
                     chunk_data = {
                         "type": chunk.type,
                         "content": chunk.content,
                         "metadata": chunk.metadata,
                         "timestamp": chunk.timestamp.isoformat(),
-                        "sequence": chunk.sequence_number
+                        "sequence": chunk.sequence_number,
                     }
 
                     notification = MCPNotification(
                         method="terminal.stream",
-                        params={
-                            "message_id": message_id,
-                            "chunk": chunk_data
-                        }
+                        params={"message_id": message_id, "chunk": chunk_data},
                     )
 
                     await websocket.send_text(notification.json())
@@ -459,15 +520,17 @@ class MCPServer:
                 params={
                     "message_id": message_id,
                     "session_id": session_id,
-                    "command": command
-                }
+                    "command": command,
+                },
             )
             await websocket.send_text(completion_notification.json())
 
         except Exception as e:
             await self._send_error(websocket, "streaming_error", str(e), message_id)
 
-    async def _handle_project_context(self, websocket: WebSocket, message_id: str, params: Dict[str, Any]) -> None:
+    async def _handle_project_context(
+        self, websocket: WebSocket, message_id: str, params: Dict[str, Any]
+    ) -> None:
         """Handle project context request."""
         try:
             project_path = params.get("path", ".")
@@ -475,24 +538,27 @@ class MCPServer:
 
             context = {
                 "project_path": project_path,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             if include_files:
                 # Get project file structure (simplified)
                 context["files"] = await self._get_project_files(project_path)
 
-            response = MCPResponse(
-                id=message_id,
-                result=context
-            )
+            response = MCPResponse(id=message_id, result=context)
 
             await websocket.send_text(response.json())
 
         except Exception as e:
             await self._send_error(websocket, "context_error", str(e), message_id)
 
-    async def _handle_stream_subscription(self, websocket: WebSocket, message_id: str, params: Dict[str, Any], connection_id: str) -> None:
+    async def _handle_stream_subscription(
+        self,
+        websocket: WebSocket,
+        message_id: str,
+        params: Dict[str, Any],
+        connection_id: str,
+    ) -> None:
         """Handle stream subscription request."""
         try:
             stream_type = params.get("type", "all")
@@ -503,8 +569,8 @@ class MCPServer:
                 result={
                     "subscribed": True,
                     "stream_type": stream_type,
-                    "connection_id": connection_id
-                }
+                    "connection_id": connection_id,
+                },
             )
 
             await websocket.send_text(response.json())
@@ -512,7 +578,13 @@ class MCPServer:
         except Exception as e:
             await self._send_error(websocket, "subscription_error", str(e), message_id)
 
-    async def _send_error(self, websocket: WebSocket, error_type: str, message: str, message_id: str = None) -> None:
+    async def _send_error(
+        self,
+        websocket: WebSocket,
+        error_type: str,
+        message: str,
+        message_id: str = None,
+    ) -> None:
         """Send error response via WebSocket."""
         try:
             self.stats["errors_encountered"] += 1
@@ -522,8 +594,8 @@ class MCPServer:
                 error={
                     "type": error_type,
                     "message": message,
-                    "timestamp": datetime.now().isoformat()
-                }
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
 
             await websocket.send_text(response.json())
@@ -539,10 +611,12 @@ class MCPServer:
             "terminal": True,
             "streaming": True,
             "project_context": True,
-            "file_operations": False  # Not implemented yet
+            "file_operations": False,  # Not implemented yet
         }
 
-    async def _execute_terminal_command(self, command: str, session_id: str, context: Dict[str, Any]) -> str:
+    async def _execute_terminal_command(
+        self, command: str, session_id: str, context: Dict[str, Any]
+    ) -> str:
         """Execute terminal command and return result."""
         # This is a simplified implementation
         return f"Executed command: {command} in session {session_id}"
@@ -557,12 +631,16 @@ class MCPServer:
             files = []
             for file_path in project.rglob("*.py"):  # Only Python files for now
                 if file_path.is_file():
-                    files.append({
-                        "path": str(file_path),
-                        "name": file_path.name,
-                        "size": file_path.stat().st_size,
-                        "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
-                    })
+                    files.append(
+                        {
+                            "path": str(file_path),
+                            "name": file_path.name,
+                            "size": file_path.stat().st_size,
+                            "modified": datetime.fromtimestamp(
+                                file_path.stat().st_mtime
+                            ).isoformat(),
+                        }
+                    )
 
             return files[:100]  # Limit to prevent large responses
 
@@ -572,14 +650,18 @@ class MCPServer:
 
     def _analyze_complexity(self, code: str) -> Dict[str, Any]:
         """Analyze code complexity (simplified)."""
-        lines = code.split('\n')
+        lines = code.split("\n")
         non_empty_lines = [line for line in lines if line.strip()]
 
         return {
             "total_lines": len(lines),
             "code_lines": len(non_empty_lines),
             "complexity_score": min(len(non_empty_lines) / 10, 10),  # Simplified metric
-            "estimated_difficulty": "low" if len(non_empty_lines) < 20 else "medium" if len(non_empty_lines) < 100 else "high"
+            "estimated_difficulty": (
+                "low"
+                if len(non_empty_lines) < 20
+                else "medium" if len(non_empty_lines) < 100 else "high"
+            ),
         }
 
     async def _get_code_suggestions(self, code: str, analysis_type: str) -> List[str]:
@@ -587,35 +669,49 @@ class MCPServer:
         suggestions = []
 
         if analysis_type == "security":
-            suggestions.extend([
-                "Add input validation",
-                "Use parameterized queries",
-                "Implement proper error handling"
-            ])
+            suggestions.extend(
+                [
+                    "Add input validation",
+                    "Use parameterized queries",
+                    "Implement proper error handling",
+                ]
+            )
         elif analysis_type == "performance":
-            suggestions.extend([
-                "Consider caching frequently accessed data",
-                "Optimize loop operations",
-                "Use appropriate data structures"
-            ])
+            suggestions.extend(
+                [
+                    "Consider caching frequently accessed data",
+                    "Optimize loop operations",
+                    "Use appropriate data structures",
+                ]
+            )
         else:  # comprehensive
-            suggestions.extend([
-                "Add type hints for better code clarity",
-                "Consider breaking large functions into smaller ones",
-                "Add docstrings for better documentation"
-            ])
+            suggestions.extend(
+                [
+                    "Add type hints for better code clarity",
+                    "Consider breaking large functions into smaller ones",
+                    "Add docstrings for better documentation",
+                ]
+            )
 
         return suggestions
 
     def _calculate_code_metrics(self, code: str) -> Dict[str, Any]:
         """Calculate basic code metrics."""
-        lines = code.split('\n')
+        lines = code.split("\n")
 
         return {
             "total_lines": len(lines),
             "blank_lines": len([line for line in lines if not line.strip()]),
-            "comment_lines": len([line for line in lines if line.strip().startswith('#')]),
-            "code_lines": len([line for line in lines if line.strip() and not line.strip().startswith('#')])
+            "comment_lines": len(
+                [line for line in lines if line.strip().startswith("#")]
+            ),
+            "code_lines": len(
+                [
+                    line
+                    for line in lines
+                    if line.strip() and not line.strip().startswith("#")
+                ]
+            ),
         }
 
     async def _cleanup_connection(self, connection_id: str) -> None:
@@ -636,11 +732,7 @@ class MCPServer:
     async def start(self) -> None:
         """Start the MCP server."""
         config = uvicorn.Config(
-            self.app,
-            host="0.0.0.0",
-            port=self.port,
-            log_level="info",
-            loop="asyncio"
+            self.app, host="0.0.0.0", port=self.port, log_level="info", loop="asyncio"
         )
         server = uvicorn.Server(config)
 

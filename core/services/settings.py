@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict
 
-
 DEFAULT_SETTINGS = {
     "general": {
         "auto_launch_dashboard": False,
@@ -104,4 +103,3 @@ def get_settings_store(project_root: Path) -> SettingsStore:
     """Factory helper for convenience."""
 
     return SettingsStore(project_root=project_root)
-

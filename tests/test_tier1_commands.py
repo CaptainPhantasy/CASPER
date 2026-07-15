@@ -15,9 +15,13 @@ from io import StringIO
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from casper_terminal_simple import (
-    handle_help, handle_exit, handle_task,
-    handle_analyze, handle_status, handle_list,
-    COMMAND_CATEGORIES
+    handle_help,
+    handle_exit,
+    handle_task,
+    handle_analyze,
+    handle_status,
+    handle_list,
+    COMMAND_CATEGORIES,
 )
 from rich.console import Console
 
@@ -97,6 +101,7 @@ class TestHelpCommand:
     def test_help_performance(self):
         """Test help command performance"""
         import time
+
         output = StringIO()
         console = Console(file=output, force_terminal=True, width=120)
 
@@ -215,7 +220,7 @@ class TestTaskCommand:
         mock_cli.execute_task = AsyncMock()
 
         # Mock approval service
-        with patch('casper_terminal_simple.ApprovalService') as mock_approval:
+        with patch("casper_terminal_simple.ApprovalService") as mock_approval:
             mock_service = AsyncMock()
             mock_approval.return_value = mock_service
 
@@ -350,6 +355,7 @@ class TestStatusCommand:
     async def test_status_performance(self):
         """Test status command performance"""
         import time
+
         output = StringIO()
         console = Console(file=output, force_terminal=True, width=120)
         mock_cli = AsyncMock()
@@ -395,8 +401,12 @@ class TestListCommand:
 
         output_text = output.getvalue()
         expected_agents = [
-            "Master Prime", "Alpha Prime", "Beta Prime",
-            "Gamma Prime", "Delta Prime", "Epsilon Prime"
+            "Master Prime",
+            "Alpha Prime",
+            "Beta Prime",
+            "Gamma Prime",
+            "Delta Prime",
+            "Epsilon Prime",
         ]
 
         for agent in expected_agents:
@@ -439,13 +449,13 @@ class TestCommandIntegration:
 
         for category, commands in COMMAND_CATEGORIES.items():
             for cmd in commands.keys():
-                if cmd.startswith('/'):
+                if cmd.startswith("/"):
                     slash_commands.append(cmd[1:])
                 else:
                     regular_commands.append(cmd)
 
         # Core commands should have slash equivalents
-        for cmd in ['task', 'analyze', 'status', 'help']:
+        for cmd in ["task", "analyze", "status", "help"]:
             assert cmd in regular_commands
             assert cmd in slash_commands
 
@@ -473,7 +483,7 @@ class TestPerformance:
             (handle_task, [console, mock_cli, "test"]),
             (handle_analyze, [console, mock_cli, "test"]),
             (handle_status, [console, mock_cli]),
-            (handle_list, [console])
+            (handle_list, [console]),
         ]
 
         for handler, args in commands_to_test:

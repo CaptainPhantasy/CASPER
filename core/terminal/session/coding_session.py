@@ -16,13 +16,13 @@ import logging
 from ..interfaces import ISession, SessionState, SessionError, MAX_CONTEXT_TOKENS
 from ...context.manager import ContextManager
 
-
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class TokenizedInteraction:
     """Single interaction with token counting"""
+
     timestamp: str
     user_input: str
     response: str
@@ -33,6 +33,7 @@ class TokenizedInteraction:
 @dataclass
 class SessionMetrics:
     """Session performance and usage metrics"""
+
     total_interactions: int
     total_tokens: int
     files_modified_count: int
@@ -47,7 +48,9 @@ class CodingSession(ISession):
     Implements full ISession interface - ZERO TOLERANCE for incomplete implementation.
     """
 
-    def __init__(self, storage_path: str = None, context_manager: ContextManager = None):
+    def __init__(
+        self, storage_path: str = None, context_manager: ContextManager = None
+    ):
         """Initialize session manager with persistent storage"""
         self.storage_path = (
             Path(storage_path).expanduser().resolve()
@@ -128,10 +131,18 @@ class CodingSession(ISession):
             """)
 
             # Create indexes for performance
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(active)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_interactions_session ON interactions(session_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_interactions_timestamp ON interactions(timestamp)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_session ON session_snapshots(session_id)")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(active)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_interactions_session ON interactions(session_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_interactions_timestamp ON interactions(timestamp)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_snapshots_session ON session_snapshots(session_id)"
+            )
 
             conn.commit()
 
@@ -148,13 +159,24 @@ class CodingSession(ISession):
             rows = cursor.fetchall()
 
             for row in rows:
-                session_id, started_at, last_activity, context_tokens, files_modified, kb_id, metadata = row
+                (
+                    session_id,
+                    started_at,
+                    last_activity,
+                    context_tokens,
+                    files_modified,
+                    kb_id,
+                    metadata,
+                ) = row
 
                 # Load conversation history
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT user_input, response FROM interactions
                     WHERE session_id = ? ORDER BY timestamp DESC LIMIT 50
-                """, (session_id,))
+                """,
+                    (session_id,),
+                )
 
                 history_rows = cursor.fetchall()
                 conversation_history = [
@@ -171,13 +193,15 @@ class CodingSession(ISession):
                     files_modified=json.loads(files_modified) if files_modified else [],
                     conversation_history=conversation_history,
                     knowledge_base_id=kb_id or f"kb_{session_id}",
-                    active=True
+                    active=True,
                 )
 
                 self._active_sessions[session_id] = session_state
                 self._interaction_buffers[session_id] = []
 
-        logger.info(f"Loaded {len(self._active_sessions)} active sessions from database")
+        logger.info(
+            f"Loaded {len(self._active_sessions)} active sessions from database"
+        )
 
     async def start_session(self, session_id: str = None) -> SessionState:
         """Initialize a new coding session"""
@@ -199,27 +223,30 @@ class CodingSession(ISession):
                 files_modified=[],
                 conversation_history=[],
                 knowledge_base_id=f"kb_{session_id}",
-                active=True
+                active=True,
             )
 
             # Store in database
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO sessions
                     (session_id, started_at, last_activity, context_tokens,
                      files_modified, knowledge_base_id, active, metadata)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    session_id,
-                    now.isoformat(),
-                    now.isoformat(),
-                    0,
-                    json.dumps([]),
-                    f"kb_{session_id}",
-                    1,
-                    json.dumps({})
-                ))
+                """,
+                    (
+                        session_id,
+                        now.isoformat(),
+                        now.isoformat(),
+                        0,
+                        json.dumps([]),
+                        f"kb_{session_id}",
+                        1,
+                        json.dumps({}),
+                    ),
+                )
                 conn.commit()
 
             # Add to active sessions
@@ -241,14 +268,20 @@ class CodingSession(ISession):
             "structural_pointers": {},
             "artifacts_created": [],
             "decisions_made": [],
-            "parent_task": f"Coding session {session_id}"
+            "parent_task": f"Coding session {session_id}",
         }
 
         # Store context
         session_uuid = self._context_uuid(session_id)
         self.context_manager.store_context(session_uuid, initial_context)
 
-    async def add_interaction(self, session_id: str, user_input: str, response: str, metadata: Dict[str, Any] = None) -> None:
+    async def add_interaction(
+        self,
+        session_id: str,
+        user_input: str,
+        response: str,
+        metadata: Dict[str, Any] = None,
+    ) -> None:
         """Add an interaction to session history with token counting"""
         if session_id not in self._active_sessions:
             raise SessionError(f"Session {session_id} not found")
@@ -265,7 +298,7 @@ class CodingSession(ISession):
                 user_input=user_input,
                 response=response,
                 token_count=token_count,
-                metadata=metadata or {}
+                metadata=metadata or {},
             )
 
             # Add to buffer
@@ -275,14 +308,15 @@ class CodingSession(ISession):
             session_state = self._active_sessions[session_id]
             session_state.last_activity = now
             session_state.context_tokens += token_count
-            session_state.conversation_history.append({
-                "user": user_input,
-                "assistant": response
-            })
+            session_state.conversation_history.append(
+                {"user": user_input, "assistant": response}
+            )
 
             # Keep only recent history in memory (last 100 interactions)
             if len(session_state.conversation_history) > 100:
-                session_state.conversation_history = session_state.conversation_history[-100:]
+                session_state.conversation_history = session_state.conversation_history[
+                    -100:
+                ]
 
             # Check token limit and reduce if needed
             await self._manage_token_limit(session_id)
@@ -292,25 +326,31 @@ class CodingSession(ISession):
                 cursor = conn.cursor()
 
                 # Insert interaction
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO interactions
                     (session_id, timestamp, user_input, response, token_count, metadata)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    session_id,
-                    now.isoformat(),
-                    user_input,
-                    response,
-                    token_count,
-                    json.dumps(metadata or {})
-                ))
+                """,
+                    (
+                        session_id,
+                        now.isoformat(),
+                        user_input,
+                        response,
+                        token_count,
+                        json.dumps(metadata or {}),
+                    ),
+                )
 
                 # Update session
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE sessions
                     SET last_activity = ?, context_tokens = ?
                     WHERE session_id = ?
-                """, (now.isoformat(), session_state.context_tokens, session_id))
+                """,
+                    (now.isoformat(), session_state.context_tokens, session_id),
+                )
 
                 conn.commit()
 
@@ -328,10 +368,13 @@ class CodingSession(ISession):
             cursor = conn.cursor()
 
             # Get oldest interactions to remove
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT id, token_count FROM interactions
                 WHERE session_id = ? ORDER BY timestamp ASC
-            """, (session_id,))
+            """,
+                (session_id,),
+            )
 
             rows = cursor.fetchall()
             tokens_removed = 0
@@ -345,21 +388,29 @@ class CodingSession(ISession):
 
             # Remove old interactions
             if interactions_to_delete:
-                placeholders = ','.join('?' * len(interactions_to_delete))
-                cursor.execute(f"""
+                placeholders = ",".join("?" * len(interactions_to_delete))
+                cursor.execute(
+                    f"""
                     DELETE FROM interactions WHERE id IN ({placeholders})
-                """, interactions_to_delete)
+                """,
+                    interactions_to_delete,
+                )
 
                 # Update session token count
                 session_state.context_tokens -= tokens_removed
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE sessions SET context_tokens = ? WHERE session_id = ?
-                """, (session_state.context_tokens, session_id))
+                """,
+                    (session_state.context_tokens, session_id),
+                )
 
                 conn.commit()
 
-                logger.info(f"Removed {len(interactions_to_delete)} old interactions "
-                           f"({tokens_removed} tokens) from session {session_id}")
+                logger.info(
+                    f"Removed {len(interactions_to_delete)} old interactions "
+                    f"({tokens_removed} tokens) from session {session_id}"
+                )
 
     async def get_context(self, session_id: str) -> Dict[str, Any]:
         """Get current session context with recent interactions"""
@@ -375,19 +426,22 @@ class CodingSession(ISession):
         # Get recent interactions
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT user_input, response, timestamp, token_count
                 FROM interactions
                 WHERE session_id = ?
                 ORDER BY timestamp DESC LIMIT 20
-            """, (session_id,))
+            """,
+                (session_id,),
+            )
 
             recent_interactions = [
                 {
                     "user_input": row[0],
                     "response": row[1],
                     "timestamp": row[2],
-                    "token_count": row[3]
+                    "token_count": row[3],
                 }
                 for row in cursor.fetchall()
             ]
@@ -399,7 +453,7 @@ class CodingSession(ISession):
             "recent_interactions": recent_interactions,
             "stored_context": stored_context,
             "metrics": await self._calculate_session_metrics(session_id),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         return context
@@ -412,17 +466,22 @@ class CodingSession(ISession):
             cursor = conn.cursor()
 
             # Get interaction count and total tokens
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*), SUM(token_count)
                 FROM interactions WHERE session_id = ?
-            """, (session_id,))
+            """,
+                (session_id,),
+            )
 
             interaction_count, total_tokens = cursor.fetchone()
             interaction_count = interaction_count or 0
             total_tokens = total_tokens or 0
 
         # Calculate session duration
-        duration = (session_state.last_activity - session_state.started_at).total_seconds() / 60
+        duration = (
+            session_state.last_activity - session_state.started_at
+        ).total_seconds() / 60
 
         return {
             "total_interactions": interaction_count,
@@ -430,7 +489,7 @@ class CodingSession(ISession):
             "files_modified_count": len(session_state.files_modified),
             "session_duration_minutes": duration,
             "avg_tokens_per_interaction": total_tokens / max(interaction_count, 1),
-            "tokens_per_minute": total_tokens / max(duration, 1)
+            "tokens_per_minute": total_tokens / max(duration, 1),
         }
 
     def _serialize_for_json(self, obj):
@@ -441,7 +500,7 @@ class CodingSession(ISession):
             return {key: self._serialize_for_json(value) for key, value in obj.items()}
         elif isinstance(obj, list):
             return [self._serialize_for_json(item) for item in obj]
-        elif hasattr(obj, '__dict__'):
+        elif hasattr(obj, "__dict__"):
             return self._serialize_for_json(obj.__dict__)
         else:
             return obj
@@ -457,8 +516,10 @@ class CodingSession(ISession):
             # Create snapshot of current state - serialize datetimes properly
             snapshot_data = {
                 "session_state": self._serialize_for_json(asdict(session_state)),
-                "recent_context": self._serialize_for_json(await self.get_context(session_id)),
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "recent_context": self._serialize_for_json(
+                    await self.get_context(session_id)
+                ),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
             snapshot_id = str(uuid.uuid4())
@@ -467,28 +528,34 @@ class CodingSession(ISession):
                 cursor = conn.cursor()
 
                 # Update session record
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE sessions
                     SET last_activity = ?, context_tokens = ?, files_modified = ?
                     WHERE session_id = ?
-                """, (
-                    session_state.last_activity.isoformat(),
-                    session_state.context_tokens,
-                    json.dumps(session_state.files_modified),
-                    session_id
-                ))
+                """,
+                    (
+                        session_state.last_activity.isoformat(),
+                        session_state.context_tokens,
+                        json.dumps(session_state.files_modified),
+                        session_id,
+                    ),
+                )
 
                 # Save snapshot
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO session_snapshots
                     (snapshot_id, session_id, snapshot_data, created_at)
                     VALUES (?, ?, ?, ?)
-                """, (
-                    snapshot_id,
-                    session_id,
-                    json.dumps(snapshot_data),
-                    datetime.now(timezone.utc).isoformat()
-                ))
+                """,
+                    (
+                        snapshot_id,
+                        session_id,
+                        json.dumps(snapshot_data),
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
 
                 conn.commit()
 
@@ -499,7 +566,7 @@ class CodingSession(ISession):
             "last_persisted": datetime.now(timezone.utc).isoformat(),
             "context_tokens": session_state.context_tokens,
             "artifacts_created": session_state.files_modified,
-            "decisions_made": [f"Session persisted at {snapshot_id}"]
+            "decisions_made": [f"Session persisted at {snapshot_id}"],
         }
 
         existing_context = self.context_manager.load_context(session_uuid) or {}
@@ -514,23 +581,37 @@ class CodingSession(ISession):
             cursor = conn.cursor()
 
             # Get session record
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT session_id, started_at, last_activity, context_tokens,
                        files_modified, knowledge_base_id, metadata
                 FROM sessions WHERE session_id = ?
-            """, (session_id,))
+            """,
+                (session_id,),
+            )
 
             row = cursor.fetchone()
             if not row:
                 raise SessionError(f"Session {session_id} not found in storage")
 
-            session_id, started_at, last_activity, context_tokens, files_modified, kb_id, metadata = row
+            (
+                session_id,
+                started_at,
+                last_activity,
+                context_tokens,
+                files_modified,
+                kb_id,
+                metadata,
+            ) = row
 
             # Load conversation history
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT user_input, response FROM interactions
                 WHERE session_id = ? ORDER BY timestamp DESC LIMIT 100
-            """, (session_id,))
+            """,
+                (session_id,),
+            )
 
             history_rows = cursor.fetchall()
             conversation_history = [
@@ -547,7 +628,7 @@ class CodingSession(ISession):
             files_modified=json.loads(files_modified) if files_modified else [],
             conversation_history=conversation_history,
             knowledge_base_id=kb_id or f"kb_{session_id}",
-            active=True
+            active=True,
         )
 
         # Add back to active sessions
@@ -558,9 +639,12 @@ class CodingSession(ISession):
         # Reactivate in database
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE sessions SET active = 1 WHERE session_id = ?
-            """, (session_id,))
+            """,
+                (session_id,),
+            )
             conn.commit()
 
         logger.info(f"Successfully recovered session {session_id}")
@@ -574,10 +658,13 @@ class CodingSession(ISession):
             cursor = conn.cursor()
 
             # Find old sessions to archive
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT session_id FROM sessions
                 WHERE last_activity < ? AND active = 1
-            """, (cutoff_date.isoformat(),))
+            """,
+                (cutoff_date.isoformat(),),
+            )
 
             old_sessions = [row[0] for row in cursor.fetchall()]
 
@@ -585,11 +672,14 @@ class CodingSession(ISession):
                 return 0
 
             # Archive old sessions (mark as inactive)
-            placeholders = ','.join('?' * len(old_sessions))
-            cursor.execute(f"""
+            placeholders = ",".join("?" * len(old_sessions))
+            cursor.execute(
+                f"""
                 UPDATE sessions SET active = 0
                 WHERE session_id IN ({placeholders})
-            """, old_sessions)
+            """,
+                old_sessions,
+            )
 
             # Remove from active memory
             with self._lock:
@@ -638,7 +728,7 @@ class CodingSession(ISession):
             "total_interactions": total_interactions,
             "total_context_tokens": total_tokens,
             "storage_path": str(self.storage_path),
-            "database_path": str(self.db_path)
+            "database_path": str(self.db_path),
         }
 
     async def add_file_modification(self, session_id: str, file_path: str) -> None:
@@ -654,9 +744,12 @@ class CodingSession(ISession):
             # Update database
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE sessions SET files_modified = ? WHERE session_id = ?
-                """, (json.dumps(session_state.files_modified), session_id))
+                """,
+                    (json.dumps(session_state.files_modified), session_id),
+                )
                 conn.commit()
 
     async def close_session(self, session_id: str) -> None:
@@ -670,9 +763,12 @@ class CodingSession(ISession):
         # Mark as inactive
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE sessions SET active = 0 WHERE session_id = ?
-            """, (session_id,))
+            """,
+                (session_id,),
+            )
             conn.commit()
 
         # Remove from memory
@@ -693,5 +789,5 @@ class CodingSession(ISession):
             "context_manager_available": self.context_manager is not None,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "storage_path": str(self.storage_path),
-            "max_context_tokens": MAX_CONTEXT_TOKENS
+            "max_context_tokens": MAX_CONTEXT_TOKENS,
         }

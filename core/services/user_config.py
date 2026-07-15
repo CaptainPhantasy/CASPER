@@ -16,6 +16,7 @@ from rich.console import Console
 
 console = Console()
 
+
 class UserConfigManager:
     """Manages user-specific configuration with secure API key storage."""
 
@@ -34,7 +35,9 @@ class UserConfigManager:
         """Create user config directory with secure permissions (700 - owner only)."""
         if not self.casper_user_dir.exists():
             self.casper_user_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-            console.print(f"[dim]→ Created secure config directory: {self.casper_user_dir}[/dim]")
+            console.print(
+                f"[dim]→ Created secure config directory: {self.casper_user_dir}[/dim]"
+            )
 
         # Ensure directory has correct permissions
         os.chmod(self.casper_user_dir, 0o700)
@@ -42,12 +45,12 @@ class UserConfigManager:
     def _get_encryption_key(self) -> bytes:
         """Get or create encryption key for this user."""
         if self.key_file.exists():
-            with open(self.key_file, 'rb') as f:
+            with open(self.key_file, "rb") as f:
                 return f.read()
         else:
             # Generate new encryption key
             key = Fernet.generate_key()
-            with open(self.key_file, 'wb') as f:
+            with open(self.key_file, "wb") as f:
                 f.write(key)
             # Secure the key file (600 - owner read/write only)
             os.chmod(self.key_file, 0o600)
@@ -72,13 +75,15 @@ class UserConfigManager:
 
         # Encrypt and store
         encrypted_data = self._encrypt_data(json.dumps(keys))
-        with open(self.keys_file, 'wb') as f:
+        with open(self.keys_file, "wb") as f:
             f.write(encrypted_data)
 
         # Secure the keys file (600 - owner read/write only)
         os.chmod(self.keys_file, 0o600)
 
-        console.print(f"[green]✅ {provider} API key stored securely for user '{self.username}'[/green]")
+        console.print(
+            f"[green]✅ {provider} API key stored securely for user '{self.username}'[/green]"
+        )
 
     def get_api_key(self, provider: str) -> Optional[str]:
         """Get API key for a specific provider."""
@@ -91,7 +96,7 @@ class UserConfigManager:
             return {}
 
         try:
-            with open(self.keys_file, 'rb') as f:
+            with open(self.keys_file, "rb") as f:
                 encrypted_data = f.read()
 
             decrypted_data = self._decrypt_data(encrypted_data)
@@ -109,19 +114,21 @@ class UserConfigManager:
             if keys:
                 # Re-encrypt remaining keys
                 encrypted_data = self._encrypt_data(json.dumps(keys))
-                with open(self.keys_file, 'wb') as f:
+                with open(self.keys_file, "wb") as f:
                     f.write(encrypted_data)
             else:
                 # Remove file if no keys left
                 self.keys_file.unlink(missing_ok=True)
 
-            console.print(f"[yellow]🗑️  {provider} API key removed for user '{self.username}'[/yellow]")
+            console.print(
+                f"[yellow]🗑️  {provider} API key removed for user '{self.username}'[/yellow]"
+            )
             return True
         return False
 
     def store_config(self, config: Dict[str, Any]):
         """Store general configuration (non-sensitive) for this user."""
-        with open(self.config_file, 'w') as f:
+        with open(self.config_file, "w") as f:
             json.dump(config, f, indent=2)
 
         # Secure the config file (600 - owner read/write only)
@@ -132,7 +139,7 @@ class UserConfigManager:
         if not self.config_file.exists():
             return {}
 
-        with open(self.config_file, 'r') as f:
+        with open(self.config_file, "r") as f:
             return json.load(f)
 
     def get_user_info(self) -> Dict[str, Any]:
@@ -148,7 +155,7 @@ class UserConfigManager:
             "total_api_keys": len(keys),
             "config_exists": self.config_file.exists(),
             "keys_encrypted": self.keys_file.exists(),
-            "last_provider": config.get("last_used_provider", "minimax")
+            "last_provider": config.get("last_used_provider", "minimax"),
         }
 
     def set_default_provider(self, provider: str):
@@ -158,7 +165,9 @@ class UserConfigManager:
         config["default_provider"] = provider
         self.store_config(config)
 
-        console.print(f"[green]✅ Default provider set to '{provider}' for user '{self.username}'[/green]")
+        console.print(
+            f"[green]✅ Default provider set to '{provider}' for user '{self.username}'[/green]"
+        )
 
     def get_default_provider(self) -> str:
         """Get the default AI provider for this user."""
@@ -168,18 +177,24 @@ class UserConfigManager:
     def set_default_model(self, provider: str, model: str):
         """Set the preferred provider and model as one atomic configuration update."""
         config = self.get_config()
-        config.update({
-            "last_used_provider": provider,
-            "default_provider": provider,
-            "default_model": model,
-            "default_model_provider": provider,
-        })
+        config.update(
+            {
+                "last_used_provider": provider,
+                "default_provider": provider,
+                "default_model": model,
+                "default_model_provider": provider,
+            }
+        )
         self.store_config(config)
 
-    def get_default_model(self, fallback: Optional[str] = None, provider: Optional[str] = None) -> Optional[str]:
+    def get_default_model(
+        self, fallback: Optional[str] = None, provider: Optional[str] = None
+    ) -> Optional[str]:
         """Get the explicitly selected model, or the supplied provider default."""
         config = self.get_config()
-        configured_provider = config.get("default_model_provider", config.get("default_provider"))
+        configured_provider = config.get(
+            "default_model_provider", config.get("default_provider")
+        )
         if provider and configured_provider and configured_provider != provider:
             return fallback
         return config.get("default_model", fallback)
@@ -194,14 +209,27 @@ class UserConfigManager:
 
         migrated_keys = []
 
-        with open(env_file, 'r') as f:
+        with open(env_file, "r") as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
 
                     # Check if it's an API key
-                    if any(provider in key.lower() for provider in ['minimax', 'opencode', 'openai', 'anthropic', 'deepseek', 'xai', 'mistral', 'zai', 'custom']):
+                    if any(
+                        provider in key.lower()
+                        for provider in [
+                            "minimax",
+                            "opencode",
+                            "openai",
+                            "anthropic",
+                            "deepseek",
+                            "xai",
+                            "mistral",
+                            "zai",
+                            "custom",
+                        ]
+                    ):
                         # Map environment variable names to provider names
                         provider_mapping = {
                             "MINIMAX_API_KEY": "minimax",
@@ -212,7 +240,7 @@ class UserConfigManager:
                             "XAI_API_KEY": "grok",
                             "MISTRAL_API_KEY": "mistral",
                             "ZAI_API_KEY": "zai",
-                            "CUSTOM_API_KEY": "custom"
+                            "CUSTOM_API_KEY": "custom",
                         }
 
                         provider = provider_mapping.get(key, key.lower())
@@ -220,8 +248,12 @@ class UserConfigManager:
                         migrated_keys.append(provider)
 
         if migrated_keys:
-            console.print(f"[green]✅ Migrated {len(migrated_keys)} API keys to user-specific storage[/green]")
-            console.print(f"[dim]   Migrated providers: {', '.join(migrated_keys)}[/dim]")
+            console.print(
+                f"[green]✅ Migrated {len(migrated_keys)} API keys to user-specific storage[/green]"
+            )
+            console.print(
+                f"[dim]   Migrated providers: {', '.join(migrated_keys)}[/dim]"
+            )
 
         return migrated_keys
 
@@ -231,7 +263,9 @@ class UserConfigManager:
             "username": self.username,
             "config": self.get_config(),
             "provider_count": len(self.get_all_api_keys()),
-            "backup_timestamp": os.path.getmtime(self.keys_file) if self.keys_file.exists() else None
+            "backup_timestamp": (
+                os.path.getmtime(self.keys_file) if self.keys_file.exists() else None
+            ),
         }
 
     def display_user_status(self):
@@ -239,17 +273,29 @@ class UserConfigManager:
         info = self.get_user_info()
 
         console.print(f"\n[bold cyan]CASPER User Configuration Status[/bold cyan]")
-        console.print(f"[dim]User:[/dim] [bright_white]{info['username']}[/bright_white]")
-        console.print(f"[dim]Config Directory:[/dim] [bright_white]{info['config_dir']}[/bright_white]")
-        console.print(f"[dim]Configured Providers:[/dim] [bright_yellow]{', '.join(info['configured_providers']) if info['configured_providers'] else 'None'}[/bright_yellow]")
-        console.print(f"[dim]Total API Keys:[/dim] [bright_white]{info['total_api_keys']}[/bright_white]")
-        console.print(f"[dim]Default Provider:[/dim] [bright_green]{self.get_default_provider()}[/bright_green]")
+        console.print(
+            f"[dim]User:[/dim] [bright_white]{info['username']}[/bright_white]"
+        )
+        console.print(
+            f"[dim]Config Directory:[/dim] [bright_white]{info['config_dir']}[/bright_white]"
+        )
+        console.print(
+            f"[dim]Configured Providers:[/dim] [bright_yellow]{', '.join(info['configured_providers']) if info['configured_providers'] else 'None'}[/bright_yellow]"
+        )
+        console.print(
+            f"[dim]Total API Keys:[/dim] [bright_white]{info['total_api_keys']}[/bright_white]"
+        )
+        console.print(
+            f"[dim]Default Provider:[/dim] [bright_green]{self.get_default_provider()}[/bright_green]"
+        )
 
         # Security status
-        if info['keys_encrypted']:
+        if info["keys_encrypted"]:
             console.print(f"[dim]Security:[/dim] [green]✅ API keys encrypted[/green]")
         else:
-            console.print(f"[dim]Security:[/dim] [yellow]⚠️  No API keys stored[/yellow]")
+            console.print(
+                f"[dim]Security:[/dim] [yellow]⚠️  No API keys stored[/yellow]"
+            )
 
 
 # Global instance for easy access
