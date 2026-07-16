@@ -1,90 +1,312 @@
-CASPER Prime
-Cognitive Agent System for Planning, Execution & Refinement
-An autonomous AI development platform that leverages multi-agent orchestration to build software with minimal human intervention. CASPER Prime represents a paradigm shift from traditional development - simply describe what you want, and watch as specialized AI agents collaborate to deliver production-ready code.
-Vision
-CASPER Prime embodies the "fire and forget" philosophy of development. Rather than managing individual AI conversations or copy-pasting between tools, CASPER Prime orchestrates an entire team of specialized agents that handle task decomposition, implementation, testing, and integration autonomously.
-Core Architecture
-Agent Hierarchy
+# CASPER Prime 🚀
 
-Master Prime - Orchestrates task decomposition and agent spawning
-Frontend Prime - Specializes in UI/UX, React, and client-side architecture
-Backend Prime - Handles APIs, databases, and server infrastructure
-Testing Prime - Creates comprehensive test suites and validation
-Worker Agents - Single-file specialists spawned for specific tasks
+**Version 0.1.0-beta.1**
 
-Context Management (R&D Framework)
-The R&D Framework ensures efficient context usage across agents:
+Autonomous AI Development Platform for Indie Developers
 
-Reduce - Compress and summarize information
-Delegate - Pass minimal context to specialized agents
+Turn natural language into production code. Delegate like you have a team. Ship like you're on fire.
 
-Key Features
+---
 
-Autonomous Task Decomposition - Master agent analyzes complexity and spawns appropriate specialists
-Context-Aware Handoffs - Agents pass refined context, not entire conversations
-Real-time Monitoring - Dashboard shows agent pipeline and progress
-Token Optimization - Intelligent context management reduces API costs
-File System Integration - Agents read/write actual project files
+## Status: **BETA**
 
-How It Works
+CASPER Prime is in public beta. Core functionality is stable and tested. The CLI is production-ready; the dashboard is functional with ongoing UX improvements.
 
-Describe Your Task: "Build a user authentication system with JWT and password reset"
-Master Agent Analyzes: Determines complexity, required agents, and creates execution plan
-Agents Spawn: Specialized agents are created for frontend, backend, database, and testing
-Autonomous Development: Agents work in parallel, handing off context as needed
-Code Generation: Actual files are created in the output directory
-Integration: Master agent ensures all components work together
+```
+╔═══════════════════════════════════════════════════════════════════╗
+║  Component           │ Status       │ Tests                       ║
+╠═══════════════════════════════════════════════════════════════════╣
+║  CLI (50+ commands)  │ ✅ Stable    │ 55+ unit tests passing      ║
+║  Agent System (6)    │ ✅ Stable    │ Integration tests passing   ║
+║  ReAct Engine        │ ✅ Stable    │ 5 tools verified             ║
+║  Approval Workflow   │ ✅ Stable    │ 18 unit tests passing       ║
+║  FastAPI Server      │ ✅ Stable    │ WebSocket + REST endpoints  ║
+║  Dashboard (React)   │ ⚠️  Beta     │ Playwright E2E tests        ║
+║  Prometheus Metrics  │ ✅ New       │ /metrics endpoint           ║
+║  Monitoring Dashboard│ ✅ New       │ /monitoring page            ║
+╚═══════════════════════════════════════════════════════════════════╝
+```
 
-Use Cases
+---
 
-Rapid Prototyping - Build MVPs in hours instead of days
-Feature Development - Add complex features to existing projects
-Code Modernization - Refactor legacy code with modern patterns
-Test Generation - Create comprehensive test suites automatically
-API Development - Build complete REST/GraphQL APIs
-Full-Stack Applications - Create entire applications from description
+## Quick Start
 
-Quick Start
-bash# Start CASPER Prime
-cd casper-prime
-./start.sh
+### Prerequisites
 
-# Open dashboard
-open http://localhost:9318
+- Python 3.11 or higher
+- Node.js 18 or higher (for dashboard only)
+- An Anthropic API key (required for LLM features)
+- An OpenAI API key (optional, used as fallback)
 
-# Enter task description
-"Build a real-time chat application with user authentication"
-Configuration
-env# API Keys (required)
-ANTHROPIC_API_KEY=your-claude-api-key
-OPENAI_API_KEY=your-gpt-api-key
+### Installation
 
-# Settings
-CASPER_MAX_TOKENS_PER_TASK=100000
-CASPER_MAX_COST_PER_TASK=10.00
-Dashboard
-The real-time dashboard provides:
+```bash
+# Clone the repository
+git clone <repository-url>
+cd CASPER-DEV
 
-Agent Pipeline - Visual kanban of agent states
-Token Usage - Track API consumption and costs
-Decision Tree - View agent reasoning and handoffs
-Output Files - Direct access to generated code
+# Install Python dependencies
+pip install poetry
+poetry install
 
-Technology Stack
+# Or use pip directly
+pip install -r requirements.txt
 
-Backend: Python 3.11+, FastAPI, WebSocket
-Frontend: React, TypeScript, Tailwind CSS
-AI Models: Claude 3 Sonnet, GPT-4
-Orchestration: Custom agent framework with context management
+# Create environment file
+cp .env.template .env
+# Edit .env and add your API keys
 
-Philosophy
-CASPER Prime believes that developers should focus on what to build, not how to build it. By treating AI agents as autonomous team members rather than tools, we enable a new paradigm of software development where human creativity drives innovation while AI handles implementation.
-Project Structure
-casper-prime/
+# Verify installation
+python3 -c "from core.services.llm import llm_service; print('✓ LLM service ready')"
+```
+
+### Using the CLI
+
+```bash
+# Start the CASPER terminal
+python3 casper_terminal_complete.py
+
+# Or run a task directly
+python3 casper_terminal_complete.py "Build a REST API endpoint"
+
+# Enable YOLO mode (auto-approve all operations)
+python3 casper_terminal_complete.py --yolo "Create a React component"
+
+# Enable AUTO mode (auto-approve safe operations only)
+python3 casper_terminal_complete.py --auto "Add unit tests for auth module"
+```
+
+### Using the Dashboard
+
+```bash
+# Start the API server
+python3 -m uvicorn core.server:app --reload --port 8000
+
+# Start the dashboard (in another terminal)
+cd dashboard && npm install && npm run dev
+
+# Open http://localhost:5173
+```
+
+### Monitoring
+
+```bash
+# Prometheus metrics endpoint
+curl http://localhost:8000/metrics
+
+# Monitoring dashboard
+open http://localhost:8000/monitoring
+```
+
+---
+
+## Features
+
+### 🤖 Multi-Agent System
+
+Six specialized agents coordinate to complete development tasks:
+
+| Agent | Role | Specialization |
+|-------|------|----------------|
+| `master_prime` | Orchestrator | Task decomposition, agent routing |
+| `backend_prime` | Backend Dev | API design, database, server logic |
+| `frontend_prime` | Frontend Dev | UI components, React, styling |
+| `testing_prime` | QA Engineer | Test automation, coverage analysis |
+| `devops_prime` | DevOps | Deployment, CI/CD, infrastructure |
+| `worker` | Generalist | File operations, simple tasks |
+
+### 🧠 ReAct Reasoning Engine
+
+Production-grade reasoning with 5 working tools:
+- `execute_code` — Run Python code snippets
+- `read_file` — Read file contents
+- `write_file` — Write files with security checks
+- `run_tests` — Execute test suites
+- `search_code` — Search codebase by pattern
+
+### 🔒 Approval Workflow System
+
+Three modes for human-in-the-loop control:
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| **STRICT** | All operations require manual approval | Production environments |
+| **AUTO** | Safe operations auto-approved, risky ones require approval | Development |
+| **YOLO** | All operations auto-approved | Rapid prototyping |
+
+Risk assessment:
+- **Critical**: `sudo rm -rf`, system-level commands → always blocked in AUTO
+- **High**: Folder deletion, production deployment → requires approval
+- **Medium**: File deletion → requires approval in STRICT
+- **Low**: File creation, documentation → auto-approved in AUTO
+
+### 🖥️ CLI Interface
+
+50+ commands across 7 categories:
+
+```
+System:     help, status, config, setup, clear, init
+Workflow:   task, analyze, react, session, resume
+Development:gen, refactor, review, addroute, pr, fixbug, testfail, deploy, standup
+AI:         explain, debug, sync, todo, custom
+Business:   proposal, estimate, invoice
+Testing:    test, testfail, coverage, lint, security
+Utility:    files, filetree, search, grep, open, save, sessions
+```
+
+### 📊 Observability
+
+- **Prometheus metrics** at `/metrics` — HTTP requests, task counts, LLM calls, agent pool, system resources
+- **Monitoring dashboard** at `/monitoring` — Real-time HTML dashboard with auto-refresh
+- **Structured logging** via `structlog`
+- **Circuit breakers** for LLM providers with automatic state transitions
+
+### 🌐 FastAPI Server
+
+- WebSocket endpoints for real-time updates (`/ws`, `/ws/terminal`)
+- REST API for task submission, status, and results
+- Rate limiting via `slowapi`
+- CORS configuration
+- Terminal PTY management
+
+### 💼 Business Operations
+
+- Proposal generator
+- Estimate generator
+- Invoice generator
+
+---
+
+## Architecture
+
+```
+CASPER DEV/
 ├── core/
-│   ├── agents/         # Agent implementations
-│   ├── context/        # R&D Framework
-│   └── orchestrator/   # Task coordination
-├── dashboard/          # React monitoring interface
-├── output/            # Generated code output
-└── templates/         # Agent prompt templates
+│   ├── agents/              # 6 specialized agent implementations
+│   ├── orchestrator/        # Agent coordination and task routing
+│   ├── context/             # Context management with compression
+│   ├── reasoning/           # ReAct engine with 5 tools
+│   ├── services/            # 20+ service modules
+│   │   ├── llm.py           # LLM service with circuit breaker
+│   │   ├── enhanced_approval.py  # Approval workflow
+│   │   ├── metrics.py       # Prometheus metrics
+│   │   └── ...
+│   ├── terminal/            # Terminal interface (PTY, WebSocket, security)
+│   ├── ai/                  # AI command interpreter
+│   ├── routers/             # FastAPI routers
+│   └── server.py            # FastAPI server
+├── dashboard/               # React/TypeScript dashboard
+│   ├── src/components/      # 17+ React components
+│   ├── monitoring.html      # Prometheus monitoring dashboard
+│   └── tests/               # Playwright E2E tests
+├── tests/                   # Python test suite
+├── Dockerfile               # Container configuration
+├── docker-compose.yml       # Multi-container setup
+├── pyproject.toml           # Python dependencies
+└── .github/workflows/       # CI/CD pipeline
+```
+
+---
+
+## Testing
+
+```bash
+# Run all unit tests
+python3 -m pytest tests/ -v
+
+# Run with coverage
+python3 -m pytest tests/ --cov=core --cov-report=term-missing
+
+# Run specific test suite
+python3 -m pytest tests/test_llm_rate_limits.py -v
+python3 -m pytest tests/test_enhanced_approval.py -v
+python3 -m pytest tests/test_command_interpreter.py -v
+
+# Dashboard tests
+cd dashboard && npm test
+```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# Required
+ANTHROPIC_API_KEY=your_key_here
+
+# Optional (fallback provider)
+OPENAI_API_KEY=your_key_here
+
+# Optional (defaults to development)
+CASPER_MODE=development  # or production
+```
+
+### Rate Limits (configurable via environment)
+
+```bash
+TASK_RATE_LIMIT=10/minute
+ANALYSIS_RATE_LIMIT=20/minute
+FILE_RATE_LIMIT=120/minute
+```
+
+---
+
+## Docker
+
+```bash
+# Build and run
+docker-compose up -d
+
+# Or build manually
+docker build -t casper-prime .
+docker run -p 8000:8000 --env-file .env casper-prime
+```
+
+---
+
+## CI/CD
+
+GitHub Actions pipeline (`.github/workflows/terminal-testing.yml`):
+- Python 3.11 test environment
+- 85% coverage threshold
+- Backend + frontend test jobs
+- Path-based trigger filtering
+
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+
+## License
+
+MIT — See [LICENSE](LICENSE) file.
+
+---
+
+## Known Limitations (Beta)
+
+- Integration tests may fail when Anthropic API rate limits are hit (unit tests use mocked LLM)
+- Dashboard icon migration from Lucide to Tabler Icons recently completed
+- Some terminal E2E tests require `psutil` and `slowapi` dependencies
+- WebSocket reconnection handling could be more robust
+
+---
+
+## Roadmap
+
+- [ ] PyPI package publication
+- [ ] Homebrew tap formula
+- [ ] Plugin architecture for custom agents
+- [ ] Multi-model routing optimization
+- [ ] Dashboard UX polish (Phase 2)
+
+---
+
+Built by Douglas Talley | [LegacyAI.info](https://legacyai.info)

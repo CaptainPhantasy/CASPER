@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASPER Prime — Monitoring Dashboard</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card: #1a1d27;
+            --border: #2a2d3a;
+            --text: #e4e4e7;
+            --muted: #71717a;
+            --accent: #06b6d4;
+            --green: #22c55e;
+            --yellow: #eab308;
+            --red: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 24px;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 4px; }
+        .subtitle { color: var(--muted); font-size: 0.875rem; margin-bottom: 24px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .metric-unit { font-size: 0.875rem; color: var(--muted); font-weight: 400; }
+        .status-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-ok { background: var(--green); }
+        .status-warn { background: var(--yellow); }
+        .status-error { background: var(--red); }
+        .agent-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.875rem;
+        }
+        .agent-row:last-child { border-bottom: none; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+        .badge-yellow { background: rgba(234,179,8,0.15); color: var(--yellow); }
+        .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+        .refresh-info { text-align: right; color: var(--muted); font-size: 0.75rem; }
+        #lastUpdated { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <h1>🚀 CASPER Prime Monitoring</h1>
+    <p class="subtitle">Real-time system observability · <span id="lastUpdated">—</span></p>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">System Status</div>
+            <div class="metric-value">
+                <span class="status-dot status-ok" id="statusDot"></span>
+                <span id="healthStatus">Checking...</span>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">CPU Usage</div>
+            <div class="metric-value" id="cpuUsage">—<span class="metric-unit">%</span></div>
+        </div>
+        <div class="card">
+            <div class="card-title">Memory Usage</div>
+            <div class="metric-value" id="memUsage">—<span class="metric-unit">%</span></div>
+        </div>
+        <div class="card">
+            <div class="card-title">Active Tasks</div>
+            <div class="metric-value" id="activeTasks">—</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Approval Queue</div>
+            <div class="metric-value" id="approvalQueue">—</div>
+        </div>
+        <div class="card">
+            <div class="card-title">WebSocket Connections</div>
+            <div class="metric-value" id="wsConnections">—</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">LLM API Calls</div>
+            <div id="llmCalls">
+                <div class="agent-row"><span>Anthropic</span><span id="llmAnthropic">—</span></div>
+                <div class="agent-row"><span>OpenAI</span><span id="llmOpenai">—</span></div>
+                <div class="agent-row"><span>Failures</span><span id="llmFailures">—</span></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">Agent Pool</div>
+            <div id="agentPool">
+                <div class="agent-row"><span>master_prime</span><span id="agentMaster">—</span></div>
+                <div class="agent-row"><span>frontend_prime</span><span id="agentFrontend">—</span></div>
+                <div class="agent-row"><span>backend_prime</span><span id="agentBackend">—</span></div>
+                <div class="agent-row"><span>testing_prime</span><span id="agentTesting">—</span></div>
+                <div class="agent-row"><span>devops_prime</span><span id="agentDevops">—</span></div>
+                <div class="agent-row"><span>worker</span><span id="agentWorker">—</span></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">HTTP Requests (total)</div>
+            <div class="metric-value" id="httpTotal">—</div>
+            <div style="margin-top:8px;font-size:0.75rem;color:var(--muted);" id="httpErrorRate">Error rate: —</div>
+        </div>
+    </div>
+
+    <div class="refresh-info">Auto-refresh every 5s · <a href="/metrics" style="color:var(--accent);text-decoration:none;">Raw Prometheus Metrics</a></div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function fetchHealth() {
+            try {
+                const res = await fetch(`${API_BASE}/api/health`);
+                const data = await res.json();
+                document.getElementById('healthStatus').textContent = data.status === 'ok' ? 'Healthy' : 'Degraded';
+                document.getElementById('statusDot').className = data.status === 'ok' ? 'status-dot status-ok' : 'status-dot status-error';
+            } catch {
+                document.getElementById('healthStatus').textContent = 'Offline';
+                document.getElementById('statusDot').className = 'status-dot status-error';
+            }
+        }
+
+        async function fetchMetrics() {
+            try {
+                const res = await fetch(`${API_BASE}/metrics`);
+                const text = await res.text();
+                parsePrometheusMetrics(text);
+            } catch {
+                // Server may not be running
+            }
+        }
+
+        function parsePrometheusMetrics(text) {
+            const lines = text.split('\n');
+            const metrics = {};
+            for (const line of lines) {
+                if (line.startsWith('#') || !line.trim()) continue;
+                const match = line.match(/^([a-z_]+)(\{[^}]*\})?\s+([\d.e+-]+)/);
+                if (match) {
+                    const name = match[1];
+                    const labels = match[2] || '';
+                    const value = parseFloat(match[3]);
+                    if (!metrics[name]) metrics[name] = [];
+                    metrics[name].push({ labels, value });
+                }
+            }
+
+            // CPU
+            const cpu = sumMetric(metrics, 'casper_system_cpu_percent');
+            if (cpu !== null) document.getElementById('cpuUsage').innerHTML = cpu.toFixed(1) + '<span class="metric-unit">%</span>';
+
+            // Memory
+            const mem = sumMetric(metrics, 'casper_system_memory_percent');
+            if (mem !== null) document.getElementById('memUsage').innerHTML = mem.toFixed(1) + '<span class="metric-unit">%</span>';
+
+            // Active tasks
+            const tasks = sumMetric(metrics, 'casper_tasks_active');
+            if (tasks !== null) document.getElementById('activeTasks').textContent = Math.round(tasks);
+
+            // Approval queue
+            const approvals = sumMetric(metrics, 'casper_approval_queue_depth');
+            if (approvals !== null) document.getElementById('approvalQueue').textContent = Math.round(approvals);
+
+            // WebSocket
+            const ws = sumMetric(metrics, 'casper_websocket_connections_active');
+            if (ws !== null) document.getElementById('wsConnections').textContent = Math.round(ws);
+
+            // LLM calls
+            const llmTotal = sumMetric(metrics, 'casper_llm_calls_total');
+            const llmAnthropic = sumLabeledMetric(metrics, 'casper_llm_calls_total', 'provider="anthropic"');
+            const llmOpenai = sumLabeledMetric(metrics, 'casper_llm_calls_total', 'provider="openai"');
+            const llmFailures = sumLabeledMetric(metrics, 'casper_llm_calls_total', 'outcome="failure"');
+            if (llmAnthropic !== null) document.getElementById('llmAnthropic').textContent = Math.round(llmAnthropic);
+            if (llmOpenai !== null) document.getElementById('llmOpenai').textContent = Math.round(llmOpenai);
+            if (llmFailures !== null) document.getElementById('llmFailures').textContent = Math.round(llmFailures);
+
+            // HTTP requests
+            const httpTotal = sumMetric(metrics, 'casper_http_requests_total');
+            if (httpTotal !== null) document.getElementById('httpTotal').textContent = Math.round(httpTotal);
+
+            // Agent pool
+            const agentRoles = ['master', 'frontend_prime', 'backend_prime', 'testing_prime', 'devops_prime', 'worker'];
+            const ids = ['agentMaster', 'agentFrontend', 'agentBackend', 'agentTesting', 'agentDevops', 'agentWorker'];
+            agentRoles.forEach((role, i) => {
+                const active = sumLabeledMetric(metrics, 'casper_agents_active', `role="${role}"`);
+                const busy = sumLabeledMetric(metrics, 'casper_agents_busy', `role="${role}"`);
+                if (active !== null) {
+                    const badge = busy > 0 ? `<span class="badge badge-yellow">${Math.round(busy)} busy</span>` : `<span class="badge badge-green">idle</span>`;
+                    document.getElementById(ids[i]).innerHTML = `${Math.round(active)} ${badge}`;
+                }
+            });
+        }
+
+        function sumMetric(metrics, name) {
+            if (!metrics[name]) return null;
+            return metrics[name].reduce((sum, m) => sum + m.value, 0);
+        }
+
+        function sumLabeledMetric(metrics, name, labelContains) {
+            if (!metrics[name]) return null;
+            return metrics[name]
+                .filter(m => m.labels.includes(labelContains))
+                .reduce((sum, m) => sum + m.value, 0);
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            document.getElementById('lastUpdated').textContent = `Updated ${now.toLocaleTimeString()}`;
+        }
+
+        async function refresh() {
+            await Promise.all([fetchHealth(), fetchMetrics()]);
+            updateTimestamp();
+        }
+
+        refresh();
+        setInterval(refresh, 5000);
+    </script>
+</body>
+</html>

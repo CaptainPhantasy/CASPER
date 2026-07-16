@@ -1,0 +1,142 @@
+name: Repository Quality
+
+on:
+  push:
+    branches: [main, develop, "feature/terminal-*", "morning-recovery/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "22"
+
+jobs:
+  backend-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v6
+      - name: Install backend and quality tools
+        run: |
+          uv venv .venv
+          uv pip install --python .venv/bin/python -e . \
+            pytest pytest-asyncio pytest-cov pytest-timeout \
+            black flake8 mypy bandit pip-audit "filelock>=3.20.3"
+      - name: Run deterministic backend suite
+        env:
+          CASPER_TEST_MODE: "true"
+        run: |
+          .venv/bin/pytest \
+            core/pipeline/tests/test_pipeline_units.py \
+            tests/test_all_commands.py \
+            tests/test_model_gateway.py \
+            -q --timeout=20 --disable-warnings
+      - name: Check formatting and fatal lint errors
+        run: |
+          .venv/bin/black --check core tests casper_terminal_complete.py
+          .venv/bin/flake8 core tests casper_terminal_complete.py \
+            --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Type-check repaired integration boundary
+        run: |
+          .venv/bin/mypy core/tools/production_tools.py \
+            --ignore-missing-imports --follow-imports=skip
+      - name: Audit backend dependencies and high-severity code findings
+        run: |
+          .venv/bin/pip-audit --skip-editable
+          .venv/bin/bandit -r core -q -lll
+
+  frontend-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run build
+      - run: npm audit --audit-level=moderate
+
+  runtime-smoke:
+    needs: [backend-quality, frontend-quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install and build
+        run: |
+          uv venv .venv
+          uv pip install --python .venv/bin/python -e .
+          npm ci --ignore-scripts --prefix dashboard
+          npm run build --prefix dashboard
+          npx --prefix dashboard playwright install chromium
+      - name: Start backend and dashboard
+        run: |
+          .venv/bin/uvicorn core.server:app --host 127.0.0.1 --port 8742 > /tmp/casper-backend.log 2>&1 &
+          echo $! > /tmp/casper-backend.pid
+          npm run preview --prefix dashboard -- --host 127.0.0.1 --port 4173 > /tmp/casper-dashboard.log 2>&1 &
+          echo $! > /tmp/casper-dashboard.pid
+      - name: Verify HTTP and rendered dashboard
+        run: |
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:8742/api/health > /tmp/health.json && break
+            sleep 1
+          done
+          grep -q 'healthy' /tmp/health.json
+          curl --fail --silent http://127.0.0.1:4173/ > /tmp/dashboard.html
+          grep -q '<div id="root"></div>' /tmp/dashboard.html
+          cd dashboard
+          node --input-type=module <<'NODE'
+          import { chromium } from '@playwright/test';
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage();
+          await page.route('https://fonts.googleapis.com/**', route => route.abort());
+          await page.route('https://fonts.gstatic.com/**', route => route.abort());
+          await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+          await page.locator('[data-testid="dashboard-loaded"]').waitFor({ state: 'visible' });
+          console.log('rendered-dashboard-ok', await page.title());
+          await browser.close();
+          NODE
+      - name: Print service logs on failure
+        if: failure()
+        run: |
+          cat /tmp/casper-backend.log || true
+          cat /tmp/casper-dashboard.log || true
+      - name: Stop services
+        if: always()
+        run: |
+          kill "$(cat /tmp/casper-backend.pid)" 2>/dev/null || true
+          kill "$(cat /tmp/casper-dashboard.pid)" 2>/dev/null || true
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
