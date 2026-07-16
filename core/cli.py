@@ -421,6 +421,22 @@ async def main_async():
     parser = argparse.ArgumentParser(
         description="CASPER - Cognitive Agent System for Planning, Execution & Refinement"
     )
+    parser.add_argument(
+        "--version", action="version", version="CASPER 0.1.0-beta.1 canonical-harness"
+    )
+    parser.add_argument(
+        "--permission-mode",
+        choices=["read_only", "default", "accept_edits", "bypass"],
+        default="default",
+        help="Interactive tool policy (default: default)",
+    )
+    parser.add_argument(
+        "--legacy", action="store_true", help="Run the retired complete terminal"
+    )
+    mode_aliases = parser.add_mutually_exclusive_group()
+    mode_aliases.add_argument("--strict", action="store_true", help="Alias for read_only")
+    mode_aliases.add_argument("--auto", action="store_true", help="Alias for accept_edits")
+    mode_aliases.add_argument("--yolo", action="store_true", help="Alias for bypass")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -459,15 +475,50 @@ async def main_async():
     # Setup command
     subparsers.add_parser("setup", help="Configure AI provider API keys")
 
+    # Canonical non-interactive harness protocol
+    exec_parser = subparsers.add_parser(
+        "exec", help="Run one canonical harness turn and emit JSONL events"
+    )
+    exec_parser.add_argument("description", help="Natural-language coding request")
+    exec_parser.add_argument(
+        "--permission-mode",
+        choices=["read_only", "default", "accept_edits", "bypass"],
+        default="read_only",
+        help="Tool permission profile (default: read_only)",
+    )
+    exec_parser.add_argument(
+        "--project", "-d", default=".", help="Active project root (default: cwd)"
+    )
+
     args = parser.parse_args()
 
-    # The globally installed `casper` command is the interactive application
-    # when no subcommand is supplied.  Direct subcommands remain scriptable.
+    # The globally installed `casper` command is the canonical interactive
+    # harness when no subcommand is supplied. Direct subcommands remain
+    # scriptable and `exec` uses the same runtime without a TUI.
     if args.command is None:
-        from casper_terminal_complete import CasperTerminalComplete
+        if args.legacy:
+            from casper_terminal_complete import CasperTerminalComplete
 
-        await CasperTerminalComplete().run()
-        return
+            await CasperTerminalComplete().run()
+            return 0
+        from core.terminal.modern_cli import run_interactive
+
+        permission_mode = args.permission_mode
+        if args.strict:
+            permission_mode = "read_only"
+        elif args.auto:
+            permission_mode = "accept_edits"
+        elif args.yolo:
+            permission_mode = "bypass"
+        return await run_interactive(Path.cwd(), permission_mode=permission_mode)
+    if args.command == "exec":
+        from core.terminal.modern_cli import run_exec
+
+        return await run_exec(
+            args.description,
+            project_root=Path(args.project),
+            permission_mode=args.permission_mode,
+        )
 
     # Create CLI instance
     cli = CasperCLI()
@@ -526,7 +577,9 @@ def print_modern_banner():
 
     console.print()
     for line in ascii_art:
-        console.print(line)
+        # Preserve the mark as authored even when output is captured through a
+        # narrow pipe; Rich's default wrapping adulterates the geometry.
+        console.print(line, soft_wrap=True)
     console.print()
 
 
@@ -539,5 +592,10 @@ if __name__ == "__main__":
 
 def main():
     """Synchronous entry point for console_scripts (pipx/pip)."""
-    print_modern_banner()
-    asyncio.run(main_async())
+    # Keep the CASPER mark in the interactive product. Headless JSONL and direct
+    # subcommands must remain machine-readable and do not receive a banner.
+    if len(sys.argv) == 1:
+        print_modern_banner()
+    result = asyncio.run(main_async())
+    if isinstance(result, int):
+        raise SystemExit(result)
