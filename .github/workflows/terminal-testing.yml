@@ -43,7 +43,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.11"
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
   PYTHONUNBUFFERED: "1"
 
 jobs:
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -96,7 +96,7 @@ jobs:
           poetry run pytest "${harness_tests[@]}" -q --durations=20
       - name: Run unified fifty-engine E2E gate
         run: poetry run python scripts/e2e_harness_50.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: harness-test-results
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -127,7 +127,7 @@ jobs:
             -q \
             --durations=20 \
             --junit-xml=security-test-results.xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: security-test-results
@@ -138,7 +138,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -166,8 +166,8 @@ jobs:
       run:
         working-directory: dashboard
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -187,8 +187,8 @@ jobs:
       run:
         working-directory: dashboard
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -208,7 +208,7 @@ jobs:
             --reporter=line \
             --grep="should test responsive elements" \
             tests/casper-prime.spec.ts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-results

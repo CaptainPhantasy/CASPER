@@ -8,6 +8,10 @@
     "node": ">=20.19 <27",
     "npm": ">=10"
   },
+  "allowScripts": {
+    "fsevents@2.3.2": true,
+    "fsevents@2.3.3": true
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
