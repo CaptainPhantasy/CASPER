@@ -425,6 +425,11 @@ async def main_async():
         "--version", action="version", version="CASPER 0.1.0-beta.1 canonical-harness"
     )
     parser.add_argument(
+        "--features",
+        action="store_true",
+        help="List the verified harness engines",
+    )
+    parser.add_argument(
         "--permission-mode",
         choices=["read_only", "default", "accept_edits", "bypass"],
         default="default",
@@ -491,6 +496,12 @@ async def main_async():
     )
 
     args = parser.parse_args()
+
+    if args.features:
+        from core.harness.catalog import render_feature_catalog
+
+        print(render_feature_catalog())
+        return 0
 
     # The globally installed `casper` command is the canonical interactive
     # harness when no subcommand is supplied. Direct subcommands remain

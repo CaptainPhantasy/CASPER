@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -215,9 +216,7 @@ async def test_global_cli_without_subcommand_launches_interactive_terminal(monke
     from core import cli as cli_module
 
     run = AsyncMock()
-    terminal = MagicMock()
-    terminal.run = run
     monkeypatch.setattr("sys.argv", ["casper"])
-    with patch("casper_terminal_complete.CasperTerminalComplete", return_value=terminal):
+    with patch("core.terminal.modern_cli.run_interactive", run):
         await cli_module.main_async()
-    run.assert_awaited_once()
+    run.assert_awaited_once_with(Path.cwd(), permission_mode="default")
