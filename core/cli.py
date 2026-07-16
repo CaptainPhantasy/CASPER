@@ -432,11 +432,15 @@ async def main_async():
     parser.add_argument(
         "--permission-mode",
         choices=["read_only", "default", "accept_edits", "bypass"],
-        default="default",
-        help="Interactive tool policy (default: default)",
+        default="accept_edits",
+        help="Interactive tool policy (default: accept_edits)",
     )
     parser.add_argument(
         "--legacy", action="store_true", help="Run the retired complete terminal"
+    )
+    parser.add_argument(
+        "--workdir", "-C", type=str,
+        help="Start the interactive harness in this working directory",
     )
     mode_aliases = parser.add_mutually_exclusive_group()
     mode_aliases.add_argument("--strict", action="store_true", help="Alias for read_only")
@@ -521,7 +525,10 @@ async def main_async():
             permission_mode = "accept_edits"
         elif args.yolo:
             permission_mode = "bypass"
-        return await run_interactive(Path.cwd(), permission_mode=permission_mode)
+        project_root = Path(args.workdir).expanduser().resolve() if args.workdir else Path.cwd()
+        if not project_root.is_dir():
+            parser.error(f"working directory does not exist: {project_root}")
+        return await run_interactive(project_root, permission_mode=permission_mode)
     if args.command == "exec":
         from core.terminal.modern_cli import run_exec
 

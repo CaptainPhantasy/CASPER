@@ -5,7 +5,8 @@ from core.agents.base import ContextBundle, AgentStatus
 
 
 @pytest.mark.asyncio
-async def test_worker_generates_patch(project_root):
+async def test_worker_generates_patch(project_root, _mock_llm_service):
+    _mock_llm_service.available.return_value = False
     agent = WorkerAgent()
     context = ContextBundle()
     result = await agent.execute_task("Fix typo in README documentation", context)

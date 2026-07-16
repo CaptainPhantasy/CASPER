@@ -5,19 +5,15 @@ Tests all security components including middleware, command validation, sandboxi
 
 import asyncio
 import pytest
-import tempfile
-import shutil
-from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock, patch
 from uuid import uuid4
 
 # Import all security components
 from core.terminal.security import (
-    SecurityMiddleware, SecurityConfig, SecurityViolation, CommandRisk,
-    SecurityLevel, AuditEvent
+    SecurityMiddleware, SecurityConfig, SecurityViolation, CommandRisk
 )
-from core.terminal.websocket_handler import TerminalWebSocketHandler, TerminalSession
+from core.terminal.websocket_handler import TerminalWebSocketHandler
 from core.terminal.command_proxy import CommandProxy
 from core.terminal.pty_manager import PTYManager
 
@@ -78,6 +74,13 @@ class TestSecurityMiddleware:
         for command in safe_commands:
             result = await self.security.validate_command(command, self.session_id, self.user_id)
             assert result is True
+
+    @pytest.mark.asyncio
+    async def test_mutating_git_command_is_not_misclassified_as_safe(self):
+        with pytest.raises(SecurityViolation):
+            await self.security.validate_command(
+                "git add .", self.session_id, self.user_id
+            )
 
     @pytest.mark.asyncio
     async def test_blocked_command_validation(self):
@@ -220,7 +223,6 @@ class TestWebSocketSecurityHandler:
     async def test_command_security_validation(self):
         """Test command security validation through WebSocket handler."""
         session_id = await self.handler.connect(self.mock_websocket)
-        session = self.handler.sessions[session_id]
 
         # Test safe command
         message = {"type": "command", "command": "ls -la"}

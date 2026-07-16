@@ -104,6 +104,7 @@ class TerminalWebSocketHandler:
         Raises:
             Exception: If authentication fails
         """
+        session_id: Optional[str] = None
         try:
             session_id = await self.connect(websocket, token)
 
@@ -125,7 +126,7 @@ class TerminalWebSocketHandler:
             if session_id:
                 await self.disconnect(session_id)
 
-        return session_id
+        return session_id or ""
 
     async def connect(self, websocket: WebSocket, token: Optional[str] = None) -> str:
         """

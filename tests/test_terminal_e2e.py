@@ -5,13 +5,27 @@ Comprehensive E2E tests using Playwright for terminal UI and backend integration
 
 import asyncio
 import json
+import os
 import pytest
-from playwright.async_api import async_playwright, Page, BrowserContext, WebSocket as PWWebSocket
 from typing import List, Dict, Any
 import time
 import tempfile
 import shutil
 from pathlib import Path
+
+
+playwright_api = pytest.importorskip("playwright.async_api")
+async_playwright = playwright_api.async_playwright
+expect = playwright_api.expect
+
+
+pytestmark = [
+    pytest.mark.browser_e2e,
+    pytest.mark.skipif(
+        os.environ.get("CASPER_RUN_BROWSER_E2E") != "1",
+        reason="set CASPER_RUN_BROWSER_E2E=1 with the dashboard running to execute live browser tests",
+    ),
+]
 
 
 class TerminalE2ETestBase:
@@ -21,12 +35,14 @@ class TerminalE2ETestBase:
     async def page_with_terminal(self):
         """Create a page with terminal component loaded."""
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=os.environ.get("CASPER_BROWSER_HEADED") != "1"
+            )
             context = await browser.new_context()
             page = await context.new_page()
 
             # Navigate to the dashboard with terminal
-            await page.goto("http://localhost:5173")
+            await page.goto(os.environ.get("CASPER_DASHBOARD_URL", "http://localhost:5173"))
 
             # Wait for dashboard to load
             await page.wait_for_selector('[data-testid="dashboard"]', timeout=10000)
@@ -61,7 +77,7 @@ class TerminalE2ETestBase:
         shutil.rmtree(temp_dir)
 
 
-class TestTerminalBasicFunctionality:
+class TestTerminalBasicFunctionality(TerminalE2ETestBase):
     """Test basic terminal functionality."""
 
     @pytest.mark.asyncio
@@ -213,7 +229,7 @@ class TestTerminalBasicFunctionality:
         await page.wait_for_timeout(2000)
 
 
-class TestTerminalCASPERIntegration:
+class TestTerminalCASPERIntegration(TerminalE2ETestBase):
     """Test CASPER CLI integration through terminal."""
 
     @pytest.mark.asyncio
@@ -276,7 +292,7 @@ class TestTerminalCASPERIntegration:
         assert any(keyword in terminal_text.lower() for keyword in ['analysis', 'complexity', 'agents', 'estimate'])
 
 
-class TestTerminalSecurityFeatures:
+class TestTerminalSecurityFeatures(TerminalE2ETestBase):
     """Test terminal security features."""
 
     @pytest.mark.asyncio
@@ -342,7 +358,7 @@ class TestTerminalSecurityFeatures:
         assert "after timeout" in terminal_text or "reconnect" in terminal_text.lower()
 
 
-class TestTerminalUIInteractions:
+class TestTerminalUIInteractions(TerminalE2ETestBase):
     """Test terminal UI interactions and layout."""
 
     @pytest.mark.asyncio
@@ -443,7 +459,7 @@ class TestTerminalUIInteractions:
                     assert highlight_count > 0
 
 
-class TestTerminalPerformance:
+class TestTerminalPerformance(TerminalE2ETestBase):
     """Test terminal performance characteristics."""
 
     @pytest.mark.asyncio
@@ -551,7 +567,7 @@ class TestTerminalPerformance:
         assert scroll_time < 3.0, f"Scrolling took {scroll_time}s, expected < 3.0s"
 
 
-class TestTerminalErrorHandling:
+class TestTerminalErrorHandling(TerminalE2ETestBase):
     """Test terminal error handling and recovery."""
 
     @pytest.mark.asyncio

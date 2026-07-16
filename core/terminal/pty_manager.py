@@ -17,6 +17,8 @@ from pathlib import Path
 import signal
 import fcntl
 import struct
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class PTYSession:
         self.slave_fd = slave_fd
         self.process = process
         self.is_active = True
-        self.last_activity = asyncio.get_event_loop().time()
+        self.last_activity = time.monotonic()
         self.output_callback: Optional[Callable[[str], None]] = None
 
     def set_output_callback(self, callback: Callable[[str], None]):
@@ -42,7 +44,7 @@ class PTYSession:
         if self.is_active:
             try:
                 os.write(self.master_fd, data.encode('utf-8'))
-                self.last_activity = asyncio.get_event_loop().time()
+                self.last_activity = time.monotonic()
             except OSError as e:
                 logger.error(f"Failed to write to PTY {self.session_id}: {e}")
                 self.is_active = False
@@ -58,7 +60,7 @@ class PTYSession:
             if ready:
                 data = os.read(self.master_fd, 1024)
                 if data:
-                    self.last_activity = asyncio.get_event_loop().time()
+                    self.last_activity = time.monotonic()
                     return data.decode('utf-8', errors='ignore')
         except OSError as e:
             logger.error(f"Failed to read from PTY {self.session_id}: {e}")
@@ -84,18 +86,43 @@ class PTYSession:
         if self.is_active:
             self.is_active = False
             try:
-                # Terminate the process gracefully
-                self.process.terminate()
+                # The shell owns a process group (created with setsid). Closing only
+                # the shell can strand children and leave a live Popen object for the
+                # garbage collector, so signal and reap the complete group.
                 try:
-                    # Wait for graceful termination with very short timeout for performance
-                    self.process.wait(timeout=0.05)
+                    self.process.terminate()
+                except ProcessLookupError:
+                    pass
+                try:
+                    os.killpg(self.process.pid, signal.SIGHUP)
+                except ProcessLookupError:
+                    pass
+                except PermissionError:
+                    self.process.terminate()
+                try:
+                    self.process.wait(timeout=0.25)
                 except subprocess.TimeoutExpired:
-                    # Force kill immediately for better performance
-                    self.process.kill()
                     try:
-                        self.process.wait(timeout=0.05)
+                        os.killpg(self.process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    except PermissionError:
+                        pass
+                    try:
+                        self.process.kill()
+                    except ProcessLookupError:
+                        pass
+                    try:
+                        self.process.wait(timeout=1.0)
                     except subprocess.TimeoutExpired:
-                        pass  # Process is stuck, move on
+                        # A process stuck in an uninterruptible kernel state must
+                        # not freeze the event loop. Keep a strong reference in a
+                        # daemon reaper until the OS makes the exit collectible.
+                        threading.Thread(
+                            target=self.process.wait,
+                            name=f"casper-pty-reaper-{self.process.pid}",
+                            daemon=True,
+                        ).start()
             except Exception as e:
                 logger.error(f"Error terminating process for PTY {self.session_id}: {e}")
 
@@ -122,7 +149,7 @@ class PTYManager:
     async def start(self):
         """Start the PTY manager and cleanup task."""
         self._running = True
-        self._cleanup_task = asyncio.create_task(self._cleanup_inactive_sessions())
+        self._cleanup_task = asyncio.create_task(self._cleanup_loop())
         logger.info("PTY Manager started")
 
     async def stop(self):
@@ -149,6 +176,7 @@ class PTYManager:
         try:
             # Create the PTY
             master_fd, slave_fd = pty.openpty()
+            os.set_blocking(master_fd, False)
 
             # Set up environment
             session_env = os.environ.copy()
@@ -203,8 +231,39 @@ class PTYManager:
         if not session or not session.is_active:
             return False
 
-        session.write(data)
-        return True
+        if not isinstance(session, PTYSession):
+            # Preserve the small injectable surface used by callers and tests.
+            session.write(data)
+            return session.is_active
+
+        # PTY masters are non-blocking so a full kernel buffer cannot freeze
+        # the event loop. Wait for writability and resume until every byte has
+        # been accepted; partial writes must never truncate pasted commands.
+        payload = memoryview(data.encode("utf-8"))
+        loop = asyncio.get_running_loop()
+        while payload and session.is_active:
+            try:
+                written = os.write(session.master_fd, payload)
+                payload = payload[written:]
+            except BlockingIOError:
+                ready = loop.create_future()
+
+                def mark_ready() -> None:
+                    if not ready.done():
+                        ready.set_result(None)
+
+                loop.add_writer(session.master_fd, mark_ready)
+                try:
+                    await ready
+                finally:
+                    loop.remove_writer(session.master_fd)
+            except OSError as exc:
+                logger.error("Failed to write to PTY %s: %s", session_id, exc)
+                session.is_active = False
+                return False
+
+        session.last_activity = time.monotonic()
+        return session.is_active and not payload
 
     async def resize_session(self, session_id: str, rows: int, cols: int) -> bool:
         """Resize a PTY session."""
@@ -260,23 +319,24 @@ class PTYManager:
             session.is_active = False
 
     async def _cleanup_inactive_sessions(self):
-        """Background task to clean up inactive sessions."""
+        """Run one cleanup pass for inactive sessions."""
+        current_time = time.monotonic()
+        inactive_sessions = []
+
+        for session_id, session in self.sessions.items():
+            # Check if session is inactive (no activity for 30 minutes)
+            if (not session.is_active or
+                current_time - session.last_activity > 1800):
+                inactive_sessions.append(session_id)
+
+        for session_id in inactive_sessions:
+            await self.close_session(session_id)
+
+    async def _cleanup_loop(self):
+        """Periodically clean up inactive sessions while the manager runs."""
         while self._running:
             try:
-                current_time = asyncio.get_event_loop().time()
-                inactive_sessions = []
-
-                for session_id, session in self.sessions.items():
-                    # Check if session is inactive (no activity for 30 minutes)
-                    if (not session.is_active or
-                        current_time - session.last_activity > 1800):
-                        inactive_sessions.append(session_id)
-
-                # Clean up inactive sessions
-                for session_id in inactive_sessions:
-                    await self.close_session(session_id)
-
-                # Sleep for 60 seconds before next cleanup check
+                await self._cleanup_inactive_sessions()
                 await asyncio.sleep(60)
 
             except asyncio.CancelledError:

@@ -475,7 +475,7 @@ class TestPTYPerformance:
     @pytest.mark.asyncio
     async def test_write_throughput(self):
         """Test write throughput to PTY."""
-        manager = PTYManager()
+        manager = PTYManager(shell_command="/bin/bash")
         await manager.start()
 
         try:

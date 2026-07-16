@@ -165,7 +165,8 @@ def test_ledger_modify_undo_from_snapshot():
             f.write("changed")
         entry = ledger.record_modify(path, ref, "modified")
         assert ledger.undo(entry.id)["status"] == "ok"
-        assert open(full).read() == "original"
+        with open(full, encoding="utf-8") as restored:
+            assert restored.read() == "original"
 
 
 # ---------------------------------------------------------------- progress

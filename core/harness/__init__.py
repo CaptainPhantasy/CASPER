@@ -12,7 +12,8 @@ from .health import (
 from .evals import BenchmarkReport, EvalAttempt, EvalCase, HarnessEvaluator
 from .extensions import ExtensionRegistry, ExtensionSpec
 from .hooks import (
-    HookContext, HookFailure, HookRegistration, LifecycleEvent, LifecycleHooks,
+    HookContext, HookDispatch, HookExecution, HookFailure, HookRegistration,
+    LifecycleEvent, LifecycleHooks, default_hook_paths,
 )
 from .jobs import BackgroundJobSupervisor, JobRecord, JobStatus
 from .impact import ChangeImpactAnalyzer, ImpactReport
@@ -53,7 +54,7 @@ from .safety import (
 from .scheduler import TaskDAGScheduler, TaskNode, TaskResult, TaskStatus
 from .schema import JSONSchemaValidator, ValidationIssue, ValidationResult
 from .search import RepositorySearch, SearchHit
-from .skills import SkillDiscovery, SkillDiscoveryResult, SkillMetadata
+from .skills import SkillDiscovery, SkillDiscoveryResult, SkillMetadata, default_skill_roots
 from .store import RunStore
 from .symbols import SymbolIndex, SymbolRecord
 from .test_selection import TargetedTestSelector, TestSelection
@@ -75,7 +76,8 @@ __all__ = [
     "HARNESS_COMMANDS", "HarnessCommandSpec", "HealthCheckResult", "HealthDiagnostics", "HealthReport", "HealthStatus",
     "HarnessEvaluator", "HarnessProvider", "HarnessRuntime", "ImpactReport", "IndexedFile",
     "JSONSchemaValidator", "LayeredConfiguration", "MetricSnapshot", "ModelTurn",
-    "HookContext", "HookFailure", "HookRegistration", "JobRecord", "JobStatus", "LifecycleEvent",
+    "HookContext", "HookDispatch", "HookExecution", "HookFailure", "HookRegistration",
+    "JobRecord", "JobStatus", "LifecycleEvent",
     "LifecycleHooks", "MCPServerConfig", "MCPServerRegistry", "MCPTransport",
     "ObservationStatus", "PermissionMode", "PolicyDecision", "PolicyDisposition", "ProviderChain",
     "PolicyEngine", "RepositoryContext", "RunEvent", "RunResult", "RunState", "RunStatus",
@@ -84,6 +86,7 @@ __all__ = [
     "ReviewExecution", "ReviewInput", "ReviewValidationError",
     "RetryDecision", "RetryPolicy", "RunStore", "SearchHit", "SecretRedactor", "SkillDiscovery",
     "SkillDiscoveryResult", "SkillMetadata", "SymbolIndex", "SymbolRecord", "TamperEvidentAuditChain",
+    "default_hook_paths", "default_skill_roots",
     "TaskDAGScheduler", "TaskNode", "TaskResult", "TaskStatus", "TextCompletionProvider",
     "SpanRecord", "SpanStatus", "TargetedTestSelector", "TelemetryCollector", "TestSelection",
     "ToolCall", "ToolObservation", "ToolRegistry",

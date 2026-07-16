@@ -1,4 +1,4 @@
-"""Transactional, project-contained workspace operations for harness tools."""
+"""Transactional local workspace operations for harness tools."""
 
 from __future__ import annotations
 
@@ -31,18 +31,44 @@ class WorkspaceChange:
 
 
 class WorkspaceEngine:
-    def __init__(self, project_root: Path | str, state_root: Optional[Path | str] = None) -> None:
+    def __init__(
+        self,
+        project_root: Path | str,
+        state_root: Optional[Path | str] = None,
+        *,
+        allow_external_paths: bool = False,
+    ) -> None:
         self.root = Path(project_root).expanduser().resolve()
+        self.allow_external_paths = allow_external_paths
         self.state_root = Path(state_root).expanduser().resolve() if state_root else self.root / ".casper" / "harness"
         self.backups = self.state_root / "backups"
         self.ledger_path = self.state_root / "workspace.jsonl"
         self.backups.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     def resolve(self, raw: str) -> Path:
-        candidate = (self.root / raw).resolve() if not os.path.isabs(raw) else Path(raw).resolve()
-        if candidate != self.root and self.root not in candidate.parents:
+        normalized = self.normalize_local_path(raw)
+        explicit_absolute = os.path.isabs(normalized)
+        candidate = (self.root / normalized).resolve() if not explicit_absolute else Path(normalized).resolve()
+        outside_project = candidate != self.root and self.root not in candidate.parents
+        if outside_project and (not explicit_absolute or not self.allow_external_paths):
             raise ValueError("path escapes the active project root")
         return candidate
+
+    @staticmethod
+    def normalize_local_path(raw: str) -> str:
+        """Repair common macOS absolute-path shorthand without guessing other paths."""
+        value = str(raw).strip()
+        if value.startswith(("Volumes/", "Users/", "Applications/")):
+            return "/" + value
+        if value.startswith("Macintosh HD/"):
+            return "/" + value.removeprefix("Macintosh HD/")
+        return value
+
+    def _ledger_path(self, target: Path) -> str:
+        try:
+            return str(target.relative_to(self.root))
+        except ValueError:
+            return str(target)
 
     @staticmethod
     def _hash(content: str) -> str:
@@ -126,7 +152,7 @@ class WorkspaceEngine:
             temporary.unlink(missing_ok=True)
             raise
         change = WorkspaceChange(
-            change_id, str(target.relative_to(self.root)), before_hash, self._hash(after),
+            change_id, self._ledger_path(target), before_hash, self._hash(after),
             str(backup), diff, time.time(),
         )
         self._append_change(change)
@@ -190,15 +216,37 @@ class WorkspaceEngine:
         self._rewrite_changes(changes)
         return ToolObservation.success(f"Undid workspace change {change_id}.", artifacts=[str(target)])
 
-    async def run_command(self, argv: list[str], timeout_seconds: int = 120) -> ToolObservation:
+    def make_directory(self, path: str, parents: bool = True) -> ToolObservation:
+        """Create a directory directly; existing directories are successful no-ops."""
+        target = self.resolve(path)
+        if target.exists() and not target.is_dir():
+            return ToolObservation.error(
+                f"Cannot create directory: {path}", "A non-directory entry already exists at that path.",
+                "Choose a different path or inspect the existing entry.",
+                "Stop before replacing an existing file.",
+            )
+        existed = target.is_dir()
+        target.mkdir(parents=parents, exist_ok=True)
+        return ToolObservation.success(
+            f"Directory {'already exists' if existed else 'created'}: {target}",
+            data={"path": str(target), "created": not existed}, artifacts=[str(target)],
+            next_actions=[] if existed else ["Verify the directory exists before reporting completion."],
+        )
+
+    async def run_command(
+        self, argv: list[str], timeout_seconds: int = 120, cwd: Optional[str] = None,
+    ) -> ToolObservation:
         if not argv or not isinstance(argv[0], str):
             return ToolObservation.error(
                 "Command argv is empty.", "A command requires an executable.",
                 "Supply an argv array beginning with an executable.", "Stop if shell syntax is required.",
             )
         executable = Path(argv[0]).name
-        denied = {"rm", "sudo", "su", "dd", "mkfs", "sh", "bash", "zsh", "curl", "wget", "ssh", "scp"}
-        allowed = {"python", "python3", "pytest", "node", "npm", "git", "ruff", "flake8", "cargo", "go", "make"}
+        denied = {"rm", "sudo", "su", "dd", "mkfs", "zsh", "curl", "wget", "ssh", "scp"}
+        allowed = {
+            "python", "python3", "pytest", "node", "npm", "git", "ruff", "flake8",
+            "cargo", "go", "make", "bash", "sh",
+        }
         if executable in denied or executable not in allowed:
             return ToolObservation.error(
                 f"Executable is outside the verification profile: {executable}",
@@ -207,6 +255,20 @@ class WorkspaceEngine:
                 "Stop before invoking a shell, network client, privilege tool, or destructive utility.",
                 data={"allowed_executables": sorted(allowed)},
             )
+        if executable in {"bash", "sh"}:
+            if len(argv) < 2 or argv[1].startswith("-"):
+                return ToolObservation.error(
+                    "Inline or interactive shell execution is disabled.",
+                    "The command tool permits a shell only to run an explicit script file.",
+                    "Pass the script path as the first shell argument.",
+                    "Stop if the task requires an inline shell expression.",
+                )
+            script = self.resolve(argv[1])
+            if not script.is_file():
+                return ToolObservation.error(
+                    f"Shell script not found: {argv[1]}", "The explicit script path is not a readable file.",
+                    "Correct the script path and retry.", "Stop if no reviewed script exists.",
+                )
         if executable == "git" and len(argv) > 1 and argv[1] not in {"status", "diff", "log", "show", "branch", "rev-parse", "ls-files"}:
             return ToolObservation.error(
                 f"Git subcommand is outside the read-only profile: {argv[1]}",
@@ -224,8 +286,14 @@ class WorkspaceEngine:
                         f"Absolute path {argument!r} is outside the active project.",
                         "Use a project-contained path.", "Stop if external filesystem access is required.",
                     )
+        command_cwd = self.resolve(cwd) if cwd else self.root
+        if not command_cwd.is_dir():
+            return ToolObservation.error(
+                f"Working directory not found: {cwd}", "The requested command cwd is not a directory.",
+                "Correct the cwd and retry.", "Stop if the required working tree is unavailable.",
+            )
         process = await asyncio.create_subprocess_exec(
-            *argv, cwd=str(self.root), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            *argv, cwd=str(command_cwd), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout_seconds)
@@ -238,7 +306,7 @@ class WorkspaceEngine:
             )
         output = (stdout + stderr).decode("utf-8", errors="replace")
         output = output[-32_000:]
-        data = {"argv": argv, "exit_code": process.returncode, "output": output}
+        data = {"argv": argv, "cwd": str(command_cwd), "exit_code": process.returncode, "output": output}
         if process.returncode == 0:
             data["execution_profile"] = "project-verification-v1"
             return ToolObservation.success(f"Command passed: {' '.join(argv)}", data=data)
@@ -250,11 +318,11 @@ class WorkspaceEngine:
 
     def register_tools(self, registry: ToolRegistry) -> None:
         registry.register(ToolSpec(
-            "read_file", "Read one project-contained text file.",
+            "read_file", "Read one local text file. Repo-relative and explicit absolute paths are supported.",
             {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"], "additionalProperties": False},
         ), lambda args: self.read_file(str(args["path"])))
         registry.register(ToolSpec(
-            "list_files", "List one project-contained directory.",
+            "list_files", "List one local directory. Repo-relative and explicit absolute paths are supported.",
             {"type": "object", "properties": {"path": {"type": "string"}}, "additionalProperties": False},
         ), lambda args: self.list_files(str(args.get("path", "."))))
         registry.register(ToolSpec(
@@ -263,16 +331,25 @@ class WorkspaceEngine:
                 "path": {"type": "string"}, "old_text": {"type": "string"},
                 "new_text": {"type": "string"}, "expected_sha256": {"type": "string"},
             }, "required": ["path", "old_text", "new_text"], "additionalProperties": False},
-            mutates=True, risk="moderate", capabilities=("project files",),
+            mutates=True, risk="moderate", capabilities=("local files",),
         ), lambda args: self.patch_file(
             str(args["path"]), str(args["old_text"]), str(args["new_text"]), str(args.get("expected_sha256", "")),
         ))
         registry.register(ToolSpec(
-            "run_command", "Run a bounded argv command without a shell.",
+            "make_directory", "Create one local directory, including missing parents when requested.",
+            {"type": "object", "properties": {
+                "path": {"type": "string"}, "parents": {"type": "boolean"},
+            }, "required": ["path"], "additionalProperties": False},
+            mutates=True, risk="moderate", capabilities=("local directories",),
+        ), lambda args: self.make_directory(str(args["path"]), bool(args.get("parents", True))))
+        registry.register(ToolSpec(
+            "run_command", "Run a bounded argv command; shells may execute explicit script files only.",
             {"type": "object", "properties": {
                 "argv": {"type": "array"}, "timeout_seconds": {"type": "integer"},
+                "cwd": {"type": "string"},
             }, "required": ["argv"], "additionalProperties": False},
-            mutates=True, risk="high", timeout_seconds=305, capabilities=("project-scoped verification processes",),
+            mutates=True, risk="moderate", timeout_seconds=305, capabilities=("local development processes",),
         ), lambda args: self.run_command(
             [str(item) for item in args["argv"]], int(args.get("timeout_seconds", 120)),
+            str(args["cwd"]) if args.get("cwd") else None,
         ))

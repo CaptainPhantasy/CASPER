@@ -88,12 +88,26 @@ class CommandProxy:
         Raises:
             SecurityViolation: If command violates security policy
         """
-        if not self._initialized:
-            await self.initialize()
-
         args = args or []
         session_id = session_id or str(uuid4())
         start_time = datetime.now()
+
+        if not self._initialized:
+            try:
+                await self.initialize()
+            except Exception as e:
+                execution_time = (datetime.now() - start_time).total_seconds() * 1000
+                return {
+                    "command": command,
+                    "args": args,
+                    "execution_time_ms": execution_time,
+                    "timestamp": start_time.isoformat(),
+                    "user_id": user_id,
+                    "session_id": session_id,
+                    "success": False,
+                    "error": str(e),
+                    "message": "Command proxy initialization failed",
+                }
 
         # Validate command security
         full_command = f"casper {command} {' '.join(args)}"
@@ -291,20 +305,21 @@ class CommandProxy:
         """Handle 'casper status' command."""
         try:
             stats = self.coordinator.get_coordinator_stats()
+            agent_pool = stats.get("agent_pool", {})
 
             return {
                 "success": True,
                 "message": "System status retrieved",
                 "data": {
                     "system_status": {
-                        "active_tasks": stats["active_tasks"],
-                        "queued_tasks": stats["queued_tasks"],
-                        "context_sessions": stats["context_sessions"]
+                        "active_tasks": stats.get("active_tasks", 0),
+                        "queued_tasks": stats.get("queued_tasks", 0),
+                        "context_sessions": stats.get("context_sessions", 0),
                     },
                     "agent_pool": {
-                        "total_agents": stats["agent_pool"]["total_agents"],
-                        "busy_agents": stats["agent_pool"]["busy_agents"],
-                        "available_by_role": stats["agent_pool"]["available_by_role"]
+                        "total_agents": agent_pool.get("total_agents", 0),
+                        "busy_agents": agent_pool.get("busy_agents", 0),
+                        "available_by_role": agent_pool.get("available_by_role", {}),
                     },
                     "token_usage": {
                         "total": stats.get("token_usage_total", 0)

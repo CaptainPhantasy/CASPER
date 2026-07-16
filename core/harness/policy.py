@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 
 from .models import ToolCall, ToolSpec
@@ -54,6 +54,7 @@ class PolicyEngine:
         self._approvals.discard(call_id)
 
     def decide(self, spec: ToolSpec, call: ToolCall) -> PolicyDecision:
+        spec = self._effective_spec(spec, call)
         risk = spec.risk if spec.risk in self._RISK_ORDER else "moderate"
         if call.id in self._approvals:
             self._approvals.remove(call.id)
@@ -75,6 +76,41 @@ class PolicyEngine:
             PolicyDisposition.REQUIRE_APPROVAL, spec,
             "The action mutates state, accesses an external capability, or has elevated risk.",
         )
+
+    @staticmethod
+    def _effective_spec(spec: ToolSpec, call: ToolCall) -> ToolSpec:
+        """Downgrade known verification-only command shapes without trusting arbitrary argv."""
+        if spec.name != "run_command":
+            return spec
+        raw = call.arguments.get("argv", [])
+        argv = [str(item) for item in raw] if isinstance(raw, list) else []
+        if not argv:
+            return spec
+        executable = argv[0].rsplit("/", 1)[-1]
+        verification = False
+        if executable == "git" and len(argv) > 1:
+            verification = argv[1] in {"status", "diff", "log", "show", "branch", "rev-parse", "ls-files"}
+        elif executable in {"pytest", "flake8"}:
+            verification = True
+        elif executable == "ruff":
+            verification = "--fix" not in argv
+        elif executable in {"python", "python3"} and len(argv) > 2 and argv[1] == "-m":
+            verification = argv[2] in {"compileall", "json.tool", "py_compile", "pytest"}
+        elif executable == "npm" and len(argv) > 1:
+            verification = argv[1] == "test" or (
+                len(argv) > 2 and argv[1] == "run" and argv[2] in {
+                    "check", "lint", "test", "test:e2e", "typecheck", "verify",
+                }
+            )
+        elif executable == "cargo" and len(argv) > 1:
+            verification = argv[1] in {"check", "test"}
+        elif executable == "go" and len(argv) > 1:
+            verification = argv[1] == "test"
+        if verification:
+            return replace(
+                spec, mutates=False, risk="low", capabilities=("bounded verification output",),
+            )
+        return spec
 
     @staticmethod
     def _decision(disposition: PolicyDisposition, spec: ToolSpec, reason: str) -> PolicyDecision:

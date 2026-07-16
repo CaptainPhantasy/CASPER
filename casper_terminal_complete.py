@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CASPER2 Complete Terminal - All 49 Commands Implementation
+CASPER2 Complete Terminal - Modern Command Harness
 Full implementation following COT methodology with all tiers.
 Enhanced with agent-based natural language processing.
 """
@@ -140,7 +140,8 @@ class CasperTerminalComplete:
 
     async def initialize(self):
         """Initialize CASPER CLI with approval mode and agent layers"""
-        self.casper_cli = CasperCLI()
+        if self.casper_cli is None:
+            self.casper_cli = CasperCLI()
 
         # Get approval mode from environment
         approval_mode = os.environ.get('CASPER_APPROVAL_MODE', 'STRICT')
@@ -315,7 +316,10 @@ class CasperTerminalComplete:
 
         if not args:
             # Show all commands
-            help_content = "[bold cyan]CASPER2 Complete - All 49 Commands[/bold cyan]\n\n"
+            command_count = sum(len(commands) for commands in COMMAND_CATEGORIES.values())
+            help_content = (
+                f"[bold cyan]CASPER2 Complete - All {command_count} Commands[/bold cyan]\n\n"
+            )
 
             for category, commands in COMMAND_CATEGORIES.items():
                 help_content += f"[green]{category.title()} Commands:[/green]\n"
@@ -375,7 +379,7 @@ class CasperTerminalComplete:
         except Exception as e:
             self.console.print(f"[red]❌ Analysis failed: {e}[/red]")
 
-    async def handle_status(self) -> None:
+    async def handle_status(self, args: str = "") -> None:
         """Handle status command"""
         self.console.print("[dim]→ Fetching system status...[/dim]")
         try:
@@ -383,7 +387,7 @@ class CasperTerminalComplete:
         except Exception as e:
             self.console.print(f"[red]❌ Status check failed: {e}[/red]")
 
-    async def handle_list(self) -> None:
+    async def handle_list(self, args: str = "") -> None:
         """Handle list command"""
         table = Table(title="Available CASPER2 Agents")
         table.add_column("Agent", style="cyan", width=20)

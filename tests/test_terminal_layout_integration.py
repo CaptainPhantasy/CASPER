@@ -5,11 +5,24 @@ Tests for the scalable panel system, layout management, and responsive design.
 
 import asyncio
 import json
+import os
 import pytest
-from playwright.async_api import async_playwright, Page, BrowserContext
 from typing import Dict, List, Any, Tuple
 import time
 from pathlib import Path
+
+
+playwright_api = pytest.importorskip("playwright.async_api")
+async_playwright = playwright_api.async_playwright
+
+
+pytestmark = [
+    pytest.mark.browser_e2e,
+    pytest.mark.skipif(
+        os.environ.get("CASPER_RUN_BROWSER_E2E") != "1",
+        reason="set CASPER_RUN_BROWSER_E2E=1 with the dashboard running to execute live browser tests",
+    ),
+]
 
 
 class TestResizablePanelsIntegration:
@@ -19,14 +32,16 @@ class TestResizablePanelsIntegration:
     async def page_with_panels(self):
         """Create a page with resizable panels loaded."""
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=os.environ.get("CASPER_BROWSER_HEADED") != "1"
+            )
             context = await browser.new_context(
                 viewport={"width": 1920, "height": 1080}
             )
             page = await context.new_page()
 
             # Navigate to dashboard
-            await page.goto("http://localhost:5173")
+            await page.goto(os.environ.get("CASPER_DASHBOARD_URL", "http://localhost:5173"))
             await page.wait_for_selector('[data-testid="dashboard"]', timeout=10000)
 
             # Ensure panels are visible
@@ -215,11 +230,13 @@ class TestLayoutPersistence:
     async def page_with_storage(self):
         """Create page with local storage access."""
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=os.environ.get("CASPER_BROWSER_HEADED") != "1"
+            )
             context = await browser.new_context()
             page = await context.new_page()
 
-            await page.goto("http://localhost:5173")
+            await page.goto(os.environ.get("CASPER_DASHBOARD_URL", "http://localhost:5173"))
             await page.wait_for_selector('[data-testid="dashboard"]', timeout=10000)
 
             yield page
@@ -371,11 +388,13 @@ class TestLayoutPerformance:
     async def page_for_performance(self):
         """Create page for performance testing."""
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=os.environ.get("CASPER_BROWSER_HEADED") != "1"
+            )
             context = await browser.new_context()
             page = await context.new_page()
 
-            await page.goto("http://localhost:5173")
+            await page.goto(os.environ.get("CASPER_DASHBOARD_URL", "http://localhost:5173"))
             await page.wait_for_selector('[data-testid="dashboard"]', timeout=10000)
 
             yield page
@@ -543,11 +562,13 @@ class TestLayoutAccessibility:
     async def page_with_a11y(self):
         """Create page with accessibility testing enabled."""
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=os.environ.get("CASPER_BROWSER_HEADED") != "1"
+            )
             context = await browser.new_context()
             page = await context.new_page()
 
-            await page.goto("http://localhost:5173")
+            await page.goto(os.environ.get("CASPER_DASHBOARD_URL", "http://localhost:5173"))
             await page.wait_for_selector('[data-testid="dashboard"]', timeout=10000)
 
             yield page

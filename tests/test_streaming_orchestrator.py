@@ -7,7 +7,7 @@ import asyncio
 import pytest
 import json
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import Mock, patch
 from typing import List, Dict, Any
 
 from core.terminal.streaming.streaming_orchestrator import (
@@ -215,8 +215,11 @@ class TestStreamingOrchestrator:
         }
 
         # Mock the ReAct engine
-        with patch('core.terminal.streaming.streaming_orchestrator.get_react_engine') as mock_engine:
-            mock_engine.return_value.stream_reasoning = AsyncMock(return_value=self._mock_react_stream())
+        with patch.object(
+            self.orchestrator.react_engine,
+            'stream_reasoning',
+            Mock(return_value=self._mock_react_stream()),
+        ):
 
             chunks = []
             async for chunk in self.orchestrator.stream_response(intent, session_context):
@@ -258,8 +261,11 @@ class TestStreamingOrchestrator:
                 yield {"type": "thought", "content": "thinking..."}
                 await asyncio.sleep(0.1)
 
-        with patch('core.terminal.streaming.streaming_orchestrator.get_react_engine') as mock_engine:
-            mock_engine.return_value.stream_reasoning = AsyncMock(return_value=infinite_stream())
+        with patch.object(
+            self.orchestrator.react_engine,
+            'stream_reasoning',
+            Mock(return_value=infinite_stream()),
+        ):
 
             # Start max_concurrent_streams
             for i in range(self.orchestrator.max_concurrent_streams):
@@ -289,8 +295,11 @@ class TestStreamingOrchestrator:
         session_context = {"websocket": self.mock_websocket}
 
         # Start a stream
-        with patch('core.terminal.streaming.streaming_orchestrator.get_react_engine') as mock_engine:
-            mock_engine.return_value.stream_reasoning = AsyncMock(return_value=self._mock_react_stream())
+        with patch.object(
+            self.orchestrator.react_engine,
+            'stream_reasoning',
+            Mock(return_value=self._mock_react_stream()),
+        ):
 
             stream = self.orchestrator.stream_response(intent, session_context)
             first_chunk = await stream.__anext__()
@@ -426,8 +435,11 @@ class TestIntegration:
                 }
             return _stream()
 
-        with patch('core.terminal.streaming.streaming_orchestrator.get_react_engine') as mock_engine:
-            mock_engine.return_value.stream_reasoning = AsyncMock(return_value=mock_calculator_stream())
+        with patch.object(
+            orchestrator.react_engine,
+            'stream_reasoning',
+            Mock(return_value=mock_calculator_stream()),
+        ):
 
             # Collect all chunks
             chunks = []

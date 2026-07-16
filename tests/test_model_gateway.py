@@ -219,4 +219,4 @@ async def test_global_cli_without_subcommand_launches_interactive_terminal(monke
     monkeypatch.setattr("sys.argv", ["casper"])
     with patch("core.terminal.modern_cli.run_interactive", run):
         await cli_module.main_async()
-    run.assert_awaited_once_with(Path.cwd(), permission_mode="default")
+    run.assert_awaited_once_with(Path.cwd(), permission_mode="accept_edits")

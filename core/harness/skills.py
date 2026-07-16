@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,12 +35,22 @@ class SkillDiscovery:
         values: dict[str, str] = {}
         lines = text.splitlines()
         if lines and lines[0].strip() == "---":
-            for line in lines[1:]:
+            for index, line in enumerate(lines[1:], start=1):
                 if line.strip() == "---":
                     break
                 key, separator, value = line.partition(":")
                 if separator and key.strip() in {"name", "description", "version", "tags"}:
-                    values[key.strip()] = value.strip().strip("\"'")
+                    field = key.strip()
+                    parsed = value.strip().strip("\"'")
+                    if field == "description" and parsed in {">", ">-", "|", "|-"}:
+                        continuation: list[str] = []
+                        for extra in lines[index + 1:]:
+                            if extra.strip() == "---" or extra and not extra[0].isspace():
+                                break
+                            if extra.strip():
+                                continuation.append(extra.strip())
+                        parsed = " ".join(continuation)
+                    values[field] = parsed
         if "name" not in values:
             values["name"] = path.parent.name
         if "description" not in values:
@@ -74,7 +85,31 @@ class SkillDiscovery:
                     warnings.append(f"cannot read {path}: {exc}")
                     continue
                 if skill.name in found:
-                    warnings.append(f"duplicate skill ignored: {skill.name} at {path}")
                     continue
                 found[skill.name] = skill
         return SkillDiscoveryResult(tuple(found[name] for name in sorted(found)), tuple(warnings))
+
+
+def default_skill_roots(project_root: Path | str) -> tuple[Path, ...]:
+    """Return existing project and shared skill roots in deterministic priority order."""
+    project = Path(project_root).expanduser().resolve()
+    candidates: list[Path] = [
+        project / ".casper" / "skills",
+        project / ".claude" / "skills",
+    ]
+    configured = os.environ.get("CASPER_SKILLS_HOME", "")
+    candidates.extend(Path(item).expanduser() for item in configured.split(os.pathsep) if item)
+    candidates.extend([
+        Path.home() / ".codex" / "skills",
+        Path.home() / ".agents" / "skills",
+        Path.home() / ".claude" / "skills",
+        Path("/Volumes/SanDisk1Tb/skillsdump/Library"),
+    ])
+    roots: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved.is_dir() and resolved not in seen:
+            roots.append(resolved)
+            seen.add(resolved)
+    return tuple(roots)

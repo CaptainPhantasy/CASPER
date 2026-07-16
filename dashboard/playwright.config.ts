@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const e2ePort = Number(process.env.CASPER_E2E_PORT ?? 4173);
+
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
@@ -24,7 +26,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:4173',
+    baseURL: `http://localhost:${e2ePort}`,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -50,8 +52,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npx vite preview --port 4173',
-    port: 4173,
+    command: `npx vite preview --port ${e2ePort}`,
+    port: e2ePort,
     reuseExistingServer: !process.env.CI,
     cwd: '.', // Current directory
   },

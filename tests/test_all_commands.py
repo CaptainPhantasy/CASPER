@@ -49,7 +49,8 @@ class TestAllCommands:
         """Test help command"""
         await terminal.handle_help()
         output = terminal.console.file.getvalue()
-        assert "CASPER2 Complete - All 49 Commands" in output
+        command_count = sum(len(commands) for commands in COMMAND_CATEGORIES.values())
+        assert f"CASPER2 Complete - All {command_count} Commands" in output
 
     @pytest.mark.asyncio
     async def test_task_command(self, terminal):
@@ -391,11 +392,11 @@ class TestCommandRouter:
                 assert result == should_exit
 
     @pytest.mark.asyncio
-    async def test_unknown_command(self, terminal):
-        """Test unknown command handling"""
+    async def test_unknown_command_routes_to_natural_language(self, terminal):
+        """Unrecognized command text is handled as natural language."""
         result = await terminal.handle_command("unknown_cmd", "")
         output = terminal.console.file.getvalue()
-        assert "Unknown command" in output
+        assert "CASPER Response" in output
         assert result is False
 
 
@@ -407,11 +408,10 @@ class TestCommandCategories:
         for category, commands in COMMAND_CATEGORIES.items():
             assert len(commands) > 0, f"Category {category} has no commands"
 
-    def test_total_command_count(self):
-        """Test that we have exactly 49 commands (excluding duplicates like quit)"""
+    def test_command_catalog_has_first_class_depth(self):
+        """The modern catalog retains at least the original fifty commands."""
         total = sum(len(cmds) for cmds in COMMAND_CATEGORIES.values())
-        # We have 50 total including 'quit' as alias for 'exit'
-        assert total == 50, f"Expected 50 commands (49 + quit alias), got {total}"
+        assert total >= 50, f"Expected at least 50 commands, got {total}"
 
     def test_command_descriptions(self):
         """Test that all commands have descriptions"""

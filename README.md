@@ -8,18 +8,21 @@ Turn natural language into production code. Delegate like you have a team. Ship 
 
 ---
 
-## Status: **BETA**
+## Status: **BETA — CANONICAL HARNESS MIGRATION**
 
-CASPER Prime is in public beta. Core functionality is stable and tested. The CLI is production-ready; the dashboard is functional with ongoing UX improvements.
+CASPER Prime is in public beta. The typed coding-harness runtime and its focused
+tests are active; legacy agent, dashboard, and terminal surfaces are still being
+migrated. This checkout must not be described as production-ready until OS-backed
+sandboxing, installed-binary proof, and the full regression suite are green.
 
 ```
 ╔═══════════════════════════════════════════════════════════════════╗
 ║  Component           │ Status       │ Tests                       ║
 ╠═══════════════════════════════════════════════════════════════════╣
-║  CLI (50+ commands)  │ ✅ Stable    │ 55+ unit tests passing      ║
-║  Agent System (6)    │ ✅ Stable    │ Integration tests passing   ║
-║  ReAct Engine        │ ✅ Stable    │ 5 tools verified             ║
-║  Approval Workflow   │ ✅ Stable    │ 18 unit tests passing       ║
+║  Canonical Harness   │ ✅ Active    │ Focused contract tests       ║
+║  Legacy CLI/Agents   │ ⚠️ Migrating │ Compatibility only           ║
+║  Typed Tool Loop     │ ✅ Active    │ Native providers + fixtures  ║
+║  Policy Workflow     │ ✅ Active    │ Exact-call approval          ║
 ║  FastAPI Server      │ ✅ Stable    │ WebSocket + REST endpoints  ║
 ║  Dashboard (React)   │ ⚠️  Beta     │ Playwright E2E tests        ║
 ║  Prometheus Metrics  │ ✅ New       │ /metrics endpoint           ║
@@ -63,18 +66,34 @@ python3 -c "from core.services.llm import llm_service; print('✓ LLM service re
 ### Using the CLI
 
 ```bash
-# Start the CASPER terminal
-python3 casper_terminal_complete.py
+# Start the canonical CASPER terminal
+casper
 
-# Or run a task directly
-python3 casper_terminal_complete.py "Build a REST API endpoint"
+# Run a machine-readable headless task
+casper exec "Inspect the authentication flow" --permission-mode read_only
 
-# Enable YOLO mode (auto-approve all operations)
-python3 casper_terminal_complete.py --yolo "Create a React component"
+# Accept reversible local edits but keep high-risk approval prompts
+casper --auto
 
-# Enable AUTO mode (auto-approve safe operations only)
-python3 casper_terminal_complete.py --auto "Add unit tests for auth module"
+# Temporary migration escape hatch
+casper --legacy
 ```
+
+Inside the default terminal, `/commands` shows the complete live command catalog
+and `/commands review` filters it. Core coding workflows include:
+
+```text
+Inspect:   /status /doctor /context /diff /tools /usage
+Act:       /goal /plan /task /verify /resume /rewind
+Review:    /review /code-review [low|medium|high] /security-review
+Extend:    /skills /mcp /agents /tasks /hooks
+Policy:    /permissions [set read_only|default|accept_edits|bypass]
+```
+
+Plain-language requests and `/task` use the same typed runtime. Review commands
+fail closed when the model returns malformed JSON, sub-threshold confidence,
+unsupported files, or missing evidence bundles. Repo-relative paths stay contained;
+explicit absolute paths are honored when the user names work outside the launch folder.
 
 ### Using the Dashboard
 
@@ -83,7 +102,7 @@ python3 casper_terminal_complete.py --auto "Add unit tests for auth module"
 python3 -m uvicorn core.server:app --reload --port 8000
 
 # Start the dashboard (in another terminal)
-cd dashboard && npm install && npm run dev
+cd dashboard && npm ci && npm run dev
 
 # Open http://localhost:5173
 ```
@@ -142,17 +161,9 @@ Risk assessment:
 
 ### 🖥️ CLI Interface
 
-50+ commands across 7 categories:
-
-```
-System:     help, status, config, setup, clear, init
-Workflow:   task, analyze, react, session, resume
-Development:gen, refactor, review, addroute, pr, fixbug, testfail, deploy, standup
-AI:         explain, debug, sync, todo, custom
-Business:   proposal, estimate, invoice
-Testing:    test, testfail, coverage, lint, security
-Utility:    files, filetree, search, grep, open, save, sessions
-```
+The default terminal exposes 36 canonical agentic commands from one registry.
+The larger historical command collection remains available only through
+`casper --legacy` while those workflows are migrated onto typed engines.
 
 ### 📊 Observability
 

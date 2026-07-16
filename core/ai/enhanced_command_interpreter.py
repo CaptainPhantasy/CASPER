@@ -218,10 +218,13 @@ class EnhancedCasperInterpreter:
 
         # Phase 5: Build interpretation
         try:
-            if confidence_data["level"] == ConfidenceLevel.DIRECT_MATCH:
-                # Direct execution path
+            if confidence_data["level"] in [
+                ConfidenceLevel.DIRECT_MATCH,
+                ConfidenceLevel.HIGH,
+            ]:
+                # Clear local intent must not depend on provider availability.
                 return self._direct_interpretation(user_input, classification, confidence_data, safety_checks)
-            elif confidence_data["level"] in [ConfidenceLevel.HIGH, ConfidenceLevel.MEDIUM]:
+            elif confidence_data["level"] == ConfidenceLevel.MEDIUM:
                 # AI-assisted interpretation
                 return await self._ai_interpretation(user_input, classification, confidence_data, safety_checks)
             else:
@@ -250,6 +253,9 @@ class EnhancedCasperInterpreter:
         elif any(word in input_lower for word in ['init', 'initialize', 'setup']):
             classification["type"] = "initialization"
             classification["keywords"].append("init")
+        elif any(word in input_lower for word in ['delete', 'remove', 'destroy']):
+            classification["type"] = "deletion"
+            classification["keywords"].append("delete")
         elif any(word in input_lower for word in ['create', 'make', 'new', 'add', 'generate']):
             classification["type"] = "creation"
             classification["keywords"].append("create")
@@ -739,6 +745,12 @@ class EnhancedCasperInterpreter:
         elif command.command_type in [CommandType.FILE_OPERATION, CommandType.CODE_GENERATION]:
             failure_analysis["containment_strategy"] = "rollback_changes"
             failure_analysis["recovery_plan"] = ["restore_backup", "manual_intervention"]
+        else:
+            failure_analysis["containment_strategy"] = "stop_and_reassess"
+            failure_analysis["recovery_plan"] = [
+                "retry_operation",
+                "request_operator_guidance",
+            ]
 
         # Log pattern for learning
         self.error_patterns.append({

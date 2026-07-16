@@ -18,12 +18,25 @@ from typing import Dict, List, Any, Optional, Union
 from pathlib import Path
 import json
 
-# Real tool imports - all production ready
-import chromadb
 from git import Repo, GitCommandError
-from playwright.async_api import async_playwright
-from duckduckgo_search import DDGS
 from dataclasses import dataclass
+
+# Optional integrations must not prevent the core CLI and intent parser from
+# loading. Each tool reports a clear installation error when its extra is used.
+try:
+    import chromadb
+except ImportError:  # pragma: no cover - depends on the optional vector extra
+    chromadb = None
+
+try:
+    from playwright.async_api import async_playwright
+except ImportError:  # pragma: no cover - depends on the optional browser extra
+    async_playwright = None
+
+try:
+    from ddgs import DDGS
+except ImportError:  # pragma: no cover - depends on the optional web extra
+    DDGS = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -72,22 +85,26 @@ class ProductionTools:
         self.playwright = None
 
         # Initialize search client
-        self.search_client = DDGS()
+        self.search_client = DDGS() if DDGS is not None else None
 
         logger.info(f"ProductionTools initialized for project: {self.project_root}")
 
     async def initialize(self) -> ToolResult:
         """Initialize all tools and verify they work"""
         try:
-            # Initialize ChromaDB
-            await self._init_chromadb()
+            # Initialize optional integrations only when their extras are
+            # installed; the core coding harness remains usable without them.
+            if chromadb is not None:
+                await self._init_chromadb()
 
             # Initialize Git
             await self._init_git()
 
             # Test basic functionality
             test_results = {
-                "chromadb": await self._test_chromadb(),
+                "chromadb": (
+                    await self._test_chromadb() if chromadb is not None else False
+                ),
                 "git": await self._test_git(),
                 "search": await self._test_search()
             }
@@ -109,6 +126,10 @@ class ProductionTools:
 
     async def _init_chromadb(self):
         """Initialize ChromaDB with persistent storage"""
+        if chromadb is None:
+            raise RuntimeError(
+                "ChromaDB is unavailable; install CASPER with the 'vector' extra"
+            )
         self.chroma_path.mkdir(parents=True, exist_ok=True)
 
         self.chroma_client = chromadb.PersistentClient(
@@ -176,6 +197,8 @@ class ProductionTools:
 
     async def _test_search(self) -> bool:
         """Test DuckDuckGo search"""
+        if self.search_client is None:
+            return False
         try:
             results = self.search_client.text("python", max_results=1)
             return len(list(results)) > 0
@@ -372,6 +395,10 @@ class ProductionTools:
     ) -> ToolResult:
         """Perform real web search using DuckDuckGo"""
         try:
+            if self.search_client is None:
+                raise RuntimeError(
+                    "Web search is unavailable; install CASPER with the 'web' extra"
+                )
             if search_type == "text":
                 results = list(self.search_client.text(query, max_results=max_results))
             elif search_type == "news":
@@ -417,6 +444,11 @@ class ProductionTools:
     async def launch_browser(self, headless: bool = True) -> ToolResult:
         """Launch real Playwright browser"""
         try:
+            if async_playwright is None:
+                raise RuntimeError(
+                    "Browser automation is unavailable; install CASPER with the "
+                    "'browser' extra"
+                )
             if not self.playwright:
                 self.playwright = await async_playwright().start()
 
@@ -527,12 +559,12 @@ class ProductionTools:
                     "test_passed": await self._test_git()
                 },
                 "search": {
-                    "available": True,
+                    "available": self.search_client is not None,
                     "service": "DuckDuckGo",
                     "test_passed": await self._test_search()
                 },
                 "browser": {
-                    "available": self.playwright is not None,
+                    "available": async_playwright is not None,
                     "launched": self.browser is not None
                 }
             }

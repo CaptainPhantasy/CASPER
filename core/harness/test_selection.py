@@ -10,6 +10,8 @@ from typing import Iterable
 
 @dataclass(frozen=True)
 class TestSelection:
+    __test__ = False
+
     tests: tuple[str, ...]
     reasons: dict[str, tuple[str, ...]]
     fallback: bool

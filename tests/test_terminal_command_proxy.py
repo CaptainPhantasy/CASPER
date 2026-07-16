@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from core.terminal.command_proxy import CommandProxy
 from core.agents.base import TaskPriority, AgentStatus
-from core.orchestrator.task_analyzer import TaskMetrics
+from core.orchestrator.task_analyzer import TaskAnalyzer, TaskMetrics
 
 
 class TestCommandProxy:
@@ -31,8 +31,12 @@ class TestCommandProxy:
 
             # Set up mocks
             proxy.context_manager = Mock()
-            proxy.coordinator = AsyncMock()
-            proxy.task_analyzer = Mock()
+            proxy.coordinator = Mock()
+            proxy.coordinator.start = AsyncMock()
+            proxy.coordinator.stop = AsyncMock()
+            proxy.coordinator.submit_task = AsyncMock()
+            proxy.coordinator.get_results = AsyncMock()
+            proxy.task_analyzer = Mock(spec=TaskAnalyzer)
             proxy._initialized = True
 
             yield proxy
@@ -207,7 +211,7 @@ class TestCommandProxy:
         command_proxy.task_analyzer._calculate_complexity_score.return_value = 8
 
         # Mock static method
-        with patch.object(command_proxy.task_analyzer.__class__, 'estimate_completion_time') as mock_estimate:
+        with patch('core.terminal.command_proxy.TaskAnalyzer.estimate_completion_time') as mock_estimate:
             mock_estimate.return_value = 120
 
             result = await command_proxy.execute_casper_command(
@@ -245,7 +249,7 @@ class TestCommandProxy:
             Mock(
                 task_id=uuid4(),
                 agent_role=AgentRole.FRONTEND_PRIME,
-                status=AgentStatus.IN_PROGRESS,
+                status=AgentStatus.BUILDING,
                 token_usage={"total": 800},
                 output="Working on dashboard component...",
                 errors=["Minor styling issue"]
@@ -332,7 +336,7 @@ class TestCommandProxy:
 
         assert result["success"] is False
         assert "Database error" in result["error"]
-        assert "Command execution failed" in result["message"]
+        assert "Failed to retrieve system status" in result["message"]
         assert "execution_time_ms" in result
 
     @pytest.mark.asyncio
@@ -344,7 +348,10 @@ class TestCommandProxy:
              patch('core.terminal.command_proxy.AgentCoordinator') as mock_coordinator, \
              patch('core.terminal.command_proxy.TaskAnalyzer') as mock_analyzer:
 
-            mock_coordinator_instance = AsyncMock()
+            mock_coordinator_instance = Mock()
+            mock_coordinator_instance.start = AsyncMock()
+            mock_coordinator_instance.stop = AsyncMock()
+            mock_coordinator_instance.get_results = AsyncMock()
             mock_coordinator.return_value = mock_coordinator_instance
             mock_coordinator_instance.get_coordinator_stats.return_value = {"active_tasks": 0}
 
@@ -379,12 +386,16 @@ class TestCommandProxyIntegration:
         proxy = CommandProxy()
 
         # Use real components but with mocked external dependencies
-        with patch('core.orchestrator.coordinator.AgentCoordinator') as mock_coordinator_class, \
-             patch('core.context.manager.ContextManager') as mock_context_class, \
-             patch('core.orchestrator.task_analyzer.TaskAnalyzer') as mock_analyzer_class:
+        with patch('core.terminal.command_proxy.AgentCoordinator') as mock_coordinator_class, \
+             patch('core.terminal.command_proxy.ContextManager') as mock_context_class, \
+             patch('core.terminal.command_proxy.TaskAnalyzer') as mock_analyzer_class:
 
             # Set up realistic mocks
-            mock_coordinator = AsyncMock()
+            mock_coordinator = Mock()
+            mock_coordinator.start = AsyncMock()
+            mock_coordinator.stop = AsyncMock()
+            mock_coordinator.submit_task = AsyncMock()
+            mock_coordinator.get_results = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
 
             mock_context = Mock()
@@ -444,7 +455,10 @@ class TestCommandProxyIntegration:
              patch('core.terminal.command_proxy.AgentCoordinator') as mock_coordinator_class, \
              patch('core.terminal.command_proxy.TaskAnalyzer'):
 
-            mock_coordinator = AsyncMock()
+            mock_coordinator = Mock()
+            mock_coordinator.start = AsyncMock()
+            mock_coordinator.stop = AsyncMock()
+            mock_coordinator.get_results = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
             mock_coordinator.get_coordinator_stats.return_value = {"active_tasks": 0}
 
@@ -470,7 +484,10 @@ class TestCommandProxyIntegration:
              patch('core.terminal.command_proxy.AgentCoordinator') as mock_coordinator_class, \
              patch('core.terminal.command_proxy.TaskAnalyzer'):
 
-            mock_coordinator = AsyncMock()
+            mock_coordinator = Mock()
+            mock_coordinator.start = AsyncMock()
+            mock_coordinator.stop = AsyncMock()
+            mock_coordinator.get_results = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
             mock_coordinator.get_coordinator_stats.return_value = {"active_tasks": 0}
 
@@ -497,7 +514,10 @@ class TestCommandProxyPerformance:
              patch('core.terminal.command_proxy.AgentCoordinator') as mock_coordinator_class, \
              patch('core.terminal.command_proxy.TaskAnalyzer'):
 
-            mock_coordinator = AsyncMock()
+            mock_coordinator = Mock()
+            mock_coordinator.start = AsyncMock()
+            mock_coordinator.stop = AsyncMock()
+            mock_coordinator.get_results = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
             mock_coordinator.get_coordinator_stats.return_value = {"active_tasks": 0}
 
@@ -521,7 +541,10 @@ class TestCommandProxyPerformance:
              patch('core.terminal.command_proxy.AgentCoordinator') as mock_coordinator_class, \
              patch('core.terminal.command_proxy.TaskAnalyzer'):
 
-            mock_coordinator = AsyncMock()
+            mock_coordinator = Mock()
+            mock_coordinator.start = AsyncMock()
+            mock_coordinator.stop = AsyncMock()
+            mock_coordinator.get_results = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
 
             import time
@@ -551,9 +574,14 @@ class TestCommandProxyPerformance:
              patch('core.terminal.command_proxy.AgentCoordinator') as mock_coordinator_class, \
              patch('core.terminal.command_proxy.TaskAnalyzer'):
 
-            mock_coordinator = AsyncMock()
+            mock_coordinator = Mock()
+            mock_coordinator.start = AsyncMock()
+            mock_coordinator.stop = AsyncMock()
+            mock_coordinator.get_results = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
             mock_coordinator.get_coordinator_stats.return_value = {"active_tasks": 0}
+
+            proxy.command_rate_limits["status"]["max_per_minute"] = 200
 
             # Execute many commands
             for i in range(100):

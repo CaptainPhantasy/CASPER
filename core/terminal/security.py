@@ -7,7 +7,6 @@ Provides comprehensive security for terminal commands including:
 - Risk assessment and blocking
 """
 
-import asyncio
 import json
 import logging
 import re
@@ -16,10 +15,8 @@ import subprocess
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Union, Any, Callable
+from typing import Dict, List, Optional, Set, Any, Callable
 from uuid import uuid4
-import hashlib
-import os
 import tempfile
 
 logger = logging.getLogger(__name__)
@@ -215,13 +212,14 @@ class SecurityMiddleware:
                                risk_level, allowed, f"Security level: {security_level.value}")
 
         if not allowed:
-            raise SecurityViolation(f"Command blocked by security policy", command, risk_level)
+            raise SecurityViolation("Command blocked by security policy", command, risk_level)
 
         return True
 
     def _assess_command_risk(self, command: str, parsed: List[str]) -> CommandRisk:
         """Assess the risk level of a command."""
         base_command = parsed[0] if parsed else ""
+        command_prefix = " ".join(parsed[:2]).casefold()
 
         # Check for blocked commands (critical risk)
         if base_command in self.config.blocked_commands:
@@ -237,7 +235,10 @@ class SecurityMiddleware:
             return CommandRisk.HIGH
 
         # Check for restricted commands
-        if base_command in self.config.restricted_commands:
+        if (
+            base_command in self.config.restricted_commands
+            or command_prefix in self.config.restricted_commands
+        ):
             return CommandRisk.MEDIUM
 
         # Check for path-based risks
@@ -261,6 +262,20 @@ class SecurityMiddleware:
         # Check dangerous commands
         if base_command in self.config.dangerous_commands:
             return SecurityLevel.DANGEROUS
+
+        try:
+            parsed = shlex.split(full_command)
+        except ValueError:
+            parsed = [base_command]
+        command_prefix = " ".join(parsed[:2]).casefold()
+
+        # Compound commands such as `git add` must be classified before their
+        # base executable. The old base-only comparison treated every Git
+        # subcommand as the same restricted operation.
+        if command_prefix in self.config.restricted_commands:
+            return SecurityLevel.RESTRICTED
+        if command_prefix in self.config.safe_commands:
+            return SecurityLevel.SAFE
 
         # Check restricted commands
         if base_command in self.config.restricted_commands:
@@ -306,10 +321,13 @@ class SecurityMiddleware:
                 if self._is_dangerous_path(arg):
                     return False
 
-        # Git operations - ensure we're in a git repository
+        # The generic terminal boundary permits only observational Git calls.
+        # Whether the cwd is a repository is an execution concern, not a
+        # security concern; a safe `git status` may simply return a normal error.
         if base_command == "git":
-            if not self._is_git_repository():
-                return False
+            return len(parsed) > 1 and parsed[1] in {
+                "status", "log", "show", "diff", "branch", "rev-parse", "ls-files"
+            }
 
         # Package installations - limit to known safe packages
         if base_command in ["pip", "npm", "yarn"] and "install" in parsed:
@@ -442,7 +460,7 @@ class SecurityMiddleware:
 
             del self.session_contexts[session_id]
 
-            self._log_security_event("SANDBOX_CLEANUP", f"Cleaned up sandbox",
+            self._log_security_event("SANDBOX_CLEANUP", "Cleaned up sandbox",
                                    session_id, None, CommandRisk.LOW, True)
         except Exception as e:
             logger.error(f"Failed to cleanup sandbox for session {session_id}: {e}")
