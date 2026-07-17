@@ -1,0 +1,246 @@
+# CASPER Prime Prometheus Alert Rules
+
+groups:
+  - name: casper_terminal_alerts
+    rules:
+      - alert: TerminalSessionLimitExceeded
+        expr: casper_terminal_active_sessions_total > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: terminal
+        annotations:
+          summary: "High number of active terminal sessions"
+          description: "There are {{ $value }} active terminal sessions, which exceeds the recommended limit of 50."
+
+      - alert: TerminalCommandExecutionSlow
+        expr: histogram_quantile(0.95, rate(casper_terminal_command_duration_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: terminal
+        annotations:
+          summary: "Terminal command execution is slow"
+          description: "95th percentile of terminal command execution time is {{ $value }}s, which is above the 5s threshold."
+
+      - alert: TerminalHighErrorRate
+        expr: rate(casper_terminal_commands_executed_total{status="error"}[5m]) / rate(casper_terminal_commands_executed_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: critical
+          service: terminal
+        annotations:
+          summary: "High terminal command error rate"
+          description: "Terminal command error rate is {{ $value | humanizePercentage }}, which is above 10%."
+
+      - alert: TerminalMemoryUsageHigh
+        expr: casper_terminal_memory_usage_bytes > 100 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+          service: terminal
+        annotations:
+          summary: "High memory usage by terminal sessions"
+          description: "Terminal session {{ $labels.session_id }} is using {{ $value | humanizeBytes }} of memory."
+
+  - name: casper_websocket_alerts
+    rules:
+      - alert: WebSocketConnectionsHigh
+        expr: casper_websocket_connections_total > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: websocket
+        annotations:
+          summary: "High number of WebSocket connections"
+          description: "There are {{ $value }} active WebSocket connections, which may indicate high load."
+
+      - alert: WebSocketErrorRateHigh
+        expr: rate(casper_websocket_errors_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: critical
+          service: websocket
+        annotations:
+          summary: "High WebSocket error rate"
+          description: "WebSocket error rate is {{ $value }} errors per second."
+
+      - alert: WebSocketMessageBacklog
+        expr: increase(casper_websocket_messages_received_total[1m]) - increase(casper_websocket_messages_sent_total[1m]) > 1000
+        for: 3m
+        labels:
+          severity: warning
+          service: websocket
+        annotations:
+          summary: "WebSocket message backlog detected"
+          description: "There is a backlog of {{ $value }} WebSocket messages that may indicate processing delays."
+
+  - name: casper_system_alerts
+    rules:
+      - alert: SystemCPUHigh
+        expr: casper_system_cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High CPU usage"
+          description: "System CPU usage is {{ $value }}%, which is above 80%."
+
+      - alert: SystemMemoryHigh
+        expr: casper_system_memory_usage_bytes / 1024 / 1024 / 1024 > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage"
+          description: "System memory usage is {{ $value | humanizeBytes }}."
+
+      - alert: SystemDiskSpaceHigh
+        expr: casper_system_disk_usage_percent > 85
+        for: 10m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Low disk space"
+          description: "System disk usage is {{ $value }}%, which is above 85%."
+
+      - alert: SystemLoadHigh
+        expr: node_load15 > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High system load"
+          description: "System load average (15m) is {{ $value }}."
+
+  - name: casper_application_alerts
+    rules:
+      - alert: ApplicationResponseTimeSlow
+        expr: histogram_quantile(0.95, rate(casper_app_request_duration_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          service: application
+        annotations:
+          summary: "Slow application response time"
+          description: "95th percentile response time is {{ $value }}s for endpoint {{ $labels.endpoint }}."
+
+      - alert: ApplicationErrorRateHigh
+        expr: rate(casper_app_request_duration_seconds_count{status_code!~"2.."}[5m]) / rate(casper_app_request_duration_seconds_count[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: application
+        annotations:
+          summary: "High application error rate"
+          description: "Application error rate is {{ $value | humanizePercentage }} for endpoint {{ $labels.endpoint }}."
+
+      - alert: ApplicationDown
+        expr: up{job="casper-prime"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: application
+        annotations:
+          summary: "CASPER Prime application is down"
+          description: "The CASPER Prime application has been down for more than 1 minute."
+
+  - name: casper_database_alerts
+    rules:
+      - alert: DatabaseConnectionsHigh
+        expr: pg_stat_database_numbackends > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High number of database connections"
+          description: "Database has {{ $value }} active connections."
+
+      - alert: DatabaseSlowQueries
+        expr: rate(pg_stat_statements_mean_time_ms[5m]) > 1000
+        for: 3m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query execution time is {{ $value }}ms."
+
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "Database is down"
+          description: "PostgreSQL database has been down for more than 1 minute."
+
+  - name: casper_redis_alerts
+    rules:
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis memory usage is {{ $value | humanizePercentage }} of maximum."
+
+      - alert: RedisConnectionsHigh
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "High number of Redis connections"
+          description: "Redis has {{ $value }} connected clients."
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute."
+
+  - name: casper_business_alerts
+    rules:
+      - alert: LowActiveUsers
+        expr: casper_app_active_users_total < 5
+        for: 30m
+        labels:
+          severity: info
+          service: business
+        annotations:
+          summary: "Low number of active users"
+          description: "Only {{ $value }} users are currently active."
+
+      - alert: TerminalSessionsCreationSlow
+        expr: rate(casper_terminal_sessions_created_total[10m]) < 0.1
+        for: 15m
+        labels:
+          severity: info
+          service: business
+        annotations:
+          summary: "Low terminal session creation rate"
+          description: "Terminal session creation rate is {{ $value }} sessions per second."
+
+      - alert: CommandExecutionVolumeHigh
+        expr: rate(casper_terminal_commands_executed_total[5m]) > 10
+        for: 10m
+        labels:
+          severity: info
+          service: business
+        annotations:
+          summary: "High command execution volume"
+          description: "Command execution rate is {{ $value }} commands per second, indicating high system usage."

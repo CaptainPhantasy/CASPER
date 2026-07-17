@@ -1,0 +1,85 @@
+# CASPER Prime Prometheus Configuration
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'casper-prime'
+    environment: 'production'
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # CASPER Prime Application
+  - job_name: 'casper-prime'
+    static_configs:
+      - targets: ['casper-prime:8742']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+    scrape_timeout: 5s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+
+  # Terminal WebSocket Metrics
+  - job_name: 'casper-terminal'
+    static_configs:
+      - targets: ['casper-prime:8742']
+    metrics_path: '/metrics/terminal'
+    scrape_interval: 5s
+    scrape_timeout: 5s
+    honor_labels: true
+
+  # System Metrics (Node Exporter)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 10s
+
+  # Database Metrics
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 10s
+    params:
+      collect[]:
+        - 'postgresql'
+
+  # Redis Metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 10s
+
+  # Nginx Metrics
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    scrape_interval: 10s
+
+  # Docker Container Metrics
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+
+  # Prometheus Self-Monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+
+  # Grafana Metrics
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    scrape_interval: 30s
+    metrics_path: '/metrics'

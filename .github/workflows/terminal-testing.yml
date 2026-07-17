@@ -1,0 +1,249 @@
+name: CASPER Harness CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop, "feature/terminal-*", "codex/**"]
+    paths:
+      - "core/harness/**"
+      - "core/pipeline/**"
+      - "core/services/goal_engine.py"
+      - "core/services/slash_commands.py"
+      - "core/terminal/**"
+      - "core/cli.py"
+      - "casper"
+      - "casper_terminal_complete.py"
+      - "dashboard/**"
+      - "tests/**"
+      - "scripts/e2e_harness_50.py"
+      - "pyproject.toml"
+      - "pytest.ini"
+      - ".github/workflows/terminal-testing.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "core/harness/**"
+      - "core/pipeline/**"
+      - "core/services/goal_engine.py"
+      - "core/services/slash_commands.py"
+      - "core/terminal/**"
+      - "core/cli.py"
+      - "casper"
+      - "casper_terminal_complete.py"
+      - "dashboard/**"
+      - "tests/**"
+      - "scripts/e2e_harness_50.py"
+      - "pyproject.toml"
+      - "pytest.ini"
+      - ".github/workflows/terminal-testing.yml"
+
+concurrency:
+  group: casper-harness-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "24"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  harness-tests:
+    name: Harness and pipeline tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip poetry
+          poetry install --with dev
+      - name: Run deterministic harness suites
+        run: |
+          poetry run pytest \
+            tests/test_ci_contract.py \
+            tests/test_goal_engine.py \
+            tests/test_model_gateway.py \
+            tests/test_modern_cli.py \
+            tests/test_terminal_branding.py \
+            core/pipeline/tests/test_pipeline_units.py \
+            core/terminal/ui/test_terminal_features.py \
+            core/terminal/ui/test_coding_commands.py \
+            -q \
+            --durations=20 \
+            --junit-xml=harness-test-results.xml
+      - name: Run harness package tests when present
+        shell: bash
+        run: |
+          harness_tests=()
+          while IFS= read -r test_file; do
+            harness_tests+=("$test_file")
+          done < <(
+            {
+              find core/harness -type f -name 'test_*.py' 2>/dev/null
+              find tests/harness -type f -name 'test_*.py' 2>/dev/null
+              find tests -maxdepth 1 -type f \
+                \( -name 'test_harness*.py' -o -name 'test_agent_harness*.py' \)
+            } | sort
+          )
+          if (( ${#harness_tests[@]} == 0 )); then
+            echo "No additional harness package tests discovered."
+            exit 0
+          fi
+          poetry run pytest "${harness_tests[@]}" -q --durations=20
+      - name: Run unified fifty-engine E2E gate
+        run: poetry run python scripts/e2e_harness_50.py
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: harness-test-results
+          path: harness-test-results.xml
+
+  terminal-security:
+    name: Terminal security tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip poetry
+          poetry install --with dev
+      - name: Run the security suite
+        run: |
+          poetry run pytest \
+            tests/test_terminal_security.py::TestSecurityConfig \
+            tests/test_terminal_security.py::TestSecurityMiddleware \
+            tests/test_terminal_security.py::TestWebSocketSecurityHandler \
+            tests/test_terminal_security.py::TestCommandProxy \
+            tests/test_terminal_security.py::TestIntegratedSecurity \
+            -q \
+            --durations=20 \
+            --junit-xml=security-test-results.xml
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: security-test-results
+          path: security-test-results.xml
+
+  python-contracts:
+    name: Python package contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install Poetry
+        run: python -m pip install --upgrade pip poetry
+      - name: Validate package metadata
+        run: poetry check
+      - name: Compile first-class harness surfaces
+        run: |
+          python -m compileall -q \
+            core/harness \
+            core/pipeline \
+            core/terminal/ui \
+            core/services/goal_engine.py \
+            core/services/slash_commands.py \
+            core/cli.py \
+            casper_terminal_complete.py
+
+  dashboard-unit:
+    name: Dashboard unit and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install dashboard dependencies
+        run: npm ci
+      - name: Run Vitest unit tests
+        run: npm run test:unit
+      - name: Build dashboard
+        run: npm run build
+
+  dashboard-playwright:
+    name: Dashboard Playwright smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install dashboard dependencies
+        run: npm ci
+      - name: Build dashboard
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run headless Chromium smoke tests
+        env:
+          CI: "true"
+        run: |
+          npm test -- \
+            --project=chromium \
+            --reporter=line \
+            --grep="should test responsive elements" \
+            tests/casper-prime.spec.ts
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: playwright-results
+          path: |
+            dashboard/playwright-report/
+            dashboard/test-results/
+
+  ci-result:
+    name: Required CI result
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - harness-tests
+      - terminal-security
+      - python-contracts
+      - dashboard-unit
+      - dashboard-playwright
+    steps:
+      - name: Require every job to pass
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+
+          jobs = json.loads(os.environ["NEEDS_JSON"])
+          failed = {
+              name: details.get("result")
+              for name, details in jobs.items()
+              if details.get("result") != "success"
+          }
+          if failed:
+              print("Required CI jobs did not pass:", json.dumps(failed, sort_keys=True))
+              sys.exit(1)
+          print("All required CI jobs passed.")
+          PY

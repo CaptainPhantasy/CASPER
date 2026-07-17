@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "gates": [
+    {
+      "name": "python-venv",
+      "command": ["sh", "-lc", "test -x .venv/bin/python || uv venv --python 3.13 .venv"],
+      "required": true
+    },
+    {
+      "name": "python-install",
+      "command": ["uv", "pip", "install", "--python", ".venv/bin/python", "-e", ".", "pytest", "pytest-asyncio", "pytest-cov", "pytest-mock", "hypothesis", "requests-mock"],
+      "required": true
+    },
+    {
+      "name": "python-tests",
+      "command": [".venv/bin/python", "-m", "pytest", "tests", "-q"],
+      "required": true
+    },
+    {
+      "name": "dashboard-install",
+      "command": ["sh", "-lc", "test -x dashboard/node_modules/.bin/vitest || npm ci --prefix dashboard --ignore-scripts"],
+      "required": true
+    },
+    {
+      "name": "dashboard-unit",
+      "command": ["npm", "run", "test:unit", "--prefix", "dashboard"],
+      "required": true
+    },
+    {
+      "name": "dashboard-lint",
+      "command": ["npm", "run", "lint", "--prefix", "dashboard"],
+      "required": true
+    },
+    {
+      "name": "dashboard-build",
+      "command": ["npm", "run", "build", "--prefix", "dashboard"],
+      "required": true
+    },
+    {
+      "name": "dashboard-audit",
+      "command": ["npm", "audit", "--prefix", "dashboard", "--audit-level=high"],
+      "required": true
+    }
+  ],
+  "include": [
+    ".proofline.json",
+    ".coveragerc",
+    ".dockerignore",
+    ".github/**",
+    ".gitignore",
+    "CHANGELOG.md",
+    "CLI graphic/**",
+    "DEPENDENCIES_GUIDE.md",
+    "Dockerfile",
+    "FEATURES.md",
+    "LICENSE",
+    "README.md",
+    "casper",
+    "casper_terminal_complete.py",
+    "casper_terminal_simple.py",
+    "config/environment.example",
+    "core/**",
+    "dashboard/**",
+    "demo.py",
+    "docker-compose.yml",
+    "docker-entrypoint.sh",
+    "docs/**",
+    "main.py",
+    "monitoring/**",
+    "nginx/**",
+    "poetry.lock",
+    "progress_monitor.py",
+    "pyproject.toml",
+    "pytest.ini",
+    "scripts/**",
+    "tests/**"
+  ],
+  "deny": [
+    ".env",
+    ".env.*",
+    "*.pem",
+    "*.key",
+    "node_modules/**",
+    ".venv/**",
+    "dashboard/dist/**",
+    "dashboard/test-results/**",
+    "dashboard/playwright-report/**",
+    "dashboard/tests/screenshots/**",
+    "__pycache__/**",
+    ".pytest_cache/**",
+    ".git/**",
+    ".casper/**",
+    ".floyd/**",
+    ".harness/**",
+    ".pi/**",
+    ".omp/**",
+    ".supercache/**",
+    ".planning/**",
+    "FLOYD.md",
+    "CLAUDE.md",
+    "Issues/**",
+    "SSOT/**",
+    "casper-prime/**",
+    "*.app/**",
+    "*.pdf",
+    "*.mp3",
+    "*.png",
+    "*.zip",
+    "*.webm"
+  ],
+  "baseBranch": "main",
+  "publish": true,
+  "allowLocalRemote": false
+}

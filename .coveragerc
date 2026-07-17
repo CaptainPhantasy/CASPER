@@ -1,0 +1,71 @@
+[run]
+# Coverage configuration for terminal testing
+source = core/terminal
+branch = True
+omit =
+    */tests/*
+    */test_*
+    */venv/*
+    */node_modules/*
+    */migrations/*
+    */__pycache__/*
+    */build/*
+    */dist/*
+
+[report]
+# Output configuration
+precision = 2
+show_missing = True
+sort = Cover
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if settings.DEBUG
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if __name__ == .__main__.:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+
+[html]
+directory = htmlcov
+title = CASPER Terminal Coverage Report
+
+[xml]
+output = coverage.xml
+
+[json]
+output = coverage.json
+
+# Terminal-specific coverage requirements
+[coverage:run]
+parallel = True
+
+[coverage:paths]
+source =
+    core/terminal/
+    */site-packages/core/terminal/
+
+# Minimum coverage thresholds
+[tool:pytest]
+# These settings work with pytest-cov
+addopts =
+    --strict-markers
+    --strict-config
+    --cov=core.terminal
+    --cov-branch
+    --cov-report=term-missing:skip-covered
+    --cov-report=html:htmlcov
+    --cov-report=xml:coverage.xml
+    --cov-fail-under=85
+
+# Coverage by module requirements
+[coverage:terminal_modules]
+# Individual module coverage requirements
+pty_manager = 90
+websocket_handler = 85
+command_proxy = 85
+security = 95
+__init__ = 80

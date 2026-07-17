@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""
+CASPER CLI - Complete 49-Command Implementation
+Production entry point with full command support
+"""
+import sys
+import os
+import asyncio
+from pathlib import Path
+
+# Resolve the installation directory without pinning CASPER to one Mac or volume.
+casper_install_dir = Path(__file__).resolve().parent
+
+# Add CASPER to Python path so we can import its modules
+sys.path.insert(0, str(casper_install_dir))
+
+# Get the current working directory (where user is running casper from)
+working_dir = Path.cwd()
+
+# Change to working directory (stay where the user is)
+os.chdir(working_dir)
+
+async def interactive_shell():
+    """Run CASPER as an interactive development shell"""
+    from core.cli import CasperCLI, print_modern_banner
+    from core.services.slash_commands import get_slash_commands
+    from rich.console import Console
+    from rich.prompt import Prompt
+    from rich.panel import Panel
+    from rich.text import Text
+    import time
+
+    console = Console()
+    print_modern_banner()
+
+    # Track consecutive CTRL-C presses
+    last_interrupt_time = 0
+    interrupt_threshold = 2.0  # seconds
+
+    # Initialize CASPER CLI
+    casper_cli = CasperCLI()
+    await casper_cli.initialize()
+
+    # Initialize slash command system
+    slash_commands = get_slash_commands(casper_cli)
+
+    # Welcome message
+    welcome_panel = Panel.fit(
+        "[bold cyan]CASPER Interactive Development Shell[/bold cyan]\n"
+        "[dim]Multi-Agent AI Development Platform for Solo Developers[/dim]\n\n"
+        "[green]• Agent Coordinator:[/green] Active and ready\n"
+        "[green]• Context Manager:[/green] Initialized\n"
+        "[green]• Task Analyzer:[/green] Loaded\n\n"
+        "[yellow]Type '/help' for slash commands, '#help' for custom commands, 'help' for basic commands, 'exit' to quit[/yellow]",
+        title="🚀 CASPER Prime",
+        border_style="cyan"
+    )
+    console.print(welcome_panel)
+    console.print()
+
+    # Interactive shell loop
+    while True:
+        try:
+            # Get user input with rich prompt
+            user_input = Prompt.ask(
+                Text.from_markup("[bold blue]casper[/bold blue][dim]:[/dim][bold green]dev[/bold green][dim]$[/dim]"),
+                default=""
+            ).strip()
+
+            if not user_input:
+                continue
+
+            # Handle exit commands
+            if user_input.lower() in ['exit', 'quit', 'q']:
+                console.print("[dim]→ Shutting down CASPER agent coordinator...[/dim]")
+                await casper_cli.shutdown()
+                console.print("[bold green]✓[/bold green] CASPER shutdown complete")
+                break
+
+            # Handle help command
+            if user_input.lower() in ['help', '?']:
+                help_panel = Panel.fit(
+                    "[bold cyan]CASPER Development Shell Commands:[/bold cyan]\n\n"
+                    "[green]Core Commands:[/green]\n"
+                    "• [yellow]task[/yellow] <description>     - Execute development task via multi-agent workflow\n"
+                    "• [yellow]analyze[/yellow] <description>  - Analyze task complexity and requirements\n"
+                    "• [yellow]status[/yellow]                - Show agent pool and system status\n"
+                    "• [yellow]list[/yellow]                  - List recent tasks and their status\n"
+                    "• [yellow]setup[/yellow]                 - Configure AI provider API keys\n\n"
+                    "[green]Shell Commands:[/green]\n"
+                    "• [yellow]help[/yellow] or [yellow]?[/yellow]             - Show this help\n"
+                    "• [yellow]clear[/yellow]                 - Clear screen\n"
+                    "• [yellow]exit[/yellow] or [yellow]quit[/yellow]          - Exit CASPER shell\n\n"
+                    "[dim]Examples:[/dim]\n"
+                    "[cyan]task[/cyan] Create a REST API endpoint for user authentication\n"
+                    "[cyan]analyze[/cyan] Add unit tests for the payment processing module\n"
+                    "[cyan]setup[/cyan] # Configure OpenAI, Anthropic, DeepSeek, Grok, etc.\n"
+                    "[cyan]status[/cyan] # Check agent availability",
+                    title="📖 Help",
+                    border_style="yellow"
+                )
+                console.print(help_panel)
+                continue
+
+            # Handle slash commands and custom commands first
+            if user_input.startswith('/') or user_input.startswith('#'):
+                await slash_commands.execute(user_input)
+                console.print()  # Add spacing after commands
+                continue
+
+            # Handle clear command
+            if user_input.lower() == 'clear':
+                console.clear()
+                console.print(welcome_panel)
+                console.print()
+                continue
+
+            # Parse command and arguments
+            parts = user_input.split(' ', 1)
+            command = parts[0].lower()
+            args = parts[1] if len(parts) > 1 else ""
+
+            # Execute CASPER commands
+            if command == 'status':
+                await casper_cli.show_status()
+
+            elif command == 'analyze':
+                if args:
+                    console.print(f"[dim]→ Analyzing task:[/dim] [cyan]{args}[/cyan]")
+                    await casper_cli.analyze_only(args)
+                else:
+                    console.print("[red]❌ Usage:[/red] analyze <task description>")
+
+            elif command == 'task':
+                if args:
+                    console.print(f"[dim]→ Executing task:[/dim] [cyan]{args}[/cyan]")
+                    await casper_cli.execute_task(args)
+                else:
+                    console.print("[red]❌ Usage:[/red] task <task description>")
+
+            elif command == 'list':
+                await casper_cli.list_tasks()
+
+            elif command == 'setup':
+                console.print("[dim]→ Opening AI provider setup...[/dim]")
+                await casper_cli.run_setup()
+
+            else:
+                console.print(f"[red]❌ Unknown command:[/red] [yellow]{command}[/yellow]")
+                console.print("[dim]Type 'help' for available commands[/dim]")
+
+            console.print()  # Add spacing after each command
+
+        except KeyboardInterrupt:
+            current_time = time.time()
+            if current_time - last_interrupt_time < interrupt_threshold:
+                # Second CTRL-C within threshold - exit
+                console.print("\n[dim]→ Shutting down CASPER agent coordinator...[/dim]")
+                await casper_cli.shutdown()
+                console.print("[bold green]✓[/bold green] CASPER shutdown complete")
+                break
+            else:
+                # First CTRL-C - show message and continue
+                last_interrupt_time = current_time
+                console.print("\n[dim]→ Press Ctrl+C again or type 'exit' to quit CASPER[/dim]")
+
+        except Exception as e:
+            console.print(f"[red]❌ Error:[/red] {str(e)}")
+            console.print("[dim]The CASPER session remains active. Type 'status' to check system health.[/dim]")
+
+# Import and run the appropriate terminal
+try:
+    # Check for command modifiers
+    if len(sys.argv) > 1:
+        if sys.argv[1] in {'--complete', '--legacy'}:
+            # Explicitly use the complete terminal
+            import subprocess
+            terminal_path = casper_install_dir / 'casper_terminal_complete.py'
+            result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir)
+            sys.exit(result.returncode)
+        elif sys.argv[1] == '--simple':
+            # Use the simple terminal (Tier 1 & 2 only)
+            import subprocess
+            terminal_path = casper_install_dir / 'casper_terminal_simple.py'
+            result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir)
+            sys.exit(result.returncode)
+        elif sys.argv[1] == '--original':
+            # Use the original interactive shell
+            asyncio.run(interactive_shell())
+        elif sys.argv[1] in ['features', '--features']:
+            from core.harness.catalog import render_feature_catalog
+            print(render_feature_catalog())
+            sys.exit(0)
+        elif sys.argv[1] in ['-h', '--help']:
+            print("""CASPER - Typed AI Coding Harness
+
+Usage: casper [options]
+
+Terminal Modes:
+    (default)     Run canonical typed harness (default approval mode)
+    --legacy      Run the retired complete terminal during migration
+    --complete    Alias for --legacy
+    --simple      Run simple terminal (Tier 1 & 2 commands only)
+    --original    Run original CASPER interactive shell
+
+Approval Modes:
+    --yolo        Bypass non-critical approvals (critical actions still ask)
+    --auto        Accept local reversible edits; ask for high-risk actions
+    --strict      Read-only tools; deny mutations
+
+Other Options:
+    -h, --help    Show this help message
+    -v, --version Show version information
+    --features    List all 50 verified harness engines
+
+Examples:
+    casper              # Run with per-action approval (default)
+    casper --yolo       # Bypass non-critical approvals
+    casper --auto       # Accept local reversible edits
+    casper --strict     # Read-only mode
+
+Canonical Controls:
+    /commands, /status, /doctor, /context, /diff, /review, /code-review,
+    /security-review, /goal, /plan, /task, /verify, /permissions, /runs,
+    /resume, /rewind, /skills, /mcp, /agents, /tasks, /hooks, /usage
+
+Headless Automation:
+    casper exec "inspect the project" --permission-mode read_only
+""")
+            sys.exit(0)
+        elif sys.argv[1] in ['-v', '--version']:
+            print("CASPER 0.1.0-beta.1 - canonical harness runtime")
+            sys.exit(0)
+        elif sys.argv[1] in ['--yolo', '--auto', '--strict']:
+            from core.cli import print_modern_banner
+            from core.terminal.modern_cli import run_interactive
+
+            mode = {
+                '--yolo': 'bypass',
+                '--auto': 'accept_edits',
+                '--strict': 'read_only',
+            }[sys.argv[1]]
+            print_modern_banner()
+            sys.exit(asyncio.run(run_interactive(working_dir, permission_mode=mode)))
+        elif sys.argv[1] in ['-i', '--interactive']:
+            # Legacy interactive mode - use original
+            asyncio.run(interactive_shell())
+        else:
+            # Unknown argument - run standard CLI with args
+            from core.cli import main, print_modern_banner
+            print_modern_banner()
+            asyncio.run(main())
+    else:
+        # No arguments: one canonical typed runtime. The complete terminal is
+        # retained temporarily behind --legacy for migration compatibility.
+        from core.cli import main
+        main()
+
+except ImportError as e:
+    print(f"Error importing CASPER: {e}")
+    print("Trying fallback to original shell...")
+    try:
+        asyncio.run(interactive_shell())
+    except Exception as fallback_error:
+        print(f"Fallback also failed: {fallback_error}")
+        # Last resort - try to run the complete terminal directly
+        import subprocess
+        print("Attempting direct execution of complete terminal...")
+        terminal_path = casper_install_dir / 'casper_terminal_complete.py'
+        result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir)
+        sys.exit(result.returncode)
+except KeyboardInterrupt:
+    print("\n👋 CASPER interrupted by user")
+    sys.exit(0)
+except Exception as e:
+    print(f"❌ Fatal error: {e}")
+    sys.exit(1)
