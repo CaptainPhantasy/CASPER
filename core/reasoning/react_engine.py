@@ -518,7 +518,8 @@ Be methodical and thorough. Always observe tool results before proceeding."""
         """Execute task with full ReAct reasoning chain"""
 
         # Log reasoning chain to file
-        reasoning_log_path = Path(f"/Volumes/Storage/Development/CASPER DEV/.casper/transformation/react_implementations/reasoning_{uuid.uuid4().hex[:8]}.log")
+        state_root = Path(os.environ.get("CASPER_STATE_DIR", Path.cwd() / ".casper"))
+        reasoning_log_path = state_root / "transformation" / "react_implementations" / f"reasoning_{uuid.uuid4().hex[:8]}.log"
         reasoning_log_path.parent.mkdir(parents=True, exist_ok=True)
 
         try:

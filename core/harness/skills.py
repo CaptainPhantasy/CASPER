@@ -103,7 +103,6 @@ def default_skill_roots(project_root: Path | str) -> tuple[Path, ...]:
         Path.home() / ".codex" / "skills",
         Path.home() / ".agents" / "skills",
         Path.home() / ".claude" / "skills",
-        Path("/Volumes/SanDisk1Tb/skillsdump/Library"),
     ])
     roots: list[Path] = []
     seen: set[Path] = set()

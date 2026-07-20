@@ -41,7 +41,11 @@ class SimpleStateManager:
     """
 
     def __init__(self, storage_path: str = None):
-        self.storage_path = storage_path or "/Volumes/Storage/Development/CASPER DEV/.casper/transformation/state_management"
+        self.storage_path = storage_path or str(
+            Path(os.environ.get("CASPER_STATE_DIR", Path.cwd() / ".casper"))
+            / "transformation"
+            / "state_management"
+        )
         self.db_path = Path(self.storage_path) / "simple_state.db"
         self.checkpoint_path = Path(self.storage_path) / "checkpoints"
 

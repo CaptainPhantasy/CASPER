@@ -6,6 +6,7 @@ Integrates the streaming orchestrator with the existing WebSocket handler
 import asyncio
 import json
 import logging
+from pathlib import Path
 from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
@@ -172,11 +173,11 @@ class StreamingWebSocketHandler:
             if session.pty_session_id:
                 # Try to get current directory from PTY
                 # This is a simplified version
-                return "/Volumes/Storage/Development/CASPER DEV"  # Default project root
+                return str(Path.cwd())
         except Exception:
             pass
 
-        return "/Volumes/Storage/Development/CASPER DEV"
+        return str(Path.cwd())
 
     async def _get_project_context(self, session) -> Dict[str, Any]:
         """Get project context information"""

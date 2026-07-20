@@ -46,6 +46,7 @@ yarn-error.log*
 # IDE
 .vscode/
 .idea/
+.grok/
 *.swp
 *.swo
 *~
@@ -87,6 +88,11 @@ dashboard/test-results/
 dashboard/playwright-report/
 dashboard/screenshots/
 dashboard/verification/
+
+# Local-only verification and handoff artifacts
+docs/2026-07-18-casper2-compatibility-launcher.md
+tests/test_casper2_launcher.py
+tests/test_portable_defaults.py
 
 # Build outputs
 dist/

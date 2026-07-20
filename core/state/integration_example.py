@@ -3,6 +3,7 @@ Integration example showing how to use the state manager in CASPER
 """
 
 import asyncio
+import os
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -16,7 +17,7 @@ async def casper_state_integration_demo():
     print("=" * 60)
 
     # Initialize state manager for CASPER
-    casper_storage = "/Volumes/Storage/Development/CASPER DEV/.casper/transformation/state_management"
+    casper_storage = str(Path(os.environ.get("CASPER_STATE_DIR", Path.cwd() / ".casper")) / "transformation" / "state_management")
     state_manager = create_state_manager(storage_path=casper_storage, use_langgraph=False)
 
     print(f"✅ State manager initialized at: {casper_storage}")
@@ -139,7 +140,7 @@ def demonstrate_recovery():
     print("\n🔄 Demonstrating State Recovery...")
 
     # Create new instance (simulates system restart)
-    casper_storage = "/Volumes/Storage/Development/CASPER DEV/.casper/transformation/state_management"
+    casper_storage = str(Path(os.environ.get("CASPER_STATE_DIR", Path.cwd() / ".casper")) / "transformation" / "state_management")
     new_state_manager = create_state_manager(storage_path=casper_storage, use_langgraph=False)
 
     # Show that data persisted
