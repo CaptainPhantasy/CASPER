@@ -1,0 +1,133 @@
+[tool.poetry]
+packages = [{include = "core"}]
+
+[project]
+name = "casper-prime"
+version = "0.1.0-beta.1"
+description = "Autonomous AI Development Platform for Indie Developers"
+authors = [{name = "Douglas Talley", email = "douglas@legacyai.info"}]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+keywords = ["ai", "agent", "cli", "autonomous", "development", "code-generation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+# ---------------------------------------------------------------------------
+# Core dependencies — required for CLI, agents, LLM, server, and metrics.
+# These are all pure-Python or well-supported wheels; no native build steps.
+# ---------------------------------------------------------------------------
+dependencies = [
+    # LLM providers
+    "anthropic>=0.116.0,<0.117.0",
+    "openai>=2.45.0,<3.0.0",
+    # Agentic orchestration
+    "langchain>=1.3.13,<2.0.0",
+    "langchain-anthropic>=1.4.8,<2.0.0",
+    "langchain-openai>=1.3.5,<2.0.0",
+    "langchain-community>=0.4.2,<0.5.0",
+    "langgraph>=1.2.9,<2.0.0",
+    "langgraph-checkpoint-sqlite>=3.1.0,<4.0.0",
+    # Web framework and server
+    "fastapi>=0.139.1,<0.140.0",
+    "uvicorn[standard]>=0.51.0,<0.52.0",
+    "websockets>=15.0.1,<16.0.0",
+    "python-dotenv>=1.2.2,<2.0.0",
+    "pydantic>=2.13.4,<3.0.0",
+    "pydantic-settings>=2.14.2,<3.0.0",
+    # CLI
+    "click>=8.4.2,<9.0.0",
+    "rich>=15.0.0,<16.0.0",
+    "prompt-toolkit>=3.0.0,<4.0.0",
+    "typer>=0.27.0,<0.28.0",
+    "questionary>=2.0.0,<3.0.0",
+    # Rate limiting and observability
+    "slowapi>=0.1.10,<0.2.0",
+    "prometheus-client>=0.25.0,<0.26.0",
+    "psutil>=7.2.2,<8.0.0",
+    "structlog>=26.1.0,<27.0.0",
+    # Security and Git
+    "cryptography>=49.0.0,<50.0.0",
+    "PyJWT>=2.13.0,<3.0.0",
+    "gitpython>=3.1.52,<4.0.0",
+    # Utilities
+    "httpx>=0.28.0,<0.29.0",
+    "aiofiles>=25.1.0,<26.0.0",
+    "pyyaml>=6.0.3,<7.0.0",
+    "tenacity>=9.1.4,<10.0.0",
+    "cachetools>=7.1.4,<8.0.0",
+]
+
+[project.optional-dependencies]
+vector = ["chromadb>=1.5.9,<2.0.0", "faiss-cpu>=1.14.3,<2.0.0"]
+browser = ["playwright>=1.61.0,<2.0.0"]
+native-git = ["pygit2>=1.19.3,<2.0.0"]
+extra-llm = ["google-genai>=2.12.0,<3.0.0", "cohere>=7.0.5,<8.0.0"]
+web = ["beautifulsoup4>=4.15.0,<5.0.0", "ddgs>=9.14.4,<10.0.0"]
+database = [
+    "redis>=8.0.1,<9.0.0",
+    "sqlalchemy>=2.0.51,<3.0.0",
+    "alembic>=1.18.5,<2.0.0",
+]
+full = [
+    "chromadb>=1.5.9,<2.0.0",
+    "faiss-cpu>=1.14.3,<2.0.0",
+    "playwright>=1.61.0,<2.0.0",
+    "pygit2>=1.19.3,<2.0.0",
+    "google-genai>=2.12.0,<3.0.0",
+    "cohere>=7.0.5,<8.0.0",
+    "beautifulsoup4>=4.15.0,<5.0.0",
+    "ddgs>=9.14.4,<10.0.0",
+    "redis>=8.0.1,<9.0.0",
+    "sqlalchemy>=2.0.51,<3.0.0",
+    "alembic>=1.18.5,<2.0.0",
+]
+
+[project.urls]
+Homepage = "https://legacyai.info"
+
+[project.scripts]
+casper = "core.cli:main"
+
+# ---------------------------------------------------------------------------
+# Development dependencies — not installed by end users
+# ---------------------------------------------------------------------------
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.1.1"
+pytest-asyncio = "^1.4.0"
+pytest-cov = "^7.1.0"
+black = "^26.5.1"
+flake8 = "^7.1.1"
+mypy = "^2.3.0"
+ipython = "^9.15.0"
+pytest-xdist = "^3.8.0"
+pytest-mock = "^3.15.1"
+hypothesis = "^6.156.6"
+requests-mock = "^1.12.1"
+httpx2 = "^2.7.0"
+pre-commit = "^4.6.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# ---------------------------------------------------------------------------
+# Tool configuration
+# ---------------------------------------------------------------------------
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.mypy]
+python_version = "3.11"
+strict = true

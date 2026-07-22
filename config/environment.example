@@ -1,0 +1,138 @@
+# CASPER Environment Configuration Template
+# Copy this file to .env and fill in your API keys
+
+# ============================================
+# AI PROVIDER API KEYS (Required)
+# ============================================
+# At least one of these is required for CASPER to function
+
+# Anthropic API Key (Primary) - Get from: https://console.anthropic.com/
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# OpenAI API Key (Fallback) - Get from: https://platform.openai.com/
+OPENAI_API_KEY=your_openai_api_key_here
+
+# ============================================
+# OPTIONAL: ADDITIONAL LLM PROVIDERS
+# ============================================
+# These are optional but can provide additional capabilities
+
+# Google AI API Key - Get from: https://makersuite.google.com/
+GOOGLE_API_KEY=your_google_api_key_here
+
+# Cohere API Key - Get from: https://dashboard.cohere.com/
+COHERE_API_KEY=your_cohere_api_key_here
+
+# ============================================
+# PROJECT CONFIGURATION
+# ============================================
+# Directory where CASPER will store project data
+CASPER_PROJECT_ROOT=/workspace/casper
+
+# Output directory for generated artifacts
+CASPER_OUTPUT_DIR=.casper/output
+
+# ============================================
+# APPROVAL MODE
+# ============================================
+# Options: STRICT, AUTO, YOLO
+# STRICT: Require approval for all operations
+# AUTO: Auto-approve safe operations
+# YOLO: Auto-approve everything (use with caution!)
+CASPER_APPROVAL_MODE=STRICT
+
+# ============================================
+# SERVER CONFIGURATION
+# ============================================
+# Port for the FastAPI server
+PORT=8742
+
+# Host for the FastAPI server
+HOST=0.0.0.0
+
+# ============================================
+# RATE LIMITING
+# ============================================
+# Task submission rate limit
+TASK_RATE_LIMIT=10/minute
+
+# Task analysis rate limit
+ANALYSIS_RATE_LIMIT=20/minute
+
+# File operation rate limit
+FILE_RATE_LIMIT=120/minute
+
+# File tree rate limit
+FILETREE_RATE_LIMIT=60/minute
+
+# ============================================
+# CORS CONFIGURATION
+# ============================================
+# Comma-separated list of allowed origins
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:9318,http://127.0.0.1:9318
+
+# ============================================
+# COST TRACKING
+# ============================================
+# Cost per 1k tokens (for budget tracking)
+CASPER_COST_PER_1K_TOKENS=0.003
+
+# ============================================
+# REACT ENGINE CONFIGURATION
+# ============================================
+# Maximum iterations for ReAct reasoning loop
+REACT_MAX_ITERATIONS=15
+
+# Timeout for code execution (seconds)
+CODE_EXECUTION_TIMEOUT=30
+
+# ============================================
+# AGENT CONFIGURATION
+# ============================================
+# Maximum number of agents per role
+MAX_AGENTS_PER_ROLE=5
+
+# Agent monitoring interval (seconds)
+AGENT_MONITOR_INTERVAL=10
+
+# ============================================
+# LOGGING
+# ============================================
+# Log level: DEBUG, INFO, WARNING, ERROR
+LOG_LEVEL=INFO
+
+# Log file location
+LOG_FILE=.casper/logs/casper.log
+
+# ============================================
+# DATABASE CONFIGURATION
+# ============================================
+# SQLite database for persistence
+DATABASE_URL=sqlite:///.casper/casper.db
+
+# ============================================
+# REDIS CONFIGURATION (Optional)
+# ============================================
+# Redis URL for caching (if available)
+# REDIS_URL=redis://localhost:6379
+
+# ============================================
+# CHROMADB CONFIGURATION
+# ============================================
+# ChromaDB persistence directory
+CHROMADB_PERSIST_DIR=.casper/chromadb
+
+# ============================================
+# TESTING CONFIGURATION
+# ============================================
+# Test timeout (seconds)
+TEST_TIMEOUT=120
+
+# ============================================
+# DEVELOPMENT SETTINGS
+# ============================================
+# Enable debug mode
+DEBUG=false
+
+# Enable development mode (more verbose output)
+DEV_MODE=false
