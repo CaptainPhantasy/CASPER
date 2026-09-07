@@ -37,6 +37,9 @@ on:
       - "pytest.ini"
       - ".github/workflows/terminal-testing.yml"
 
+permissions:
+  contents: read
+
 concurrency:
   group: casper-harness-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
