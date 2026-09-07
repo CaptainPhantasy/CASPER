@@ -8,8 +8,8 @@ import sys
 import os
 from pathlib import Path
 
-# Add the project to the path
-sys.path.insert(0, '/Volumes/Storage/Development/CASPER DEV')
+# Add this checkout to the import path without assuming a machine-specific location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from core.agents.master_prime import MasterPrimeAgent
 from rich.console import Console

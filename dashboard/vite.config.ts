@@ -8,6 +8,43 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'monaco',
+              test: /node_modules[\\/](?:monaco-editor|@monaco-editor)/,
+              priority: 40,
+            },
+            {
+              name: 'charts',
+              test: /node_modules[\\/](?:recharts|d3-|victory-vendor)/,
+              priority: 30,
+            },
+            {
+              name: 'terminal',
+              test: /node_modules[\\/]@xterm/,
+              priority: 30,
+            },
+            {
+              name: 'ui',
+              test: /node_modules[\\/](?:@radix-ui|framer-motion|lucide-react|@tabler)/,
+              maxSize: 450_000,
+              priority: 20,
+            },
+            {
+              name: 'vendor',
+              test: /node_modules/,
+              maxSize: 450_000,
+              priority: 10,
+            },
+          ],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

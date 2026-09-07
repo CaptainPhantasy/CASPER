@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""CASPER2 compatibility launcher; project source lives at scripts/casper2."""
+
+from __future__ import annotations
+
+import os
+import sys
+
+
+DEFAULT_CASPER = "/opt/homebrew/bin/casper"
+
+
+def main() -> None:
+    casper_bin = os.environ.get("CASPER2_CASPER_BIN", DEFAULT_CASPER)
+    if not os.access(casper_bin, os.X_OK):
+        print(
+            f"casper2: canonical CASPER is unavailable at {casper_bin}; "
+            "reinstall CASPER or set CASPER2_CASPER_BIN for a verified replacement.",
+            file=sys.stderr,
+        )
+        raise SystemExit(127)
+
+    user_args = sys.argv[1:]
+    if user_args[:1] and user_args[0] in {"-h", "--help", "--version"}:
+        argv = [casper_bin, *user_args]
+    else:
+        argv = [casper_bin, "--legacy", *user_args]
+    os.execv(casper_bin, argv)
+
+
+if __name__ == "__main__":
+    main()

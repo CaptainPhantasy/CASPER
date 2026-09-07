@@ -7,6 +7,7 @@ import asyncio
 import json
 import time
 import re
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -60,7 +61,27 @@ TASK_RATE_LIMIT = os.environ.get("TASK_RATE_LIMIT", "10/minute")
 ANALYSIS_RATE_LIMIT = os.environ.get("ANALYSIS_RATE_LIMIT", "20/minute")
 FILE_RATE_LIMIT = os.environ.get("FILE_RATE_LIMIT", "120/minute")
 FILETREE_RATE_LIMIT = os.environ.get("FILETREE_RATE_LIMIT", "60/minute")
-app = FastAPI(title="CASPER Prime API", version="0.1.0-beta.1")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Own server startup, periodic work, and deterministic cleanup."""
+    await startup_event()
+    background_task = asyncio.create_task(periodic_context_update())
+    try:
+        yield
+    finally:
+        background_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await background_task
+        await shutdown_event()
+
+
+app = FastAPI(
+    title="CASPER Prime API",
+    version="0.1.0-beta.1",
+    lifespan=lifespan,
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(workspace_router.router)
@@ -195,7 +216,6 @@ websocket_connections: List[WebSocket] = []
 terminal_handler: Optional[TerminalWebSocketHandler] = None
 
 
-@app.on_event("startup")
 async def startup_event():
     """Initialize CASPER Prime components."""
     global coordinator, context_manager, task_analyzer, terminal_handler
@@ -222,7 +242,6 @@ async def startup_event():
     print("CASPER Prime server started")
 
 
-@app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
     if coordinator:
@@ -549,13 +568,6 @@ async def periodic_context_update():
     while True:
         await asyncio.sleep(5)  # Update every 5 seconds
         await broadcast_context_update()
-
-
-# Start background task
-@app.on_event("startup")
-async def start_background_tasks():
-    """Start background tasks."""
-    asyncio.create_task(periodic_context_update())
 
 
 @app.get("/api/health")

@@ -5,11 +5,24 @@ Tests for the scalable panel system, layout management, and responsive design.
 
 import asyncio
 import json
+import os
 import pytest
-from playwright.async_api import async_playwright, Page, BrowserContext
 from typing import Dict, List, Any, Tuple
 import time
 from pathlib import Path
+
+
+playwright_api = pytest.importorskip("playwright.async_api")
+async_playwright = playwright_api.async_playwright
+
+
+pytestmark = [
+    pytest.mark.browser_e2e,
+    pytest.mark.skipif(
+        os.environ.get("CASPER_RUN_BROWSER_E2E") != "1",
+        reason="set CASPER_RUN_BROWSER_E2E=1 with the dashboard running to execute live browser tests",
+    ),
+]
 
 
 class TestResizablePanelsIntegration:
@@ -19,20 +32,20 @@ class TestResizablePanelsIntegration:
     async def page_with_panels(self):
         """Create a page with resizable panels loaded."""
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=os.environ.get("CASPER_BROWSER_HEADED") != "1"
+            )
             context = await browser.new_context(
                 viewport={"width": 1920, "height": 1080}
             )
             page = await context.new_page()
 
             # Navigate to dashboard
-            await page.goto("http://localhost:5173")
+            await page.goto(os.environ.get("CASPER_DASHBOARD_URL", "http://localhost:5173"))
             await page.wait_for_selector('[data-testid="dashboard"]', timeout=10000)
 
             # Ensure panels are visible
-            await page.wait_for_selector(
-                '[data-testid="resizable-panels"]', timeout=5000
-            )
+            await page.wait_for_selector('[data-testid="resizable-panels"]', timeout=5000)
 
             yield page
 
@@ -65,7 +78,8 @@ class TestResizablePanelsIntegration:
             await vertical_handle.hover()
             await page.mouse.down()
             await page.mouse.move(
-                handle_box["x"] + 100, handle_box["y"]  # Move right by 100px
+                handle_box["x"] + 100,  # Move right by 100px
+                handle_box["y"]
             )
             await page.mouse.up()
 
@@ -85,7 +99,8 @@ class TestResizablePanelsIntegration:
             await horizontal_handle.hover()
             await page.mouse.down()
             await page.mouse.move(
-                handle_box["x"], handle_box["y"] - 100  # Move up by 100px
+                handle_box["x"],
+                handle_box["y"] - 100  # Move up by 100px
             )
             await page.mouse.up()
 
@@ -215,11 +230,13 @@ class TestLayoutPersistence:
     async def page_with_storage(self):
         """Create page with local storage access."""
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=os.environ.get("CASPER_BROWSER_HEADED") != "1"
+            )
             context = await browser.new_context()
             page = await context.new_page()
 
-            await page.goto("http://localhost:5173")
+            await page.goto(os.environ.get("CASPER_DASHBOARD_URL", "http://localhost:5173"))
             await page.wait_for_selector('[data-testid="dashboard"]', timeout=10000)
 
             yield page
@@ -255,9 +272,7 @@ class TestLayoutPersistence:
 
             # Reload page
             await page.reload()
-            await page.wait_for_selector(
-                '[data-testid="resizable-panels"]', timeout=10000
-            )
+            await page.wait_for_selector('[data-testid="resizable-panels"]', timeout=10000)
             await page.wait_for_timeout(1000)  # Wait for layout to restore
 
             # Check if layout was restored
@@ -272,18 +287,18 @@ class TestLayoutPersistence:
         await page.wait_for_selector('[data-testid="resizable-panels"]')
 
         # Check if layout data exists in localStorage
-        layout_data = await page.evaluate("""
+        layout_data = await page.evaluate('''
             () => {
                 const data = localStorage.getItem('casper-layout-state');
                 return data ? JSON.parse(data) : null;
             }
-        """)
+        ''')
 
         # Should have layout data after initial load
         if layout_data:
             assert isinstance(layout_data, dict)
             # Common layout properties
-            expected_keys = ["panelSizes", "collapsed", "lastModified"]
+            expected_keys = ['panelSizes', 'collapsed', 'lastModified']
             assert any(key in layout_data for key in expected_keys)
 
     @pytest.mark.asyncio
@@ -336,7 +351,7 @@ class TestLayoutPersistence:
         preset_buttons = [
             '[data-testid="layout-developer"]',
             '[data-testid="layout-analyst"]',
-            '[data-testid="layout-compact"]',
+            '[data-testid="layout-compact"]'
         ]
 
         for preset_selector in preset_buttons:
@@ -344,29 +359,21 @@ class TestLayoutPersistence:
 
             if await preset_button.is_visible():
                 # Get initial layout
-                initial_left = await page.locator(
-                    '[data-testid="left-panel"]'
-                ).bounding_box()
-                initial_terminal = await page.locator(
-                    '[data-testid="terminal-panel"]'
-                ).bounding_box()
+                initial_left = await page.locator('[data-testid="left-panel"]').bounding_box()
+                initial_terminal = await page.locator('[data-testid="terminal-panel"]').bounding_box()
 
                 # Apply preset
                 await preset_button.click()
                 await page.wait_for_timeout(1000)
 
                 # Check layout changed
-                new_left = await page.locator(
-                    '[data-testid="left-panel"]'
-                ).bounding_box()
-                new_terminal = await page.locator(
-                    '[data-testid="terminal-panel"]'
-                ).bounding_box()
+                new_left = await page.locator('[data-testid="left-panel"]').bounding_box()
+                new_terminal = await page.locator('[data-testid="terminal-panel"]').bounding_box()
 
                 # At least one dimension should change
                 layout_changed = (
-                    abs(new_left["width"] - initial_left["width"]) > 10
-                    or abs(new_terminal["height"] - initial_terminal["height"]) > 10
+                    abs(new_left["width"] - initial_left["width"]) > 10 or
+                    abs(new_terminal["height"] - initial_terminal["height"]) > 10
                 )
 
                 if layout_changed:
@@ -381,11 +388,13 @@ class TestLayoutPerformance:
     async def page_for_performance(self):
         """Create page for performance testing."""
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=os.environ.get("CASPER_BROWSER_HEADED") != "1"
+            )
             context = await browser.new_context()
             page = await context.new_page()
 
-            await page.goto("http://localhost:5173")
+            await page.goto(os.environ.get("CASPER_DASHBOARD_URL", "http://localhost:5173"))
             await page.wait_for_selector('[data-testid="dashboard"]', timeout=10000)
 
             yield page
@@ -401,7 +410,7 @@ class TestLayoutPerformance:
         await page.wait_for_selector('[data-testid="resizable-panels"]')
 
         # Enable performance monitoring
-        await page.evaluate("""
+        await page.evaluate('''
             () => {
                 window.performanceMetrics = {
                     frameCount: 0,
@@ -418,7 +427,7 @@ class TestLayoutPerformance:
 
                 requestAnimationFrame(recordFrame);
             }
-        """)
+        ''')
 
         vertical_handle = page.locator('[data-testid="vertical-resize-handle"]')
 
@@ -444,7 +453,7 @@ class TestLayoutPerformance:
             end_time = time.time()
 
             # Get performance metrics
-            metrics = await page.evaluate("""
+            metrics = await page.evaluate('''
                 () => {
                     const endTime = performance.now();
                     const duration = endTime - window.performanceMetrics.startTime;
@@ -458,13 +467,13 @@ class TestLayoutPerformance:
                         frames: window.performanceMetrics.frames.slice(-120) // Last 2 seconds
                     };
                 }
-            """)
+            ''')
 
             # Calculate frame times
             frame_times = []
-            frames = metrics["frames"]
+            frames = metrics['frames']
             for i in range(1, len(frames)):
-                frame_time = frames[i] - frames[i - 1]
+                frame_time = frames[i] - frames[i-1]
                 frame_times.append(frame_time)
 
             if frame_times:
@@ -472,12 +481,8 @@ class TestLayoutPerformance:
                 target_frame_time = 16.67  # 60 FPS = 16.67ms per frame
 
                 # Performance assertions
-                assert (
-                    metrics["fps"] > 45
-                ), f"FPS too low: {metrics['fps']:.2f}, expected > 45"
-                assert (
-                    avg_frame_time < 25
-                ), f"Average frame time too high: {avg_frame_time:.2f}ms"
+                assert metrics['fps'] > 45, f"FPS too low: {metrics['fps']:.2f}, expected > 45"
+                assert avg_frame_time < 25, f"Average frame time too high: {avg_frame_time:.2f}ms"
 
                 # Check for frame drops (frames taking > 33ms)
                 dropped_frames = [ft for ft in frame_times if ft > 33]
@@ -492,9 +497,7 @@ class TestLayoutPerformance:
         await page.wait_for_selector('[data-testid="resizable-panels"]')
 
         # Get initial memory
-        initial_memory = await page.evaluate(
-            "() => performance.memory ? performance.memory.usedJSHeapSize : 0"
-        )
+        initial_memory = await page.evaluate('() => performance.memory ? performance.memory.usedJSHeapSize : 0')
 
         vertical_handle = page.locator('[data-testid="vertical-resize-handle"]')
 
@@ -511,16 +514,12 @@ class TestLayoutPerformance:
                 await page.wait_for_timeout(100)
 
             # Get final memory
-            final_memory = await page.evaluate(
-                "() => performance.memory ? performance.memory.usedJSHeapSize : 0"
-            )
+            final_memory = await page.evaluate('() => performance.memory ? performance.memory.usedJSHeapSize : 0')
 
             if initial_memory > 0 and final_memory > 0:
                 memory_growth = final_memory - initial_memory
                 # Memory growth should be reasonable (< 10MB)
-                assert (
-                    memory_growth < 10 * 1024 * 1024
-                ), f"Memory grew by {memory_growth} bytes"
+                assert memory_growth < 10 * 1024 * 1024, f"Memory grew by {memory_growth} bytes"
 
     @pytest.mark.asyncio
     async def test_layout_state_save_performance(self, page_for_performance):
@@ -536,7 +535,7 @@ class TestLayoutPerformance:
 
         if await vertical_handle.is_visible():
             for i in range(10):
-                start_time = await page.evaluate("() => performance.now()")
+                start_time = await page.evaluate('() => performance.now()')
 
                 # Trigger state save by resizing
                 handle_box = await vertical_handle.bounding_box()
@@ -548,14 +547,12 @@ class TestLayoutPerformance:
                 # Wait for debounced save
                 await page.wait_for_timeout(100)
 
-                end_time = await page.evaluate("() => performance.now()")
+                end_time = await page.evaluate('() => performance.now()')
                 save_times.append(end_time - start_time)
 
             if save_times:
                 avg_save_time = sum(save_times) / len(save_times)
-                assert (
-                    avg_save_time < 50
-                ), f"Layout save too slow: {avg_save_time:.2f}ms"
+                assert avg_save_time < 50, f"Layout save too slow: {avg_save_time:.2f}ms"
 
 
 class TestLayoutAccessibility:
@@ -565,11 +562,13 @@ class TestLayoutAccessibility:
     async def page_with_a11y(self):
         """Create page with accessibility testing enabled."""
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=False)
+            browser = await playwright.chromium.launch(
+                headless=os.environ.get("CASPER_BROWSER_HEADED") != "1"
+            )
             context = await browser.new_context()
             page = await context.new_page()
 
-            await page.goto("http://localhost:5173")
+            await page.goto(os.environ.get("CASPER_DASHBOARD_URL", "http://localhost:5173"))
             await page.wait_for_selector('[data-testid="dashboard"]', timeout=10000)
 
             yield page
@@ -585,7 +584,7 @@ class TestLayoutAccessibility:
         await page.wait_for_selector('[data-testid="resizable-panels"]')
 
         # Test keyboard focus on resize handles
-        await page.keyboard.press("Tab")  # Navigate to first focusable element
+        await page.keyboard.press('Tab')  # Navigate to first focusable element
 
         # Find resize handles that should be keyboard accessible
         vertical_handle = page.locator('[data-testid="vertical-resize-handle"]')
@@ -595,10 +594,10 @@ class TestLayoutAccessibility:
             await page.focus('[data-testid="vertical-resize-handle"]')
 
             # Test keyboard resize (if supported)
-            await page.keyboard.press("ArrowRight")  # Should resize right
+            await page.keyboard.press('ArrowRight')  # Should resize right
             await page.wait_for_timeout(100)
 
-            await page.keyboard.press("ArrowLeft")  # Should resize left
+            await page.keyboard.press('ArrowLeft')   # Should resize left
             await page.wait_for_timeout(100)
 
             # Panel should have changed size
@@ -614,22 +613,18 @@ class TestLayoutAccessibility:
         await page.wait_for_selector('[data-testid="resizable-panels"]')
 
         # Check for proper ARIA labels
-        resize_handles = await page.locator(
-            '[role="separator"], [aria-label*="resize"], [aria-label*="splitter"]'
-        ).all()
+        resize_handles = await page.locator('[role="separator"], [aria-label*="resize"], [aria-label*="splitter"]').all()
 
         for handle in resize_handles:
             # Each resize handle should have appropriate labels
-            aria_label = await handle.get_attribute("aria-label")
-            role = await handle.get_attribute("role")
+            aria_label = await handle.get_attribute('aria-label')
+            role = await handle.get_attribute('role')
 
             assert aria_label or role, "Resize handle missing accessibility labels"
 
             if aria_label:
-                assert any(
-                    keyword in aria_label.lower()
-                    for keyword in ["resize", "splitter", "panel"]
-                ), f"Unclear aria-label: {aria_label}"
+                assert any(keyword in aria_label.lower() for keyword in ['resize', 'splitter', 'panel']), \
+                    f"Unclear aria-label: {aria_label}"
 
     @pytest.mark.asyncio
     async def test_focus_management(self, page_with_a11y):
@@ -655,14 +650,9 @@ class TestLayoutAccessibility:
                 await page.wait_for_timeout(500)
 
                 # Focus should still be maintained or properly managed
-                focused_element = await page.evaluate(
-                    "() => document.activeElement.tagName"
-                )
-                assert focused_element in [
-                    "INPUT",
-                    "BUTTON",
-                    "BODY",
-                ], "Focus was not properly managed during resize"
+                focused_element = await page.evaluate('() => document.activeElement.tagName')
+                assert focused_element in ['INPUT', 'BUTTON', 'BODY'], \
+                    "Focus was not properly managed during resize"
 
     @pytest.mark.asyncio
     async def test_reduced_motion_respect(self, page_with_a11y):
@@ -670,7 +660,7 @@ class TestLayoutAccessibility:
         page = page_with_a11y
 
         # Enable reduced motion preference
-        await page.emulate_media(media="(prefers-reduced-motion: reduce)")
+        await page.emulate_media(media='(prefers-reduced-motion: reduce)')
         await page.wait_for_selector('[data-testid="resizable-panels"]')
 
         # Test that animations are reduced or disabled
@@ -687,11 +677,13 @@ class TestLayoutAccessibility:
             resize_time = time.time() - start_time
 
             # With reduced motion, resize should be immediate or very fast
-            assert (
-                resize_time < 0.5
-            ), "Animation not reduced for accessibility preferences"
+            assert resize_time < 0.5, "Animation not reduced for accessibility preferences"
 
 
 if __name__ == "__main__":
     # Run layout integration tests
-    pytest.main([__file__, "-v", "--tb=short"])
+    pytest.main([
+        __file__,
+        "-v",
+        "--tb=short"
+    ])

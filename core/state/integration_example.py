@@ -3,6 +3,7 @@ Integration example showing how to use the state manager in CASPER
 """
 
 import asyncio
+import os
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -16,10 +17,8 @@ async def casper_state_integration_demo():
     print("=" * 60)
 
     # Initialize state manager for CASPER
-    casper_storage = "/Volumes/Storage/Development/CASPER DEV/.casper/transformation/state_management"
-    state_manager = create_state_manager(
-        storage_path=casper_storage, use_langgraph=False
-    )
+    casper_storage = str(Path(os.environ.get("CASPER_STATE_DIR", Path.cwd() / ".casper")) / "transformation" / "state_management")
+    state_manager = create_state_manager(storage_path=casper_storage, use_langgraph=False)
 
     print(f"✅ State manager initialized at: {casper_storage}")
 
@@ -29,7 +28,7 @@ async def casper_state_integration_demo():
     # 1. Master agent receives a complex task
     master_task = state_manager.create_task(
         description="Refactor authentication system across frontend and backend",
-        assigned_agent="master_prime",
+        assigned_agent="master_prime"
     )
     print(f"📝 Master task created: {master_task.task_id}")
 
@@ -38,7 +37,7 @@ async def casper_state_integration_demo():
         ("Update backend auth middleware", "backend_prime"),
         ("Refactor frontend login components", "frontend_prime"),
         ("Update database schema", "database_prime"),
-        ("Write integration tests", "test_prime"),
+        ("Write integration tests", "test_prime")
     ]
 
     subtask_ids = []
@@ -60,14 +59,12 @@ async def casper_state_integration_demo():
                 "status": "success",
                 "files_modified": [f"file_{i+1}.py", f"file_{i+1}_test.py"],
                 "lines_changed": 50 + i * 10,
-                "duration_seconds": 30 + i * 15,
+                "duration_seconds": 30 + i * 15
             }
             state_manager.complete_task(task_id, result)
             print(f"✅ Task {task_id[:8]}... completed successfully")
         elif i == 2:  # Third fails
-            state_manager.fail_task(
-                task_id, "Database connection timeout during migration"
-            )
+            state_manager.fail_task(task_id, "Database connection timeout during migration")
             print(f"❌ Task {task_id[:8]}... failed")
         else:  # Fourth pending
             state_manager.update_task_status(task_id, TaskStatus.IN_PROGRESS)
@@ -81,7 +78,7 @@ async def casper_state_integration_demo():
         "active_agents": ["test_prime"],  # Only one still working
         "failed_tasks": 1,
         "completed_tasks": 2,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
     checkpoint_id = state_manager.save_checkpoint("casper-demo", system_state)
@@ -118,12 +115,10 @@ async def casper_state_integration_demo():
             "completed": "✅",
             "failed": "❌",
             "in_progress": "⏳",
-            "pending": "📋",
+            "pending": "📋"
         }.get(task.status.value, "❓")
 
-        print(
-            f"   {status_icon} {task.task_id[:12]}... | {task.assigned_agent} | {task.description[:50]}"
-        )
+        print(f"   {status_icon} {task.task_id[:12]}... | {task.assigned_agent} | {task.description[:50]}")
         if task.error:
             print(f"      Error: {task.error}")
         if task.result:
@@ -136,7 +131,7 @@ async def casper_state_integration_demo():
         "success": True,
         "tasks_processed": len(all_tasks),
         "checkpoint_id": checkpoint_id,
-        "health_status": health,
+        "health_status": health
     }
 
 
@@ -145,19 +140,15 @@ def demonstrate_recovery():
     print("\n🔄 Demonstrating State Recovery...")
 
     # Create new instance (simulates system restart)
-    casper_storage = "/Volumes/Storage/Development/CASPER DEV/.casper/transformation/state_management"
-    new_state_manager = create_state_manager(
-        storage_path=casper_storage, use_langgraph=False
-    )
+    casper_storage = str(Path(os.environ.get("CASPER_STATE_DIR", Path.cwd() / ".casper")) / "transformation" / "state_management")
+    new_state_manager = create_state_manager(storage_path=casper_storage, use_langgraph=False)
 
     # Show that data persisted
     recovered_tasks = new_state_manager.list_all_tasks()
     print(f"✅ Recovered {len(recovered_tasks)} tasks after 'restart'")
 
     for task in recovered_tasks[-3:]:  # Show last 3 tasks
-        print(
-            f"   📋 {task.task_id[:12]}... | {task.status.value} | {task.assigned_agent}"
-        )
+        print(f"   📋 {task.task_id[:12]}... | {task.status.value} | {task.assigned_agent}")
 
     return len(recovered_tasks) > 0
 

@@ -17,8 +17,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-/lib/
-/lib64/
+lib/
+lib64/
+# The dashboard's shared TypeScript helpers are source, not Python build output.
+!dashboard/src/lib/
+!dashboard/src/lib/utils.ts
 parts/
 sdist/
 var/
@@ -43,6 +46,7 @@ yarn-error.log*
 # IDE
 .vscode/
 .idea/
+.grok/
 *.swp
 *.swo
 *~
@@ -59,11 +63,6 @@ yarn-error.log*
 .casper/skills
 .casper/mcp/
 .casper/transformation/test_results/
-.casper/transformation/state_management/checkpoints/
-.casper/transformation/state_management/simple_state.db
-.casper/test_output/
-.casper/todos.json
-.casper/workspace.json
 .casper/chromadb/
 /core/terminal/.casper/
 *.ctx
@@ -89,9 +88,11 @@ dashboard/test-results/
 dashboard/playwright-report/
 dashboard/screenshots/
 dashboard/verification/
-casper-prime/e2e/test-results/
-casper-prime/e2e/playwright-report/
-casper-prime/test_screenshots/
+
+# Local-only verification and handoff artifacts
+docs/2026-07-18-casper2-compatibility-launcher.md
+tests/test_casper2_launcher.py
+tests/test_portable_defaults.py
 
 # Build outputs
 dist/

@@ -58,7 +58,9 @@ class TestTerminalServerIntegration:
             mock_handler = AsyncMock()
             mock_handler_class.return_value = mock_handler
 
-            mock_coordinator = AsyncMock()
+            mock_coordinator = Mock()
+            mock_coordinator.start = AsyncMock()
+            mock_coordinator.stop = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
 
             mock_context = Mock()
@@ -242,7 +244,9 @@ class TestTerminalFullIntegration:
             mock_handler_class.return_value = mock_handler
 
             # Set up other mocks
-            mock_coordinator = AsyncMock()
+            mock_coordinator = Mock()
+            mock_coordinator.start = AsyncMock()
+            mock_coordinator.stop = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
 
             mock_context = Mock()
@@ -347,7 +351,9 @@ class TestTerminalFullIntegration:
             mock_handler = AsyncMock()
             mock_handler_class.return_value = mock_handler
 
-            mock_coordinator = AsyncMock()
+            mock_coordinator = Mock()
+            mock_coordinator.start = AsyncMock()
+            mock_coordinator.stop = AsyncMock()
             mock_coordinator_class.return_value = mock_coordinator
 
             # Initialize

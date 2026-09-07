@@ -30,9 +30,16 @@ def _mock_llm_service():
     OpenAI. Tests that need to verify LLM behavior can override this by
     patching ``core.services.llm.llm_service`` directly with their own mock.
     """
+    # Patch methods on the shared service object, rather than replacing only
+    # ``core.services.llm.llm_service``. Many modules import that object at
+    # module load time; replacing the source attribute leaves those references
+    # live and used to permit accidental provider calls from the test suite.
+    from core.services.llm import llm_service
+
     mock_response = "[MOCK LLM RESPONSE] Task analyzed successfully."
-    with patch("core.services.llm.llm_service") as mock_llm:
-        mock_llm.complete = AsyncMock(return_value=mock_response)
-        mock_llm.available = MagicMock(return_value=True)
-        mock_llm.resolve_model = AsyncMock(return_value="mock-model")
-        yield mock_llm
+    with (
+        patch.object(llm_service, "complete", AsyncMock(return_value=mock_response)),
+        patch.object(llm_service, "available", MagicMock(return_value=True)),
+        patch.object(llm_service, "resolve_model", AsyncMock(return_value="mock-model")),
+    ):
+        yield llm_service

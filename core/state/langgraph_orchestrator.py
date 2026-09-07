@@ -57,9 +57,10 @@ class ProductionStateManager:
     """
 
     def __init__(self, storage_path: str = None):
-        self.storage_path = (
-            storage_path
-            or "/Volumes/Storage/Development/CASPER DEV/.casper/transformation/state_management"
+        self.storage_path = storage_path or str(
+            Path(os.environ.get("CASPER_STATE_DIR", Path.cwd() / ".casper"))
+            / "transformation"
+            / "state_management"
         )
         self.db_path = Path(self.storage_path) / "state_manager.db"
         self.checkpoint_path = Path(self.storage_path) / "checkpoints"
@@ -84,9 +85,7 @@ class ProductionStateManager:
         self._tasks: Dict[str, AgentTask] = {}
         self._load_tasks_from_db()
 
-        print(
-            f"✅ ProductionStateManager initialized with persistent storage at: {self.storage_path}"
-        )
+        print(f"✅ ProductionStateManager initialized with persistent storage at: {self.storage_path}")
 
     def _init_database(self):
         """Initialize SQLite database with proper schema"""
@@ -135,17 +134,31 @@ class ProductionStateManager:
 
         # Add edges with conditional routing
         self.workflow.add_conditional_edges(
-            "analyze", self._should_execute, {"execute": "execute", "skip": END}
+            "analyze",
+            self._should_execute,
+            {
+                "execute": "execute",
+                "skip": END
+            }
         )
 
         self.workflow.add_conditional_edges(
             "execute",
             self._check_execution_result,
-            {"verify": "verify", "recover": "recover", "end": END},
+            {
+                "verify": "verify",
+                "recover": "recover",
+                "end": END
+            }
         )
 
         self.workflow.add_conditional_edges(
-            "verify", self._check_verification, {"complete": END, "retry": "execute"}
+            "verify",
+            self._check_verification,
+            {
+                "complete": END,
+                "retry": "execute"
+            }
         )
 
         self.workflow.add_edge("recover", "execute")
@@ -159,14 +172,14 @@ class ProductionStateManager:
             "complexity": self._assess_complexity(current_task),
             "required_agents": self._identify_required_agents(current_task),
             "estimated_duration": self._estimate_duration(current_task),
-            "dependencies": self._extract_dependencies(current_task),
+            "dependencies": self._extract_dependencies(current_task)
         }
 
         # Update reasoning chain
         reasoning_step = {
             "step": "analysis",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "analysis": analysis,
+            "analysis": analysis
         }
 
         state["reasoning_chain"].append(reasoning_step)
@@ -188,7 +201,7 @@ class ProductionStateManager:
                 status=TaskStatus.IN_PROGRESS,
                 assigned_agent=analysis.get("required_agents", ["general"])[0],
                 created_at=datetime.now(timezone.utc).isoformat(),
-                updated_at=datetime.now(timezone.utc).isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat()
             )
 
             # Persist task
@@ -199,7 +212,7 @@ class ProductionStateManager:
                 "status": "success",
                 "output": f"Task '{current_task}' executed successfully",
                 "artifacts": [],
-                "duration": analysis.get("estimated_duration", 5),
+                "duration": analysis.get("estimated_duration", 5)
             }
 
             # Update task with result
@@ -233,16 +246,10 @@ class ProductionStateManager:
             "verified": last_execution.get("status") == "success",
             "checks": [
                 {"name": "output_exists", "passed": bool(last_execution.get("output"))},
-                {
-                    "name": "no_errors",
-                    "passed": not state.get("execution_context", {}).get("last_error"),
-                },
-                {
-                    "name": "artifacts_valid",
-                    "passed": isinstance(last_execution.get("artifacts", []), list),
-                },
+                {"name": "no_errors", "passed": not state.get("execution_context", {}).get("last_error")},
+                {"name": "artifacts_valid", "passed": isinstance(last_execution.get("artifacts", []), list)}
             ],
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         state["execution_context"]["verification"] = verification
@@ -256,8 +263,7 @@ class ProductionStateManager:
         recovery_action = {
             "strategy": self._determine_recovery_strategy(last_error),
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "attempt": state.get("execution_context", {}).get("recovery_attempts", 0)
-            + 1,
+            "attempt": state.get("execution_context", {}).get("recovery_attempts", 0) + 1
         }
 
         state["execution_context"]["recovery_attempts"] = recovery_action["attempt"]
@@ -274,10 +280,7 @@ class ProductionStateManager:
         """Check execution outcome"""
         if state.get("execution_context", {}).get("last_error"):
             return "recover"
-        elif (
-            state.get("execution_context", {}).get("last_execution", {}).get("status")
-            == "success"
-        ):
+        elif state.get("execution_context", {}).get("last_execution", {}).get("status") == "success":
             return "verify"
         else:
             return "end"
@@ -293,10 +296,7 @@ class ProductionStateManager:
     def _assess_complexity(self, task: str) -> str:
         """Real complexity assessment"""
         task_lower = task.lower()
-        if any(
-            word in task_lower
-            for word in ["complex", "multiple", "integration", "system"]
-        ):
+        if any(word in task_lower for word in ["complex", "multiple", "integration", "system"]):
             return "high"
         elif any(word in task_lower for word in ["modify", "update", "change"]):
             return "medium"
@@ -351,23 +351,20 @@ class ProductionStateManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cursor.execute(
-                """
+            cursor.execute("""
                 INSERT OR REPLACE INTO tasks
                 (task_id, description, status, assigned_agent, created_at, updated_at, result, error)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    task.task_id,
-                    task.description,
-                    task.status.value,
-                    task.assigned_agent,
-                    task.created_at,
-                    task.updated_at,
-                    json.dumps(task.result) if task.result else None,
-                    task.error,
-                ),
-            )
+            """, (
+                task.task_id,
+                task.description,
+                task.status.value,
+                task.assigned_agent,
+                task.created_at,
+                task.updated_at,
+                json.dumps(task.result) if task.result else None,
+                task.error
+            ))
 
             conn.commit()
             conn.close()
@@ -392,7 +389,7 @@ class ProductionStateManager:
                 created_at=row[4],
                 updated_at=row[5],
                 result=json.loads(row[6]) if row[6] else None,
-                error=row[7],
+                error=row[7]
             )
             self._tasks[task.task_id] = task
 
@@ -407,35 +404,28 @@ class ProductionStateManager:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
+        cursor.execute("""
             INSERT INTO state_snapshots (snapshot_id, thread_id, state_data, created_at)
             VALUES (?, ?, ?, ?)
-        """,
-            (
-                checkpoint_id,
-                thread_id,
-                json.dumps(state),
-                datetime.now(timezone.utc).isoformat(),
-            ),
-        )
+        """, (
+            checkpoint_id,
+            thread_id,
+            json.dumps(state),
+            datetime.now(timezone.utc).isoformat()
+        ))
 
         conn.commit()
         conn.close()
 
         # Also save to file for backup
         checkpoint_file = self.checkpoint_path / f"{checkpoint_id}.json"
-        with open(checkpoint_file, "w") as f:
-            json.dump(
-                {
-                    "checkpoint_id": checkpoint_id,
-                    "thread_id": thread_id,
-                    "state": state,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                },
-                f,
-                indent=2,
-            )
+        with open(checkpoint_file, 'w') as f:
+            json.dump({
+                "checkpoint_id": checkpoint_id,
+                "thread_id": thread_id,
+                "state": state,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }, f, indent=2)
 
         return checkpoint_id
 
@@ -444,12 +434,9 @@ class ProductionStateManager:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT state_data FROM state_snapshots WHERE snapshot_id = ?
-        """,
-            (checkpoint_id,),
-        )
+        """, (checkpoint_id,))
 
         row = cursor.fetchone()
         conn.close()
@@ -460,7 +447,7 @@ class ProductionStateManager:
         # Fallback to file
         checkpoint_file = self.checkpoint_path / f"{checkpoint_id}.json"
         if checkpoint_file.exists():
-            with open(checkpoint_file, "r") as f:
+            with open(checkpoint_file, 'r') as f:
                 data = json.load(f)
                 return data.get("state")
 
@@ -480,7 +467,7 @@ class ProductionStateManager:
             task_queue=[],
             agent_pool={},
             execution_context={},
-            checkpoint_data={},
+            checkpoint_data={}
         )
 
         # Save initial checkpoint
@@ -489,7 +476,8 @@ class ProductionStateManager:
         try:
             # Run the workflow
             result = await self.app.ainvoke(
-                initial_state, config={"configurable": {"thread_id": thread_id}}
+                initial_state,
+                config={"configurable": {"thread_id": thread_id}}
             )
 
             # Save final checkpoint
@@ -500,7 +488,7 @@ class ProductionStateManager:
                 "result": result,
                 "thread_id": thread_id,
                 "initial_checkpoint": initial_checkpoint,
-                "final_checkpoint": final_checkpoint,
+                "final_checkpoint": final_checkpoint
             }
 
         except Exception as e:
@@ -513,7 +501,7 @@ class ProductionStateManager:
                 "success": False,
                 "error": str(e),
                 "thread_id": thread_id,
-                "error_checkpoint": error_checkpoint,
+                "error_checkpoint": error_checkpoint
             }
 
     def get_task_status(self, task_id: str) -> Optional[AgentTask]:
@@ -526,12 +514,8 @@ class ProductionStateManager:
 
     def get_active_tasks(self) -> List[AgentTask]:
         """Get all active (non-completed) tasks"""
-        return [
-            task
-            for task in self._tasks.values()
-            if task.status
-            in [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.PAUSED]
-        ]
+        return [task for task in self._tasks.values()
+                if task.status in [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.PAUSED]]
 
     def recover_from_checkpoint(self, checkpoint_id: str) -> bool:
         """Recover system state from checkpoint"""
@@ -551,7 +535,7 @@ class ProductionStateManager:
             "total_tasks": len(self._tasks),
             "active_tasks": len(self.get_active_tasks()),
             "storage_path": str(self.storage_path),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 
@@ -573,9 +557,7 @@ if __name__ == "__main__":
         print(f"Health check: {health}")
 
         # Process a test task
-        result = await sm.process_task(
-            "Test task for state management", "test-thread-001"
-        )
+        result = await sm.process_task("Test task for state management", "test-thread-001")
         print(f"Task result: {result}")
 
         # Test recovery
@@ -584,5 +566,4 @@ if __name__ == "__main__":
             print(f"Recovery test: {recovered}")
 
     import asyncio
-
     asyncio.run(test_state_manager())

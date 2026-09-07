@@ -231,7 +231,7 @@ export function validateOperation(
   let allowed = true;
   let requiresApproval = false;
   let autoApprove = false;
-  let reason = '';
+  let reason: string;
 
   switch (approvalMode) {
     case 'STRICT':

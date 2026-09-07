@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Agent, AgentRole, AgentStatus, ApprovalItem, Metrics, Task, TokenUsage, WSAgentUpdate } from '../types';
+import { approveOperation, rejectOperation, submitTask } from '../services/api';
 
 type Maps<T> = Map<string, T>;
 
@@ -100,7 +101,6 @@ export const useAgentStore = create<AgentStoreState>((set, _get) => ({
   }),
 
   submitTask: async (description: string, priority: 'low' | 'medium' | 'high' = 'medium') => {
-    const { submitTask } = await import('../services/api');
     await submitTask(description, priority);
   },
 
@@ -114,8 +114,6 @@ export const useAgentStore = create<AgentStoreState>((set, _get) => ({
   })),
 
   updateApproval: async (id: string, status: 'approved' | 'rejected') => {
-    const { approveOperation, rejectOperation } = await import('../services/api');
-
     if (status === 'approved') {
       await approveOperation(id);
     } else {

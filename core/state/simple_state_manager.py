@@ -41,9 +41,10 @@ class SimpleStateManager:
     """
 
     def __init__(self, storage_path: str = None):
-        self.storage_path = (
-            storage_path
-            or "/Volumes/Storage/Development/CASPER DEV/.casper/transformation/state_management"
+        self.storage_path = storage_path or str(
+            Path(os.environ.get("CASPER_STATE_DIR", Path.cwd() / ".casper"))
+            / "transformation"
+            / "state_management"
         )
         self.db_path = Path(self.storage_path) / "simple_state.db"
         self.checkpoint_path = Path(self.storage_path) / "checkpoints"
@@ -60,9 +61,7 @@ class SimpleStateManager:
         self._tasks: Dict[str, AgentTask] = {}
         self._load_tasks_from_db()
 
-        print(
-            f"✅ SimpleStateManager initialized with persistent storage at: {self.storage_path}"
-        )
+        print(f"✅ SimpleStateManager initialized with persistent storage at: {self.storage_path}")
 
     def _init_database(self):
         """Initialize SQLite database with proper schema"""
@@ -105,19 +104,13 @@ class SimpleStateManager:
             status=TaskStatus.PENDING,
             assigned_agent=assigned_agent or "default_agent",
             created_at=datetime.now(timezone.utc).isoformat(),
-            updated_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(timezone.utc).isoformat()
         )
 
         self._save_task_to_db(task)
         return task
 
-    def update_task_status(
-        self,
-        task_id: str,
-        status: TaskStatus,
-        result: Dict[str, Any] = None,
-        error: str = None,
-    ) -> bool:
+    def update_task_status(self, task_id: str, status: TaskStatus, result: Dict[str, Any] = None, error: str = None) -> bool:
         """Update task status"""
         task = self._tasks.get(task_id)
         if not task:
@@ -148,23 +141,20 @@ class SimpleStateManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cursor.execute(
-                """
+            cursor.execute("""
                 INSERT OR REPLACE INTO tasks
                 (task_id, description, status, assigned_agent, created_at, updated_at, result, error)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    task.task_id,
-                    task.description,
-                    task.status.value,
-                    task.assigned_agent,
-                    task.created_at,
-                    task.updated_at,
-                    json.dumps(task.result) if task.result else None,
-                    task.error,
-                ),
-            )
+            """, (
+                task.task_id,
+                task.description,
+                task.status.value,
+                task.assigned_agent,
+                task.created_at,
+                task.updated_at,
+                json.dumps(task.result) if task.result else None,
+                task.error
+            ))
 
             conn.commit()
             conn.close()
@@ -189,7 +179,7 @@ class SimpleStateManager:
                 created_at=row[4],
                 updated_at=row[5],
                 result=json.loads(row[6]) if row[6] else None,
-                error=row[7],
+                error=row[7]
             )
             self._tasks[task.task_id] = task
 
@@ -204,35 +194,28 @@ class SimpleStateManager:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
+        cursor.execute("""
             INSERT INTO state_snapshots (snapshot_id, thread_id, state_data, created_at)
             VALUES (?, ?, ?, ?)
-        """,
-            (
-                checkpoint_id,
-                thread_id,
-                json.dumps(state),
-                datetime.now(timezone.utc).isoformat(),
-            ),
-        )
+        """, (
+            checkpoint_id,
+            thread_id,
+            json.dumps(state),
+            datetime.now(timezone.utc).isoformat()
+        ))
 
         conn.commit()
         conn.close()
 
         # Also save to file for backup
         checkpoint_file = self.checkpoint_path / f"{checkpoint_id}.json"
-        with open(checkpoint_file, "w") as f:
-            json.dump(
-                {
-                    "checkpoint_id": checkpoint_id,
-                    "thread_id": thread_id,
-                    "state": state,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                },
-                f,
-                indent=2,
-            )
+        with open(checkpoint_file, 'w') as f:
+            json.dump({
+                "checkpoint_id": checkpoint_id,
+                "thread_id": thread_id,
+                "state": state,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }, f, indent=2)
 
         return checkpoint_id
 
@@ -241,12 +224,9 @@ class SimpleStateManager:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT state_data FROM state_snapshots WHERE snapshot_id = ?
-        """,
-            (checkpoint_id,),
-        )
+        """, (checkpoint_id,))
 
         row = cursor.fetchone()
         conn.close()
@@ -257,7 +237,7 @@ class SimpleStateManager:
         # Fallback to file
         checkpoint_file = self.checkpoint_path / f"{checkpoint_id}.json"
         if checkpoint_file.exists():
-            with open(checkpoint_file, "r") as f:
+            with open(checkpoint_file, 'r') as f:
                 data = json.load(f)
                 return data.get("state")
 
@@ -273,12 +253,8 @@ class SimpleStateManager:
 
     def get_active_tasks(self) -> List[AgentTask]:
         """Get all active (non-completed) tasks"""
-        return [
-            task
-            for task in self._tasks.values()
-            if task.status
-            in [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.PAUSED]
-        ]
+        return [task for task in self._tasks.values()
+                if task.status in [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.PAUSED]]
 
     def health_check(self) -> Dict[str, Any]:
         """Comprehensive health check"""
@@ -288,7 +264,7 @@ class SimpleStateManager:
             "total_tasks": len(self._tasks),
             "active_tasks": len(self.get_active_tasks()),
             "storage_path": str(self.storage_path),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
     def demonstrate_persistence(self) -> Dict[str, Any]:
@@ -304,9 +280,7 @@ class SimpleStateManager:
 
         # Update some task statuses
         self.update_task_status(tasks[0].task_id, TaskStatus.IN_PROGRESS)
-        self.complete_task(
-            tasks[1].task_id, {"output": "Task 2 completed successfully"}
-        )
+        self.complete_task(tasks[1].task_id, {"output": "Task 2 completed successfully"})
         self.fail_task(tasks[2].task_id, "Task 3 failed due to test error")
 
         # Save state checkpoint
@@ -314,7 +288,7 @@ class SimpleStateManager:
             "session_id": str(uuid.uuid4()),
             "tasks_processed": len(tasks),
             "current_time": datetime.now(timezone.utc).isoformat(),
-            "agent_status": "active",
+            "agent_status": "active"
         }
         checkpoint_id = self.save_checkpoint("demo-session", state)
         print(f"💾 Saved checkpoint: {checkpoint_id}")
@@ -330,7 +304,7 @@ class SimpleStateManager:
             "checkpoint_id": checkpoint_id,
             "database_file": str(self.db_path),
             "checkpoint_dir": str(self.checkpoint_path),
-            "persistence_verified": True,
+            "persistence_verified": True
         }
 
         print(f"✅ Persistence verified: {result}")
@@ -367,7 +341,10 @@ def test_persistence_across_restarts():
     if recovered_state:
         print(f"   Recovered state: {recovered_state}")
 
-    success = len(tasks_after_restart) >= 3 and recovered_state is not None
+    success = (
+        len(tasks_after_restart) >= 3 and
+        recovered_state is not None
+    )
 
     print(f"\n🎉 Persistence test: {'PASSED' if success else 'FAILED'}")
     return success

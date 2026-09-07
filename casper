@@ -8,9 +8,8 @@ import os
 import asyncio
 from pathlib import Path
 
-# Determine the CASPER installation directory
-# The CASPER modules are installed in /Volumes/Storage/Development/CASPER DEV
-casper_install_dir = Path("/Volumes/Storage/Development/CASPER DEV")
+# Resolve the installation directory without pinning CASPER to one Mac or volume.
+casper_install_dir = Path(__file__).resolve().parent
 
 # Add CASPER to Python path so we can import its modules
 sys.path.insert(0, str(casper_install_dir))
@@ -173,7 +172,7 @@ async def interactive_shell():
 try:
     # Check for command modifiers
     if len(sys.argv) > 1:
-        if sys.argv[1] == '--complete':
+        if sys.argv[1] in {'--complete', '--legacy'}:
             # Explicitly use the complete terminal
             import subprocess
             terminal_path = casper_install_dir / 'casper_terminal_complete.py'
@@ -188,63 +187,61 @@ try:
         elif sys.argv[1] == '--original':
             # Use the original interactive shell
             asyncio.run(interactive_shell())
+        elif sys.argv[1] in ['features', '--features']:
+            from core.harness.catalog import render_feature_catalog
+            print(render_feature_catalog())
+            sys.exit(0)
         elif sys.argv[1] in ['-h', '--help']:
-            print("""CASPER - Complete AI Development Terminal
+            print("""CASPER - Typed AI Coding Harness
 
 Usage: casper [options]
 
 Terminal Modes:
-    (default)     Run complete terminal (STRICT approval mode)
-    --complete    Explicitly run complete 49-command terminal
+    (default)     Run canonical typed harness (default approval mode)
+    --legacy      Run the retired complete terminal during migration
+    --complete    Alias for --legacy
     --simple      Run simple terminal (Tier 1 & 2 commands only)
     --original    Run original CASPER interactive shell
 
 Approval Modes:
-    --yolo        YOLO mode - Auto-approve everything (no confirmations)
-    --auto        Auto-approve mode - Automatic approval for safe operations
-    --strict      Strict mode - Require approval for all operations (default)
+    --yolo        Bypass non-critical approvals (critical actions still ask)
+    --auto        Accept local reversible edits; ask for high-risk actions
+    --strict      Read-only tools; deny mutations
 
 Other Options:
     -h, --help    Show this help message
     -v, --version Show version information
+    --features    List all 50 verified harness engines
 
 Examples:
-    casper              # Run with strict approval (default)
-    casper --yolo       # Run in YOLO mode (auto-approve everything)
-    casper --auto       # Run with smart auto-approval
-    casper --strict     # Explicitly use strict mode
+    casper              # Run with per-action approval (default)
+    casper --yolo       # Bypass non-critical approvals
+    casper --auto       # Accept local reversible edits
+    casper --strict     # Read-only mode
 
-Available Commands (Complete Mode):
-    • 8 Core commands (help, task, analyze, status, approve, clear, exit, quit)
-    • 5 Workflow commands (/task, /analyze, /status, /help, list)
-    • 14 Development commands (/create, /test, /debug, /review, etc.)
-    • 5 AI commands (/ai-review, /ai-complete, /ai-explain, etc.)
-    • 5 Business commands (/invoice, /proposal, /contract, etc.)
-    • 5 Testing commands (/unit-test, /integration-test, etc.)
-    • 10 Utility commands (/search, /format, /backup, etc.)
+Canonical Controls:
+    /commands, /status, /doctor, /context, /diff, /review, /code-review,
+    /security-review, /goal, /plan, /task, /verify, /permissions, /runs,
+    /resume, /rewind, /skills, /mcp, /agents, /tasks, /hooks, /usage
 
-Total: 50+ commands
+Headless Automation:
+    casper exec "inspect the project" --permission-mode read_only
 """)
             sys.exit(0)
         elif sys.argv[1] in ['-v', '--version']:
-            print("CASPER v2.0.0 - Complete 49-Command Implementation")
+            print("CASPER 0.1.0-beta.1 - canonical harness runtime")
             sys.exit(0)
         elif sys.argv[1] in ['--yolo', '--auto', '--strict']:
-            # Approval mode modifiers - pass to complete terminal
-            import subprocess
+            from core.cli import print_modern_banner
+            from core.terminal.modern_cli import run_interactive
 
-            # Set environment variable for approval mode
-            env = os.environ.copy()
-            if sys.argv[1] == '--yolo':
-                env['CASPER_APPROVAL_MODE'] = 'YOLO'
-            elif sys.argv[1] == '--auto':
-                env['CASPER_APPROVAL_MODE'] = 'AUTO'
-            else:  # --strict
-                env['CASPER_APPROVAL_MODE'] = 'STRICT'
-
-            terminal_path = casper_install_dir / 'casper_terminal_complete.py'
-            result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir, env=env)
-            sys.exit(result.returncode)
+            mode = {
+                '--yolo': 'bypass',
+                '--auto': 'accept_edits',
+                '--strict': 'read_only',
+            }[sys.argv[1]]
+            print_modern_banner()
+            sys.exit(asyncio.run(run_interactive(working_dir, permission_mode=mode)))
         elif sys.argv[1] in ['-i', '--interactive']:
             # Legacy interactive mode - use original
             asyncio.run(interactive_shell())
@@ -254,13 +251,10 @@ Total: 50+ commands
             print_modern_banner()
             asyncio.run(main())
     else:
-        # No arguments - DEFAULT: Use the complete terminal in STRICT mode
-        import subprocess
-        env = os.environ.copy()
-        env['CASPER_APPROVAL_MODE'] = 'STRICT'  # Default to strict mode
-        terminal_path = casper_install_dir / 'casper_terminal_complete.py'
-        result = subprocess.run([sys.executable, str(terminal_path)], cwd=working_dir, env=env)
-        sys.exit(result.returncode)
+        # No arguments: one canonical typed runtime. The complete terminal is
+        # retained temporarily behind --legacy for migration compatibility.
+        from core.cli import main
+        main()
 
 except ImportError as e:
     print(f"Error importing CASPER: {e}")

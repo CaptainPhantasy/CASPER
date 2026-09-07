@@ -5,23 +5,15 @@ Tests all security components including middleware, command validation, sandboxi
 
 import asyncio
 import pytest
-import tempfile
-import shutil
-from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock, patch
 from uuid import uuid4
 
 # Import all security components
 from core.terminal.security import (
-    SecurityMiddleware,
-    SecurityConfig,
-    SecurityViolation,
-    CommandRisk,
-    SecurityLevel,
-    AuditEvent,
+    SecurityMiddleware, SecurityConfig, SecurityViolation, CommandRisk
 )
-from core.terminal.websocket_handler import TerminalWebSocketHandler, TerminalSession
+from core.terminal.websocket_handler import TerminalWebSocketHandler
 from core.terminal.command_proxy import CommandProxy
 from core.terminal.pty_manager import PTYManager
 
@@ -58,17 +50,11 @@ class TestSecurityConfig:
         assert any(pattern.search("rm -rf /") for pattern in config.dangerous_patterns)
 
         # Test command substitution patterns
-        assert any(
-            pattern.search("echo `whoami`") for pattern in config.dangerous_patterns
-        )
-        assert any(
-            pattern.search("echo $(id)") for pattern in config.dangerous_patterns
-        )
+        assert any(pattern.search("echo `whoami`") for pattern in config.dangerous_patterns)
+        assert any(pattern.search("echo $(id)") for pattern in config.dangerous_patterns)
 
         # Test command chaining
-        assert any(
-            pattern.search("ls && rm file") for pattern in config.dangerous_patterns
-        )
+        assert any(pattern.search("ls && rm file") for pattern in config.dangerous_patterns)
 
 
 class TestSecurityMiddleware:
@@ -86,10 +72,15 @@ class TestSecurityMiddleware:
         safe_commands = ["ls -la", "cat file.txt", "pwd", "git status"]
 
         for command in safe_commands:
-            result = await self.security.validate_command(
-                command, self.session_id, self.user_id
-            )
+            result = await self.security.validate_command(command, self.session_id, self.user_id)
             assert result is True
+
+    @pytest.mark.asyncio
+    async def test_mutating_git_command_is_not_misclassified_as_safe(self):
+        with pytest.raises(SecurityViolation):
+            await self.security.validate_command(
+                "git add .", self.session_id, self.user_id
+            )
 
     @pytest.mark.asyncio
     async def test_blocked_command_validation(self):
@@ -98,9 +89,7 @@ class TestSecurityMiddleware:
 
         for command in blocked_commands:
             with pytest.raises(SecurityViolation) as exc_info:
-                await self.security.validate_command(
-                    command, self.session_id, self.user_id
-                )
+                await self.security.validate_command(command, self.session_id, self.user_id)
             assert exc_info.value.risk_level in [CommandRisk.HIGH, CommandRisk.CRITICAL]
 
     @pytest.mark.asyncio
@@ -111,28 +100,22 @@ class TestSecurityMiddleware:
             "echo `rm file`",
             "ls && rm file",
             "cat file | sh",
-            "> /dev/sda",
+            "> /dev/sda"
         ]
 
         for command in dangerous_commands:
             with pytest.raises(SecurityViolation):
-                await self.security.validate_command(
-                    command, self.session_id, self.user_id
-                )
+                await self.security.validate_command(command, self.session_id, self.user_id)
 
     @pytest.mark.asyncio
     async def test_path_validation(self):
         """Test path-based security validation."""
         # Should block access to system directories
         with pytest.raises(SecurityViolation):
-            await self.security.validate_command(
-                "rm /etc/passwd", self.session_id, self.user_id
-            )
+            await self.security.validate_command("rm /etc/passwd", self.session_id, self.user_id)
 
         with pytest.raises(SecurityViolation):
-            await self.security.validate_command(
-                "chmod 777 /bin/bash", self.session_id, self.user_id
-            )
+            await self.security.validate_command("chmod 777 /bin/bash", self.session_id, self.user_id)
 
     @pytest.mark.asyncio
     async def test_sandbox_creation(self):
@@ -159,13 +142,8 @@ class TestSecurityMiddleware:
 
         # Log a security event
         self.security._log_security_event(
-            "TEST_EVENT",
-            "test command",
-            self.session_id,
-            self.user_id,
-            CommandRisk.LOW,
-            True,
-            "Test audit event",
+            "TEST_EVENT", "test command", self.session_id, self.user_id,
+            CommandRisk.LOW, True, "Test audit event"
         )
 
         assert len(self.security.audit_log) == initial_log_count + 1
@@ -186,18 +164,13 @@ class TestSecurityMiddleware:
             ("COMMAND_1", CommandRisk.LOW, True),
             ("COMMAND_2", CommandRisk.HIGH, False),
             ("COMMAND_3", CommandRisk.MEDIUM, True),
-            ("COMMAND_4", CommandRisk.CRITICAL, False),
+            ("COMMAND_4", CommandRisk.CRITICAL, False)
         ]
 
         for event_type, risk, allowed in events:
             self.security._log_security_event(
-                event_type,
-                f"test {event_type}",
-                self.session_id,
-                self.user_id,
-                risk,
-                allowed,
-                "Test event",
+                event_type, f"test {event_type}", self.session_id, self.user_id,
+                risk, allowed, "Test event"
             )
 
         summary = self.security.get_audit_summary(hours=1)
@@ -236,7 +209,7 @@ class TestWebSocketSecurityHandler:
             await self.handler.connect(self.mock_websocket, "invalid_token")
 
     @pytest.mark.asyncio
-    @patch("jwt.decode")
+    @patch('jwt.decode')
     async def test_connection_with_valid_token(self, mock_jwt_decode):
         """Test connection establishment with valid authentication token."""
         mock_jwt_decode.return_value = {"user_id": "test_user"}
@@ -250,7 +223,6 @@ class TestWebSocketSecurityHandler:
     async def test_command_security_validation(self):
         """Test command security validation through WebSocket handler."""
         session_id = await self.handler.connect(self.mock_websocket)
-        session = self.handler.sessions[session_id]
 
         # Test safe command
         message = {"type": "command", "command": "ls -la"}
@@ -409,7 +381,11 @@ class TestIntegratedSecurity:
         session_id = await self.handler.connect(mock_websocket)
 
         # Attempt to execute a safe command
-        message = {"type": "casper_command", "command": "help", "args": []}
+        message = {
+            "type": "casper_command",
+            "command": "help",
+            "args": []
+        }
 
         await self.handler.handle_message(session_id, message)
 
@@ -417,14 +393,18 @@ class TestIntegratedSecurity:
         assert mock_websocket.send_json.called
 
         # Attempt to execute a dangerous command
-        message = {"type": "command", "command": "rm -rf /"}
+        message = {
+            "type": "command",
+            "command": "rm -rf /"
+        }
 
         await self.handler.handle_message(session_id, message)
 
         # Verify security violation was handled
         calls = mock_websocket.send_json.call_args_list
         error_sent = any(
-            "error" in str(call) and "security_violation" in str(call) for call in calls
+            "error" in str(call) and "security_violation" in str(call)
+            for call in calls
         )
         assert error_sent
 
@@ -437,7 +417,7 @@ class TestIntegratedSecurity:
             ("COMMAND_EXECUTION", "ls", CommandRisk.LOW, True),
             ("COMMAND_BLOCKED", "rm -rf /", CommandRisk.CRITICAL, False),
             ("SANDBOX_CREATED", "sandbox_123", CommandRisk.LOW, True),
-            ("RATE_LIMIT_EXCEEDED", "status", CommandRisk.MEDIUM, False),
+            ("RATE_LIMIT_EXCEEDED", "status", CommandRisk.MEDIUM, False)
         ]
 
         for event_type, command, risk, allowed in events:
@@ -460,19 +440,15 @@ class TestIntegratedSecurity:
             ("ls", True),
             ("rm -rf /", False),
             ("cat file", True),
-            ("sudo su", False),
+            ("sudo su", False)
         ]
 
         for command, should_succeed in test_commands:
             try:
-                await self.security.validate_command(
-                    command, "test_session", "test_user"
-                )
+                await self.security.validate_command(command, "test_session", "test_user")
                 assert should_succeed, f"Command '{command}' should have been blocked"
             except SecurityViolation:
-                assert (
-                    not should_succeed
-                ), f"Command '{command}' should have been allowed"
+                assert not should_succeed, f"Command '{command}' should have been allowed"
 
         # Verify metrics
         summary = self.security.get_audit_summary()
@@ -504,9 +480,7 @@ class TestSecurityPerformance:
         execution_time = end_time - start_time
 
         # Should process 1000 safe commands in under 1 second
-        assert (
-            execution_time < 1.0
-        ), f"Command validation too slow: {execution_time}s for 1000 commands"
+        assert execution_time < 1.0, f"Command validation too slow: {execution_time}s for 1000 commands"
 
     def test_audit_log_memory_efficiency(self):
         """Test audit log memory usage doesn't grow indefinitely."""
@@ -515,13 +489,8 @@ class TestSecurityPerformance:
         # Generate many audit events
         for i in range(10000):
             self.security._log_security_event(
-                "PERF_TEST",
-                f"command_{i}",
-                "perf_session",
-                "perf_user",
-                CommandRisk.LOW,
-                True,
-                "Performance test event",
+                "PERF_TEST", f"command_{i}", "perf_session", "perf_user",
+                CommandRisk.LOW, True, "Performance test event"
             )
 
         # Should have all events in memory for testing

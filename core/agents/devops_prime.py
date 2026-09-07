@@ -246,19 +246,64 @@ class DevOpsPrimeAgent(BaseAgent):
     async def _call_llm(self, prompt: str, artifacts: List[str]) -> str:
         if llm_service.available():
             try:
-                return await llm_service.complete(prompt, max_tokens=1400)
+                response = await llm_service.complete(prompt, max_tokens=1400)
+                if response and all(
+                    f"=== {artifact} ===" in response for artifact in artifacts
+                ):
+                    return response
             except Exception:  # pragma: no cover
                 pass
-        # Fallback deterministic output for offline execution.
+        # Deterministic, executable output for offline or quota-limited runs.
         sections = []
         for artifact in artifacts:
             sections.append(
                 f"=== {artifact} ===\n"
-                f"# Placeholder for {artifact}\n"
-                "# Generated without external LLM access.\n"
-                "# Replace with task-specific content.\n"
+                f"{self._offline_artifact(artifact)}"
             )
         return "\n\n".join(sections)
+
+    def _offline_artifact(self, artifact: str) -> str:
+        """Return a minimal useful artifact when no provider is available."""
+        if artifact == ".github/workflows/ci.yml":
+            return (
+                "name: CI\n"
+                "on: [push, pull_request]\n"
+                "jobs:\n"
+                "  verify:\n"
+                "    runs-on: ubuntu-latest\n"
+                "    steps:\n"
+                "      - uses: actions/checkout@v4\n"
+                "      - uses: actions/setup-python@v5\n"
+                "        with:\n"
+                "          python-version: '3.11'\n"
+                "      - run: python -m pip install poetry\n"
+                "      - run: poetry install --with dev\n"
+                "      - run: poetry run pytest -q\n"
+            )
+        if artifact.endswith("Dockerfile"):
+            return (
+                "FROM python:3.11-slim\n"
+                "WORKDIR /app\n"
+                "COPY . .\n"
+                "RUN pip install --no-cache-dir .\n"
+                "CMD [\"casper\", \"--help\"]\n"
+            )
+        if artifact.endswith("docker-compose.yml"):
+            return (
+                "services:\n"
+                "  casper:\n"
+                "    build: .\n"
+                "    init: true\n"
+            )
+        if artifact.endswith(".yaml"):
+            return "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: casper\n"
+        if artifact.endswith(".tf"):
+            return "terraform {\n  required_version = \">= 1.8.0\"\n}\n"
+        return (
+            f"# {artifact}\n\n"
+            "Generated deterministically because no configured provider returned "
+            "a valid artifact bundle.\n"
+        )
 
     def _split_output(self, llm_output: str, artifacts: List[str]) -> Dict[str, str]:
         content_map: Dict[str, str] = {artifact: "" for artifact in artifacts}

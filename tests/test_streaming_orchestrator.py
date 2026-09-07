@@ -7,7 +7,7 @@ import asyncio
 import pytest
 import json
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import Mock, patch
 from typing import List, Dict, Any
 
 from core.terminal.streaming.streaming_orchestrator import (
@@ -15,14 +15,9 @@ from core.terminal.streaming.streaming_orchestrator import (
     SyntaxHighlighter,
     BackpressureHandler,
     SyntaxType,
-    StreamingContext,
+    StreamingContext
 )
-from core.terminal.interfaces import (
-    CodingIntent,
-    CodingAction,
-    StreamChunk,
-    WSMessageType,
-)
+from core.terminal.interfaces import CodingIntent, CodingAction, StreamChunk, WSMessageType
 
 
 class MockWebSocket:
@@ -137,10 +132,10 @@ class TestBackpressureHandler:
                 scope="file",
                 original_request="test request",
                 confidence=0.9,
-                context_required=[],
+                context_required=[]
             ),
             session_context={"test": "context"},
-            websocket=self.mock_websocket,
+            websocket=self.mock_websocket
         )
 
     async def test_backpressure_detection(self):
@@ -175,15 +170,13 @@ class TestBackpressureHandler:
                 content=f"chunk_{i}",
                 metadata={},
                 timestamp=datetime.utcnow(),
-                sequence_number=i,
+                sequence_number=i
             )
             for i in range(3)
         ]
 
         self.context.buffer = test_chunks
-        self.context.buffer_size_bytes = sum(
-            len(chunk.content.encode("utf-8")) for chunk in test_chunks
-        )
+        self.context.buffer_size_bytes = sum(len(chunk.content.encode('utf-8')) for chunk in test_chunks)
 
         # Flush buffer
         sent_count = await self.handler.flush_buffer(self.context)
@@ -213,26 +206,23 @@ class TestStreamingOrchestrator:
             scope="file",
             original_request="create a hello world function",
             confidence=0.9,
-            context_required=[],
+            context_required=[]
         )
 
         session_context = {
             "websocket": self.mock_websocket,
-            "session_id": "test-session",
+            "session_id": "test-session"
         }
 
         # Mock the ReAct engine
-        with patch(
-            "core.terminal.streaming.streaming_orchestrator.get_react_engine"
-        ) as mock_engine:
-            mock_engine.return_value.stream_reasoning = AsyncMock(
-                return_value=self._mock_react_stream()
-            )
+        with patch.object(
+            self.orchestrator.react_engine,
+            'stream_reasoning',
+            Mock(return_value=self._mock_react_stream()),
+        ):
 
             chunks = []
-            async for chunk in self.orchestrator.stream_response(
-                intent, session_context
-            ):
+            async for chunk in self.orchestrator.stream_response(intent, session_context):
                 chunks.append(chunk)
 
             # Should receive multiple chunks
@@ -247,10 +237,7 @@ class TestStreamingOrchestrator:
         yield {"type": "thought", "content": "I need to create a hello world function"}
         yield {"type": "action", "content": "write_file", "input": "hello.py"}
         yield {"type": "observation", "content": "File created successfully"}
-        yield {
-            "type": "final_answer",
-            "content": "def hello():\n    print('Hello, World!')",
-        }
+        yield {"type": "final_answer", "content": "def hello():\n    print('Hello, World!')"}
 
     async def test_concurrent_stream_limit(self):
         """Test concurrent stream limit enforcement"""
@@ -260,7 +247,7 @@ class TestStreamingOrchestrator:
             scope="file",
             original_request="test request",
             confidence=0.9,
-            context_required=[],
+            context_required=[]
         )
 
         session_context = {"websocket": MockWebSocket()}
@@ -274,12 +261,11 @@ class TestStreamingOrchestrator:
                 yield {"type": "thought", "content": "thinking..."}
                 await asyncio.sleep(0.1)
 
-        with patch(
-            "core.terminal.streaming.streaming_orchestrator.get_react_engine"
-        ) as mock_engine:
-            mock_engine.return_value.stream_reasoning = AsyncMock(
-                return_value=infinite_stream()
-            )
+        with patch.object(
+            self.orchestrator.react_engine,
+            'stream_reasoning',
+            Mock(return_value=infinite_stream()),
+        ):
 
             # Start max_concurrent_streams
             for i in range(self.orchestrator.max_concurrent_streams):
@@ -290,9 +276,7 @@ class TestStreamingOrchestrator:
 
             # Next stream should raise error
             with pytest.raises(Exception) as exc_info:
-                extra_stream = self.orchestrator.stream_response(
-                    intent, session_context
-                )
+                extra_stream = self.orchestrator.stream_response(intent, session_context)
                 await extra_stream.__anext__()
 
             assert "Maximum concurrent streams exceeded" in str(exc_info.value)
@@ -305,18 +289,17 @@ class TestStreamingOrchestrator:
             scope="file",
             original_request="test request",
             confidence=0.9,
-            context_required=[],
+            context_required=[]
         )
 
         session_context = {"websocket": self.mock_websocket}
 
         # Start a stream
-        with patch(
-            "core.terminal.streaming.streaming_orchestrator.get_react_engine"
-        ) as mock_engine:
-            mock_engine.return_value.stream_reasoning = AsyncMock(
-                return_value=self._mock_react_stream()
-            )
+        with patch.object(
+            self.orchestrator.react_engine,
+            'stream_reasoning',
+            Mock(return_value=self._mock_react_stream()),
+        ):
 
             stream = self.orchestrator.stream_response(intent, session_context)
             first_chunk = await stream.__anext__()
@@ -357,10 +340,10 @@ class TestStreamingOrchestrator:
                 scope="file",
                 original_request="test",
                 confidence=0.9,
-                context_required=[],
+                context_required=[]
             ),
             session_context={},
-            websocket=self.mock_websocket,
+            websocket=self.mock_websocket
         )
 
         self.orchestrator.active_streams["test-stream"] = context
@@ -385,10 +368,10 @@ class TestStreamingOrchestrator:
                 scope="file",
                 original_request="test",
                 confidence=0.9,
-                context_required=[],
+                context_required=[]
             ),
             session_context={},
-            websocket=MockWebSocket(),
+            websocket=MockWebSocket()
         )
 
         # Make it appear old
@@ -396,9 +379,7 @@ class TestStreamingOrchestrator:
         self.orchestrator.active_streams["old-stream"] = old_context
 
         # Cleanup with 0 minute timeout (should cleanup immediately)
-        cleanup_count = await self.orchestrator.cleanup_inactive_streams(
-            timeout_minutes=0
-        )
+        cleanup_count = await self.orchestrator.cleanup_inactive_streams(timeout_minutes=0)
 
         assert cleanup_count == 1
         assert "old-stream" not in self.orchestrator.active_streams
@@ -418,26 +399,19 @@ class TestIntegration:
             scope="file",
             original_request="create a simple calculator class",
             confidence=0.9,
-            context_required=[],
+            context_required=[]
         )
 
         session_context = {
             "websocket": mock_websocket,
-            "session_id": "integration-test",
+            "session_id": "integration-test"
         }
 
         # Mock ReAct engine with realistic response
         def mock_calculator_stream():
             async def _stream():
-                yield {
-                    "type": "thought",
-                    "content": "I'll create a simple calculator class with basic operations",
-                }
-                yield {
-                    "type": "action",
-                    "content": "write_file",
-                    "input": "calculator.py",
-                }
+                yield {"type": "thought", "content": "I'll create a simple calculator class with basic operations"}
+                yield {"type": "action", "content": "write_file", "input": "calculator.py"}
                 yield {"type": "observation", "content": "Creating calculator.py file"}
                 yield {
                     "type": "final_answer",
@@ -457,17 +431,15 @@ class TestIntegration:
     def divide(self, a, b):
         if b == 0:
             raise ValueError("Cannot divide by zero")
-        return a / b""",
+        return a / b"""
                 }
-
             return _stream()
 
-        with patch(
-            "core.terminal.streaming.streaming_orchestrator.get_react_engine"
-        ) as mock_engine:
-            mock_engine.return_value.stream_reasoning = AsyncMock(
-                return_value=mock_calculator_stream()
-            )
+        with patch.object(
+            orchestrator.react_engine,
+            'stream_reasoning',
+            Mock(return_value=mock_calculator_stream()),
+        ):
 
             # Collect all chunks
             chunks = []
@@ -482,9 +454,7 @@ class TestIntegration:
             assert len(chunk_types) > 1
 
             # Should have code chunks with syntax highlighting
-            code_chunks = [
-                chunk for chunk in chunks if chunk.type == WSMessageType.CODE.value
-            ]
+            code_chunks = [chunk for chunk in chunks if chunk.type == WSMessageType.CODE.value]
             assert len(code_chunks) > 0
 
             # Code chunks should have syntax metadata
