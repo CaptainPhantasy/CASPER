@@ -28,11 +28,11 @@ time.sleep(1)
 
 # Start backend
 print("Starting backend API on port 8742...")
-backend_cmd = """
-source venv/bin/activate
-python -m core.server --port 8742
-"""
-subprocess.Popen(backend_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+backend_cmd = [
+    str(Path(__file__).resolve().parent / "venv" / "bin" / "python"),
+    "-m", "core.server", "--port", "8742",
+]
+subprocess.Popen(backend_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 time.sleep(3)
 
 # Start dashboard

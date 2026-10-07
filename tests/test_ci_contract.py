@@ -50,7 +50,8 @@ def test_ci_uses_native_dashboard_runners_and_headless_playwright():
     assert "npm run test:unit" in text
     assert "npm test --" in text
     assert "--project=chromium" in text
-    assert '--grep="should test responsive elements"' in text
+    assert '--grep="should test responsive elements|opens an explorer file and displays its fetched contents"' in text
+    assert "tests/casper-prime.spec.ts tests/file-explorer.spec.ts" in text
     assert 'CI: "true"' in text
     assert "--testPathPattern" not in text
     assert "--coverageThreshold" not in text
