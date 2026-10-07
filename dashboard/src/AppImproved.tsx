@@ -132,7 +132,7 @@ export default function AppImproved() {
 
   const handleFileSelect = (file: any) => {
     setSelectedFilePath(file.path);
-    openFile(file.path);
+    openFile({ path: file.path, name: file.name });
   };
 
   const handleWelcomeAction = (action: string) => {

@@ -4,12 +4,6 @@ Quick test script for CASPER Prime
 """
 
 import asyncio
-import sys
-import os
-
-# Add the project to the path
-sys.path.insert(0, '/Volumes/Storage/Development/CASPER DEV')
-
 from core.agents.master_prime import MasterPrimeAgent
 from pathlib import Path
 from rich.console import Console

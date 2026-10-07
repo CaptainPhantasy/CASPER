@@ -3,7 +3,7 @@ name: CASPER Harness CI
 on:
   workflow_dispatch:
   push:
-    branches: [main, develop, "feature/terminal-*", "codex/**"]
+    branches: [main, preview, develop, "feature/terminal-*", "codex/**"]
     paths:
       - "core/harness/**"
       - "core/pipeline/**"
@@ -20,7 +20,7 @@ on:
       - "pytest.ini"
       - ".github/workflows/terminal-testing.yml"
   pull_request:
-    branches: [main]
+    branches: [main, preview]
     paths:
       - "core/harness/**"
       - "core/pipeline/**"
@@ -209,8 +209,8 @@ jobs:
           npm test -- \
             --project=chromium \
             --reporter=line \
-            --grep="should test responsive elements" \
-            tests/casper-prime.spec.ts
+            --grep="should test responsive elements|opens an explorer file and displays its fetched contents" \
+            tests/casper-prime.spec.ts tests/file-explorer.spec.ts
       - uses: actions/upload-artifact@v6
         if: always()
         with:
