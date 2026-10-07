@@ -9,6 +9,7 @@ import time
 import webbrowser
 import sys
 import os
+from pathlib import Path
 
 print("""
 ╔═══════════════════════════════════════════╗
@@ -17,7 +18,7 @@ print("""
 """)
 
 # Change to project directory
-os.chdir("/Volumes/Storage/Development/CASPER DEV/casper-prime")
+os.chdir(Path(__file__).resolve().parents[1])
 
 # Kill any existing processes
 print("Clearing ports...")
@@ -28,7 +29,6 @@ time.sleep(1)
 # Start backend
 print("Starting backend API on port 8742...")
 backend_cmd = """
-cd "/Volumes/Storage/Development/CASPER DEV/casper-prime"
 source venv/bin/activate
 python -m core.server --port 8742
 """
@@ -38,7 +38,7 @@ time.sleep(3)
 # Start dashboard
 print("Starting dashboard on port 9318...")
 dashboard_cmd = """
-cd "/Volumes/Storage/Development/CASPER DEV/casper-prime/dashboard"
+cd dashboard
 npm run dev -- --port 9318 --host
 """
 subprocess.Popen(dashboard_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
